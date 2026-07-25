@@ -46,7 +46,6 @@
         <el-table-column prop="inventor" label="发明人" width="120" />
         <el-table-column prop="manager" label="负责人" width="100" />
         <el-table-column prop="agent" label="代理人" width="140" />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button v-if="hasPerm('patent:disclosure:edit')" size="small" type="primary" @click="openEdit(row)">编辑</el-button>

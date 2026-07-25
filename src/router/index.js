@@ -74,6 +74,30 @@ const routes = [
         component: () => import('../views/Profile.vue')
       },
       {
+        path: 'sys-role',
+        name: 'Role',
+        component: () => import('../views/system/Role.vue'),
+        meta: { permission: 'system:role:list' }
+      },
+      {
+        path: 'sys-menu',
+        name: 'Menu',
+        component: () => import('../views/system/Menu.vue'),
+        meta: { permission: 'system:menu:list' }
+      },
+      {
+        path: 'sys-role-menu',
+        name: 'RoleMenu',
+        component: () => import('../views/system/RoleMenu.vue'),
+        meta: { permission: 'system:roleMenu:list' }
+      },
+      {
+        path: 'api/mail-template',
+        name: 'MailTemplate',
+        component: () => import('../views/system/MailTemplate.vue'),
+        meta: { permission: 'system:mailTemplate:list' }
+      },
+      {
         path: 'mail',
         name: 'Mail',
         component: () => import('../views/mail/Mail.vue')

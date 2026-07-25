@@ -69,56 +69,70 @@
 </template>
 
 <script setup>
-import { ref, computed, markRaw, onMounted } from 'vue'
+import { ref, computed, markRaw, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { getMenuList } from '../api/menu'
 import {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
   Edit, Warning, Fold, Expand, UserFilled, ArrowDown
 } from '@element-plus/icons-vue'
 
+const iconMap = {
+  Setting, User, Avatar, Document, DocumentChecked,
+  FolderOpened, DocumentAdd, CirclePlus, Link,
+  Edit, Warning
+}
+
 const router = useRouter()
 const route = useRoute()
 const { state, logout, fetchUserInfo } = useUserStore()
 
 const isCollapse = ref(false)
+const fullMenus = ref([])
+const menuLoaded = ref(false)
 
 const userName = computed(() => state.userInfo?.loginName || state.userInfo?.userName || '未登录')
 const permissions = computed(() => state.permissions)
 
-const hasPermission = (perm) => permissions.value.includes(perm)
+const hasPermission = (perm) => {
+  if (!perm) return true
+  return permissions.value.includes(perm)
+}
 
-const fullMenus = [
-  {
-    id: 1, label: '系统管理', icon: markRaw(Setting), perm: null,
-    children: [
-      { id: 11, label: '用户管理', icon: markRaw(User), path: '/system/user', perm: 'system:user:list' },
-      { id: 12, label: '用户角色管理', icon: markRaw(Avatar), path: '/system/user-role', perm: 'system:userRole:list' }
-    ]
-  },
-  {
-    id: 2, label: '专利交底管理', icon: markRaw(Document), perm: null,
-    children: [
-      { id: 21, label: '专利交底', icon: markRaw(DocumentChecked), path: '/patent/disclosure', perm: 'patent:disclosure:list' }
-    ]
-  },
-  {
-    id: 3, label: '专利业务管理', icon: markRaw(FolderOpened), perm: null,
-    children: [
-      { id: 31, label: '新申请', icon: markRaw(DocumentAdd), path: '/patent/new-application', perm: 'patent:newApplication:list' },
-      { id: 32, label: '补漏', icon: markRaw(CirclePlus), path: '/patent/supplementary', perm: 'patent:supplementary:list' },
-      { id: 33, label: 'PCT', icon: markRaw(Link), path: '/patent/pct', perm: 'patent:pct:list' },
-      { id: 34, label: '中间著变', icon: markRaw(Edit), path: '/patent/intermediate-change', perm: 'patent:intermediateChange:list' },
-      { id: 35, label: '复审无效', icon: markRaw(Warning), path: '/patent/reexamination', perm: 'patent:reexamination:list' }
-    ]
-  }
-]
+const resolveIcon = (iconName) => {
+  const component = iconMap[iconName]
+  return component ? markRaw(component) : markRaw(Document)
+}
+
+const buildMenuTree = (list, parentId = 0) => {
+  return list
+    .filter(item => item.parentId === parentId && item.menuType !== 'F' && item.visible === '0')
+    .sort((a, b) => (a.orderNum || 0) - (b.orderNum || 0))
+    .map(item => {
+      const menu = {
+        id: item.menuId,
+        label: item.menuName,
+        icon: resolveIcon(item.icon),
+        path: item.url || '',
+        perm: item.perms || null
+      }
+      if (item.menuType === 'M') {
+        const children = buildMenuTree(list, item.menuId)
+        if (children.length) menu.children = children
+      }
+      return menu
+    })
+    .filter(item => item.menuType !== 'M' || item.children)
+}
 
 const visibleMenus = computed(() => {
-  return fullMenus
+  return fullMenus.value
     .map(menu => {
-      if (!menu.children) return menu
+      if (!menu.children) {
+        return hasPermission(menu.perm) ? menu : null
+      }
       const visibleChildren = menu.children.filter(child => hasPermission(child.perm))
       if (visibleChildren.length === 0) return null
       return { ...menu, children: visibleChildren }
@@ -136,13 +150,27 @@ const handleCommand = async (cmd) => {
     router.push('/login')
   } else if (cmd === 'profile') {
     router.push('/profile')
-  } else if (cmd === 'password') {
-    router.push('/profile?tab=password')
+  }
+}
+
+const fetchMenus = async () => {
+  try {
+    const res = await getMenuList()
+    fullMenus.value = buildMenuTree(res.data || [])
+  } catch {
+    fullMenus.value = []
+  } finally {
+    menuLoaded.value = true
   }
 }
 
 onMounted(() => {
   if (!state.userInfo) fetchUserInfo()
+  fetchMenus()
+})
+
+watch(() => state.menuVersion, () => {
+  fetchMenus()
 })
 </script>
 

@@ -2,11 +2,11 @@
   <div class="page">
     <el-card>
       <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="用户ID">
-          <el-input v-model="query.userId" placeholder="精确搜索" clearable />
-        </el-form-item>
         <el-form-item label="角色ID">
           <el-input v-model="query.roleId" placeholder="精确搜索" clearable />
+        </el-form-item>
+        <el-form-item label="菜单ID">
+          <el-input v-model="query.menuId" placeholder="精确搜索" clearable />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="fetchData">查询</el-button>
@@ -15,16 +15,16 @@
       </el-form>
 
       <div class="toolbar">
-        <el-button v-if="hasPerm('system:userRole:add')" type="primary" @click="openAdd">新增</el-button>
-        <el-button v-if="hasPerm('system:userRole:delete')" type="danger" :disabled="!selected.length" @click="handleBatchDelete">
+        <el-button v-if="hasPerm('system:roleMenu:add')" type="primary" @click="openAdd">新增</el-button>
+        <el-button v-if="hasPerm('system:roleMenu:delete')" type="danger" :disabled="!selected.length" @click="handleBatchDelete">
           批量删除
         </el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="userId" label="用户ID" width="120" />
         <el-table-column prop="roleId" label="角色ID" width="120" />
+        <el-table-column prop="menuId" label="菜单ID" width="120" />
       </el-table>
 
       <el-pagination
@@ -39,13 +39,13 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" title="新增用户角色关联" width="450px" destroy-on-close>
+    <el-dialog v-model="dialog.visible" title="新增角色菜单关联" width="450px" destroy-on-close>
       <el-form ref="formRef" :model="form" label-width="100px">
-        <el-form-item label="用户ID" required>
-          <el-input-number v-model="form.userId" :min="1" style="width:100%" />
-        </el-form-item>
         <el-form-item label="角色ID" required>
           <el-input-number v-model="form.roleId" :min="1" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="菜单ID" required>
+          <el-input-number v-model="form.menuId" :min="1" style="width:100%" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -59,7 +59,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getList, create, remove, batchRemove } from '../../api/userRole'
+import { getList, create, remove, batchRemove } from '../../api/roleMenu'
 import { useUserStore } from '../../stores/user'
 
 const { state } = useUserStore()
@@ -70,10 +70,10 @@ const selected = ref([])
 const loading = ref(false)
 const saving = ref(false)
 
-const query = reactive({ userId: '', roleId: '' })
+const query = reactive({ roleId: '', menuId: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false })
-const form = reactive({ userId: null, roleId: null })
+const form = reactive({ roleId: null, menuId: null })
 
 const fetchData = async () => {
   loading.value = true
@@ -95,8 +95,8 @@ const resetQuery = () => {
 }
 
 const openAdd = () => {
-  form.userId = null
   form.roleId = null
+  form.menuId = null
   dialog.visible = true
 }
 
@@ -123,7 +123,7 @@ const handleDelete = async (id) => {
 const handleBatchDelete = async () => {
   try {
     await ElMessageBox.confirm(`确认删除选中的 ${selected.value.length} 条记录？`, '提示', { type: 'warning' })
-    const res = await batchRemove(selected.value.map(r => r.roleId))
+    const res = await batchRemove(selected.value.map(r => r.menuId))
     if (res.code === 200) { ElMessage.success('批量删除成功'); fetchData() }
   } catch { /* cancelled */ }
 }

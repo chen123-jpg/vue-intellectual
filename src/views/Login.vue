@@ -137,10 +137,10 @@ const refreshCaptcha = async () => {
 const handleLogin = async () => {
   loginLoading.value = true
   try {
-    const res = await login(loginForm.value)
-    if (res.code === 200) {
-      router.push('/home')
-    }
+    await login(loginForm.value)
+    router.push('/home')
+  } catch {
+    // 错误信息已在拦截器中展示
   } finally {
     loginLoading.value = false
     refreshCaptcha()
@@ -150,11 +150,11 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   regLoading.value = true
   try {
-    const res = await registerApi(regForm.value)
-    if (res.code === 200) {
-      ElMessage.success('注册成功，请登录')
-      activeTab.value = 'login'
-    }
+    await registerApi(regForm.value)
+    ElMessage.success('注册成功，请登录')
+    activeTab.value = 'login'
+  } catch {
+    // 错误信息已在拦截器中展示
   } finally {
     regLoading.value = false
     refreshCaptcha()

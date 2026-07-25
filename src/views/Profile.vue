@@ -36,8 +36,8 @@
 
         <el-tab-pane label="邮箱授权码" name="authCode">
           <el-form ref="authFormRef" :model="authForm" :rules="authRules" label-width="100px" style="max-width:460px">
-            <el-form-item label="邮箱地址" prop="email">
-              <el-input v-model="authForm.email" placeholder="请输入SMTP邮箱地址" />
+            <el-form-item label="邮箱" prop="email">
+              <el-input v-model="authForm.email" placeholder="请输入邮箱" />
             </el-form-item>
             <el-form-item label="授权码" prop="authCode">
               <el-input v-model="authForm.authCode" type="password" show-password placeholder="请输入邮箱SMTP授权码" />
@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { saveAuthCode, changePassword } from '../api/acount'
@@ -111,8 +111,21 @@ const handleChangePwd = async () => {
   } finally { pwdLoading.value = false }
 }
 
+const initEmail = () => {
+  authForm.email = state.email || state.userInfo?.email || ''
+}
+
 onMounted(() => {
+  initEmail()
   if (route.query.tab === 'password') activeTab.value = 'password'
+})
+
+watch(activeTab, (val) => {
+  if (val === 'authCode') initEmail()
+})
+
+watch(() => state.userInfo?.email, () => {
+  initEmail()
 })
 
 const handleSaveAuthCode = async () => {
@@ -128,7 +141,8 @@ const handleSaveAuthCode = async () => {
     })
     if (res.code === 200) {
       ElMessage.success('授权码保存成功')
-      authFormRef.value.resetFields()
+      authForm.authCode = ''
+      initEmail()
     }
   } finally { authLoading.value = false }
 }

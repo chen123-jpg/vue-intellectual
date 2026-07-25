@@ -1,8 +1,10 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
+const BASE_URL = 'http://localhost:5050'
+
 const service = axios.create({
-    baseURL: 'http://localhost:5050',
+    baseURL: BASE_URL,
     timeout: 10000
 })
 
@@ -17,7 +19,12 @@ service.interceptors.request.use(config => {
 
 // 响应拦截器统一处理错误码
 service.interceptors.response.use(res => {
-    return res.data
+    const body = res.data
+    if (body && body.code !== 200) {
+        ElMessage.error(body.message || '操作失败')
+        return Promise.reject(new Error(body.message || '操作失败'))
+    }
+    return body
 }, err => {
     const response = err.response
     let msg = '网络异常'
@@ -39,4 +46,5 @@ service.interceptors.response.use(res => {
     return Promise.reject(err)
 })
 
+export { BASE_URL }
 export default service

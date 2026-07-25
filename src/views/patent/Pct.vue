@@ -28,7 +28,7 @@
         <el-table-column prop="applicant" label="申请人" width="140" />
         <el-table-column prop="inventor" label="发明人" width="120" />
         <el-table-column prop="sponsor" label="主办人" width="100" />
-        <el-table-column prop="pctApplicationDate" label="PCT申请日" width="110" />
+        <el-table-column prop="pctApplicationDate" label="PCT申请日" width="110" :formatter="(_,__,v) => formatDate(v)" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button v-if="hasPerm('patent:pct:edit')" size="small" type="primary" @click="openEdit(row)">编辑</el-button>
@@ -73,6 +73,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatDate } from '../../utils/format'
 import api from '../../api/ptable'
 import { useUserStore } from '../../stores/user'
 

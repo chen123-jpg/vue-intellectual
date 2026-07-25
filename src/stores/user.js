@@ -5,7 +5,9 @@ import { ElMessage } from 'element-plus'
 const state = reactive({
   userInfo: null,
   token: localStorage.getItem('token') || '',
-  permissions: JSON.parse(localStorage.getItem('permissions') || '[]')
+  permissions: JSON.parse(localStorage.getItem('permissions') || '[]'),
+  email: localStorage.getItem('email') || '',
+  menuVersion: 0
 })
 
 export function useUserStore() {
@@ -21,20 +23,20 @@ export function useUserStore() {
 
   const login = async (data) => {
     const res = await loginApi(data)
-    if (res.code === 200) {
-      setToken(res.data.token)
-      setPermissions(res.data.permissions)
-      ElMessage.success('登录成功')
+    setToken(res.data.token)
+    setPermissions(res.data.permissions)
+    if (res.data.email) {
+      state.email = res.data.email
+      localStorage.setItem('email', res.data.email)
     }
+    ElMessage.success('登录成功')
     return res
   }
 
   const fetchUserInfo = async () => {
     const res = await getMe()
-    if (res.code === 200) {
-      state.userInfo = res.data
-      setPermissions(res.data.permissions)
-    }
+    state.userInfo = res.data
+    setPermissions(res.data.permissions)
     return res
   }
 
@@ -43,9 +45,15 @@ export function useUserStore() {
     state.token = ''
     state.userInfo = null
     state.permissions = []
+    state.email = ''
     localStorage.removeItem('token')
     localStorage.removeItem('permissions')
+    localStorage.removeItem('email')
     ElMessage.success('已安全退出')
+  }
+
+  const bumpMenuVersion = () => {
+    state.menuVersion++
   }
 
   return {
@@ -54,6 +62,7 @@ export function useUserStore() {
     setToken,
     setPermissions,
     fetchUserInfo,
-    logout
+    logout,
+    bumpMenuVersion
   }
 }
