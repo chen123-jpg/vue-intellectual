@@ -1,42 +1,23 @@
 <template>
-  <div class="user-page">
-    <el-card title="用户管理列表">
-      <div class="toolbar">
-        <el-button type="primary">新增用户</el-button>
-      </div>
-
-      <el-table
-          :data="tableData"
-          border
-          stripe
-          v-loading="loading"
-          style="width:100%;margin-top:16px"
-      >
-        <el-table-column label="用户ID" prop="userId" width="90" align="center" />
-        <el-table-column label="登录账号" prop="loginName" align="center" />
-        <el-table-column label="用户昵称" prop="userName" align="center" />
-        <el-table-column label="邮箱" prop="email" align="center" />
-        <el-table-column label="手机号" prop="phoneNumber" align="center" />
-        <el-table-column label="性别" prop="sex" width="70" align="center">
-          <template #default="scope">
-            {{ scope.row.sex === '0' ? '男' : scope.row.sex === '1' ? '女' : '未知' }}
-          </template>
+  <div class="page">
+    <el-card>
+      <el-table :data="tableData" v-loading="loading" border stripe>
+        <el-table-column prop="userId" label="用户ID" width="80" />
+        <el-table-column prop="loginName" label="登录账号" width="140" />
+        <el-table-column prop="userName" label="用户名称" width="140" />
+        <el-table-column prop="email" label="邮箱" min-width="200" />
+        <el-table-column prop="phoneNumber" label="手机号" width="140" />
+        <el-table-column prop="sex" label="性别" width="70">
+          <template #default="{ row }">{{ row.sex === '0' ? '男' : row.sex === '1' ? '女' : '未知' }}</template>
         </el-table-column>
-        <el-table-column label="账号状态" prop="status" width="90" align="center">
-          <template #default="scope">
-            <el-tag :type="scope.row.status === '0' ? 'success' : 'danger'">
-              {{ scope.row.status === '0' ? '正常' : '停用' }}
+        <el-table-column prop="status" label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.status === '0' ? 'success' : 'danger'" size="small">
+              {{ row.status === '0' ? '正常' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="最后登录IP" prop="loginIp" align="center" />
-        <el-table-column label="创建时间" prop="createTime" align="center" />
-        <el-table-column label="操作" width="160" align="center">
-          <template #default="scope">
-            <el-button size="small" type="primary" text>编辑</el-button>
-            <el-button size="small" type="danger" text>删除</el-button>
-          </template>
-        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="180" />
       </el-table>
     </el-card>
   </div>
@@ -44,40 +25,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-// 使用相对路径，避免@别名报错
-import request from '../../utils/request'
-import { ElMessage } from 'element-plus'
+import { getUserList } from '../../api/user'
 
-const loading = ref(false)
 const tableData = ref([])
+const loading = ref(false)
 
-// 请求用户列表
-const loadUserList = async () => {
+onMounted(async () => {
   loading.value = true
   try {
-    const res = await request.get('/api/acount/list')
-    if (res.code === 200) {
-      tableData.value = res.data
-    }
-  } catch (err) {
-    console.error(err)
-    ElMessage.error('加载用户列表失败')
+    const res = await getUserList()
+    if (res.code === 200) tableData.value = res.data || []
   } finally {
     loading.value = false
   }
-}
-
-onMounted(() => {
-  loadUserList()
 })
 </script>
 
 <style scoped>
-.user-page {
-  padding: 20px;
-}
-.toolbar {
-  display: flex;
-  gap: 10px;
-}
+.page { max-width: 1400px; }
 </style>

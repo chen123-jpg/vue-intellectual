@@ -26,9 +26,9 @@
         <el-form-item label="登录账号">
           <el-input v-model="loginForm.loginName" placeholder="请输入账号"></el-input>
         </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="loginForm.phoneNumber" placeholder="请输入手机号"></el-input>
-        </el-form-item>
+<!--        <el-form-item label="手机号">-->
+<!--          <el-input v-model="loginForm.phoneNumber" placeholder="请输入手机号"></el-input>-->
+<!--        </el-form-item>-->
         <el-form-item label="密码">
           <el-input v-model="loginForm.password" type="password" placeholder="请输入密码"></el-input>
         </el-form-item>
@@ -95,19 +95,20 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import request from '../utils/request'
+import { getCheckCode, register as registerApi } from '../api/acount'
+import { useUserStore } from '../stores/user'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const { login } = useUserStore()
+
 const activeTab = ref('login')
 const loginLoading = ref(false)
 const regLoading = ref(false)
 
-// 验证码
 const captchaImg = ref('')
 const checkCodeKey = ref('')
 
-// 登录表单【严格匹配API入参】
 const loginForm = ref({
   loginName: '',
   phoneNumber: '',
@@ -116,7 +117,6 @@ const loginForm = ref({
   checkCode: ''
 })
 
-// 注册表单【严格匹配API入参】
 const regForm = ref({
   loginName: '',
   email: '',
@@ -126,28 +126,19 @@ const regForm = ref({
   checkCode: ''
 })
 
-// 刷新验证码
 const refreshCaptcha = async () => {
-  const res = await request.get('/api/acount/checkCode', {
-    params: { oldCheckCodeKey: checkCodeKey.value || null }
-  })
+  const res = await getCheckCode(checkCodeKey.value)
   captchaImg.value = res.data.checkCode
   checkCodeKey.value = res.data.checkCodeKey
   loginForm.value.checkCodeKey = checkCodeKey.value
   regForm.value.checkCodeKey = checkCodeKey.value
 }
 
-// 登录
 const handleLogin = async () => {
   loginLoading.value = true
   try {
-    const res = await request.post('/api/acount/login', loginForm.value)
+    const res = await login(loginForm.value)
     if (res.code === 200) {
-      // 存储token
-      localStorage.setItem('token', res.data.token)
-      // ✅【新增】保存权限数组，路由守卫依赖这个判断页面访问权限
-      localStorage.setItem('permissions', JSON.stringify(res.data.permissions))
-      ElMessage.success('登录成功')
       router.push('/home')
     }
   } finally {
@@ -156,11 +147,10 @@ const handleLogin = async () => {
   }
 }
 
-// 注册
 const handleRegister = async () => {
   regLoading.value = true
   try {
-    const res = await request.post('/api/acount/register', regForm.value)
+    const res = await registerApi(regForm.value)
     if (res.code === 200) {
       ElMessage.success('注册成功，请登录')
       activeTab.value = 'login'

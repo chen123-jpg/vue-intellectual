@@ -1,92 +1,51 @@
 <template>
-  <div class="container">
-    <el-card title="知识产权系统 - 用户信息中心" style="width: 800px; margin: 60px auto;">
-      <div v-if="userInfo">
-        <el-descriptions border :column="2">
-          <el-descriptions-item label="用户ID">{{ userInfo.userId }}</el-descriptions-item>
-          <el-descriptions-item label="登录账号">{{ userInfo.loginName }}</el-descriptions-item>
-        </el-descriptions>
-
-        <div class="block">
-          <h4>用户角色(RoleKey)</h4>
-          <el-space wrap>
-            <el-tag v-for="role in userInfo.roles" :key="role" type="primary" effect="light">
-              {{ role }}
-            </el-tag>
-          </el-space>
-        </div>
-
-        <div class="block">
-          <h4>接口权限标识(Permission)</h4>
-          <el-space wrap>
-            <el-tag v-for="perm in userInfo.permissions" :key="perm" type="success" effect="light">
-              {{ perm }}
-            </el-tag>
-          </el-space>
-        </div>
-
-        <div class="btn-group">
-          <el-button @click="refreshInfo">刷新信息</el-button>
-          <el-button type="primary" @click="goUserList">进入用户列表</el-button>
-          <el-button type="danger" @click="handleLogout">退出登录</el-button>
-        </div>
-      </div>
-      <div v-else class="loading-text">加载用户信息中...</div>
-    </el-card>
+  <div class="dashboard">
+    <el-row :gutter="20">
+      <el-col :span="8">
+        <el-card class="info-card">
+          <template #header><span>用户信息</span></template>
+          <div v-if="state.userInfo">
+            <el-descriptions :column="1" border size="small">
+              <el-descriptions-item label="用户ID">{{ state.userInfo.userId }}</el-descriptions-item>
+              <el-descriptions-item label="登录账号">{{ state.userInfo.loginName }}</el-descriptions-item>
+              <el-descriptions-item label="邮箱">{{ state.userInfo.email || '-' }}</el-descriptions-item>
+            </el-descriptions>
+            <div style="margin-top: 16px;">
+              <h4>角色</h4>
+              <el-space wrap>
+                <el-tag v-for="role in state.userInfo.roles" :key="role" type="primary" effect="light">{{ role }}</el-tag>
+              </el-space>
+            </div>
+          </div>
+          <el-skeleton v-else :rows="4" animated />
+        </el-card>
+      </el-col>
+      <el-col :span="16">
+        <el-card>
+          <template #header><span>权限列表</span></template>
+          <div v-if="state.permissions.length">
+            <el-space wrap>
+              <el-tag v-for="perm in state.permissions" :key="perm" type="success" effect="light" size="small">{{ perm }}</el-tag>
+            </el-space>
+          </div>
+          <el-empty v-else description="暂无权限数据" />
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import request from '../utils/request'
-import { ElMessage } from 'element-plus'
+import { onMounted } from 'vue'
+import { useUserStore } from '../stores/user'
 
-const router = useRouter()
-const userInfo = ref(null)
+const { state, fetchUserInfo } = useUserStore()
 
-// 跳转到用户列表页面
-const goUserList = () => {
-  router.push('/system/user')
-}
-
-// 获取当前登录用户信息
-const refreshInfo = async () => {
-  const res = await request.get('/api/acount/me')
-  if (res.code === 200) {
-    userInfo.value = res.data
-    // 同步更新本地权限缓存
-    localStorage.setItem('permissions', JSON.stringify(res.data.permissions))
-  }
-}
-
-// 退出登录
-const handleLogout = async () => {
-  await request.post('/api/acount/logout')
-  localStorage.removeItem('token')
-  localStorage.removeItem('permissions')
-  ElMessage.success('已安全退出')
-  router.push('/login')
-}
-
-onMounted(() => refreshInfo())
+onMounted(() => fetchUserInfo())
 </script>
 
 <style scoped>
-.container {
-  padding: 20px;
-}
-.block {
-  margin-top: 20px;
-}
-.btn-group {
-  margin-top: 30px;
-  display: flex;
-  gap: 12px;
-}
-.loading-text {
-  text-align: center;
-  padding: 30px;
-  color: #999;
-}
+.dashboard { max-width: 1400px; }
+.info-card { margin-bottom: 20px; }
+h4 { margin: 0 0 8px; font-size: 14px; color: #606266; }
 </style>

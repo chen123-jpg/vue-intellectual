@@ -1,61 +1,110 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
-    {
-        path: '/',
-        redirect: '/login'
-    },
-    {
-        path: '/login',
-        name: 'Login',
-        component: () => import('../views/Login.vue')
-    },
-    {
-        path: '/home',
+  {
+    path: '/',
+    redirect: '/login'
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/Login.vue')
+  },
+  {
+    path: '/',
+    component: () => import('../layout/MainLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'home',
         name: 'Home',
-        component: () => import('../views/Home.vue'),
-        meta: { requiresAuth: true }
-    },
-    {
-        path: '/system/user',
+        component: () => import('../views/Home.vue')
+      },
+      {
+        path: 'system/user',
         name: 'UserList',
         component: () => import('../views/system/UserList.vue'),
-        meta: {
-            requiresAuth: true,
-            permission: 'system:user:list'
-        }
-    }
+        meta: { permission: 'system:user:list' }
+      },
+      {
+        path: 'system/user-role',
+        name: 'UserRole',
+        component: () => import('../views/system/UserRole.vue'),
+        meta: { permission: 'system:userRole:list' }
+      },
+      {
+        path: 'patent/disclosure',
+        name: 'Disclosure',
+        component: () => import('../views/patent/Disclosure.vue'),
+        meta: { permission: 'patent:disclosure:list' }
+      },
+      {
+        path: 'patent/new-application',
+        name: 'NewApplication',
+        component: () => import('../views/patent/NewApplication.vue'),
+        meta: { permission: 'patent:newApplication:list' }
+      },
+      {
+        path: 'patent/supplementary',
+        name: 'Supplementary',
+        component: () => import('../views/patent/Supplementary.vue'),
+        meta: { permission: 'patent:supplementary:list' }
+      },
+      {
+        path: 'patent/pct',
+        name: 'Pct',
+        component: () => import('../views/patent/Pct.vue'),
+        meta: { permission: 'patent:pct:list' }
+      },
+      {
+        path: 'patent/intermediate-change',
+        name: 'IntermediateChange',
+        component: () => import('../views/patent/IntermediateChange.vue'),
+        meta: { permission: 'patent:intermediateChange:list' }
+      },
+      {
+        path: 'patent/reexamination',
+        name: 'Reexamination',
+        component: () => import('../views/patent/Reexamination.vue'),
+        meta: { permission: 'patent:reexamination:list' }
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('../views/Profile.vue')
+      },
+      {
+        path: 'mail',
+        name: 'Mail',
+        component: () => import('../views/mail/Mail.vue')
+      }
+    ]
+  }
 ]
 
 const router = createRouter({
-    history: createWebHistory(),
-    routes
+  history: createWebHistory(),
+  routes
 })
 
-// 路由守卫
 router.beforeEach((to, from, next) => {
-    const token = localStorage.getItem('token')
+  const token = localStorage.getItem('token')
 
-    if (to.meta.requiresAuth && !token) {
-        next('/login')
-        return
+  if (to.matched.some(r => r.meta.requiresAuth) && !token) {
+    next('/login')
+    return
+  }
+
+  if (to.meta.permission) {
+    const permStr = localStorage.getItem('permissions')
+    const permissionList = permStr ? JSON.parse(permStr) : []
+    if (!permissionList.includes(to.meta.permission)) {
+      next('/home')
+      return
     }
+  }
 
-    if (to.meta.permission) {
-        const permStr = localStorage.getItem('permissions')
-        let permissionList = []
-        if (permStr) {
-            permissionList = JSON.parse(permStr)
-        }
-        if (!permissionList.includes(to.meta.permission)) {
-            // 删除 window.$message，防止报错！守卫内不要弹窗
-            console.log('权限不足，禁止访问页面：', to.path)
-            next('/home')
-            return
-        }
-    }
-
-    next()
+  next()
 })
 
 export default router
