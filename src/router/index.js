@@ -35,7 +35,7 @@ const routes = [
       {
         path: 'patent/disclosure',
         name: 'Disclosure',
-        component: () => import('../views/patent/Disclosure.vue'),
+        component: () => import('../views/patent/DisclosureWorkflow.vue'),
         meta: { permission: 'patent:disclosure:list' }
       },
       {
@@ -67,6 +67,24 @@ const routes = [
         name: 'Reexamination',
         component: () => import('../views/patent/Reexamination.vue'),
         meta: { permission: 'patent:reexamination:list' }
+      },
+      {
+        path: 'patent/agent',
+        name: 'Agent',
+        component: () => import('../views/patent/Agent.vue'),
+        meta: { permission: 'patent:agent:list' }
+      },
+      {
+        path: 'patent/applicant',
+        name: 'Applicant',
+        component: () => import('../views/patent/Applicant.vue'),
+        meta: { permission: 'patent:applicant:list' }
+      },
+      {
+        path: 'patent/application-package',
+        name: 'ApplicationPackage',
+        component: () => import('../views/patent/ApplicationPackage.vue'),
+        meta: { permission: 'patent:applicationPackage:list' }
       },
       {
         path: 'profile',

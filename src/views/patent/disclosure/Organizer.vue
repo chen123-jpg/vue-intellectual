@@ -1,0 +1,904 @@
+<template>
+  <div class="page">
+    <el-card>
+      <!-- Search Form -->
+      <el-form :inline="true" :model="og.query" class="search-form">
+        <el-form-item label="交底名称">
+          <el-input v-model="og.query.disclosureName" placeholder="模糊搜索" clearable />
+        </el-form-item>
+        <el-form-item label="专利类型">
+          <el-select v-model="og.query.patentType" placeholder="全部" clearable>
+            <el-option label="发明" value="发明" />
+            <el-option label="实用新型" value="实用新型" />
+            <el-option label="外观" value="外观" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="专利状态">
+          <el-select v-model="og.query.patentStatus" placeholder="全部" clearable>
+            <el-option label="草稿" value="草稿" />
+            <el-option label="受理" value="受理" />
+            <el-option label="审核中" value="审核中" />
+            <el-option label="定稿" value="定稿" />
+            <el-option label="定稿待报" value="定稿待报" />
+            <el-option label="驳回" value="驳回" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="内部编号">
+          <el-input v-model="og.query.internalNo" placeholder="精确搜索" clearable />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="ogFetchData">查询</el-button>
+          <el-button @click="ogResetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <span class="view-hint">我的交底处理列表（共 {{ og.page.total }} 条）</span>
+      </div>
+
+      <!-- Table -->
+      <el-table :data="og.tableData" v-loading="og.loading" border stripe>
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="tempNo" label="临时编号" width="120" />
+        <el-table-column prop="internalNo" label="内部编号" width="120" />
+        <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="patentType" label="专利类型" width="100" />
+        <el-table-column label="专利状态" width="130">
+          <template #default="{ row }">
+            <el-tag :type="statusTag(row.patentStatus)" size="small" effect="dark">{{ row.patentStatus || '-' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="applicant" label="申请人" width="130" />
+        <el-table-column prop="inventor" label="发明人" width="120" />
+        <el-table-column prop="agent" label="代理人" width="130" />
+        <el-table-column prop="contactPerson" label="联系人" width="100" />
+        <el-table-column prop="disclosureDate" label="交底日期" width="110">
+          <template #default="{ row }">
+            {{ formatDate(row.disclosureDate) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="同步" width="70">
+          <template #default="{ row }">
+            <el-tag :type="row.syncedToPatent === 1 ? 'success' : 'info'" size="small">
+              {{ row.syncedToPatent === 1 ? '已同步' : '未' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="ogOpenProcess(row)">处理</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- Pagination -->
+      <el-pagination
+        v-model:current-page="og.page.pageNum"
+        v-model:page-size="og.page.pageSize"
+        :total="og.page.total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="ogFetchData"
+        @current-change="ogFetchData"
+        class="pagination"
+      />
+    </el-card>
+
+    <!-- Process Dialog -->
+    <el-dialog
+      v-model="og.dialog.visible"
+      :title="'处理交底：' + og.form.disclosureName"
+      width="950px"
+      destroy-on-close
+      top="3vh"
+    >
+      <el-tabs v-model="og.dialog.activeTab" @tab-change="ogOnTabChange">
+        <!-- Tab 1: 基本信息 -->
+        <el-tab-pane label="基本信息" name="basic">
+          <el-form :model="og.form" label-width="100px">
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="交底名称" required>
+                  <el-input v-model="og.form.disclosureName" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="专利类型">
+                  <el-select v-model="og.form.patentType" style="width: 100%">
+                    <el-option label="发明" value="发明" />
+                    <el-option label="实用新型" value="实用新型" />
+                    <el-option label="外观" value="外观" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="内部编号">
+                  <el-input v-model="og.form.internalNo" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="申请人">
+                  <ApplicantAgentSelect v-model="og.form.applicant" type="applicant" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="发明人">
+                  <el-input v-model="og.form.inventor" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="联系人">
+                  <el-input v-model="og.form.contactPerson" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="代理人">
+                  <ApplicantAgentSelect v-model="og.form.agent" type="agent" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="联系邮箱">
+                  <el-input v-model="og.form.contactEmail" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="交底日期">
+                  <el-date-picker
+                    v-model="og.form.disclosureDate"
+                    type="date"
+                    style="width: 100%"
+                    value-format="YYYY-MM-DD"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="要求">
+                  <el-input v-model="og.form.requirement" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="24">
+                <el-form-item label="备注">
+                  <el-input v-model="og.form.remark" type="textarea" :rows="2" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-form>
+          <div style="text-align: right; margin-top: 10px">
+            <el-button type="primary" @click="ogSaveBasic" :loading="og.saving">保存基本信息</el-button>
+          </div>
+        </el-tab-pane>
+
+        <!-- Tab 2: 状态变更 -->
+        <el-tab-pane label="状态变更" name="status">
+          <el-form label-width="100px">
+            <el-form-item label="当前状态">
+              <el-tag :type="statusTag(og.form.patentStatus)" effect="dark">
+                {{ og.form.patentStatus || '无' }}
+              </el-tag>
+            </el-form-item>
+            <el-form-item label="变更为" required>
+              <el-select v-model="og.statusForm.toStatus" placeholder="选择新状态" style="width: 220px">
+                <el-option label="草稿" value="草稿" />
+                <el-option label="受理" value="受理" />
+                <el-option label="审核中" value="审核中" />
+                <el-option label="定稿" value="定稿" />
+                <el-option label="驳回" value="驳回" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="备注">
+              <el-input
+                v-model="og.statusForm.remark"
+                type="textarea"
+                :rows="3"
+                placeholder="变更原因（可选）"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="ogChangeStatus" :loading="og.statusSaving">
+                确认变更
+              </el-button>
+            </el-form-item>
+          </el-form>
+
+          <el-divider />
+          <h4 style="margin-bottom: 8px">状态变更记录</h4>
+          <el-table :data="og.statusLogs" border stripe size="small">
+            <el-table-column prop="fromStatus" label="原状态" width="120" />
+            <el-table-column prop="toStatus" label="新状态" width="120" />
+            <el-table-column prop="operatorName" label="操作人" width="100" />
+            <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+            <el-table-column label="时间" width="160">
+              <template #default="{ row }">
+                {{ formatDateTime(row.createTime) }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
+        <!-- Tab 3: 申请包 -->
+        <el-tab-pane label="申请包" name="packages">
+          <div
+            v-if="og.form.patentStatus !== '定稿' && og.form.patentStatus !== '定稿待报'"
+            class="empty-hint"
+          >
+            当前状态为"{{ og.form.patentStatus }}"，定稿后才能上传申请包
+          </div>
+          <template v-else>
+            <div class="upload-group">
+              <h4>XML 申请包</h4>
+              <el-upload
+                :show-file-list="false"
+                :http-request="(opt) => ogUploadPkg(opt, 'XML_PACKAGE')"
+                :before-upload="beforePkg"
+                :disabled="og.uploading"
+                action="#"
+              >
+                <el-button
+                  type="primary"
+                  :loading="og.uploading && og.pkgType === 'XML_PACKAGE'"
+                >
+                  上传 XML 包
+                </el-button>
+              </el-upload>
+            </div>
+            <el-divider />
+            <div class="upload-group">
+              <h4>五书申请文件（Word）</h4>
+              <el-upload
+                :show-file-list="false"
+                :http-request="(opt) => ogUploadPkg(opt, 'FIVE_BOOKS_WORD')"
+                :before-upload="beforePkg"
+                :disabled="og.uploading"
+                action="#"
+              >
+                <el-button
+                  :loading="og.uploading && og.pkgType === 'FIVE_BOOKS_WORD'"
+                >
+                  上传五书文件
+                </el-button>
+              </el-upload>
+            </div>
+            <el-divider />
+            <h4 style="margin-bottom: 8px">已上传申请包</h4>
+            <el-table :data="og.packages" border stripe size="small">
+              <el-table-column label="类型" width="130">
+                <template #default="{ row }">
+                  <el-tag
+                    :type="row.packageType === 'XML_PACKAGE' ? 'primary' : 'success'"
+                    size="small"
+                  >
+                    {{ row.packageType === 'XML_PACKAGE' ? 'XML申请包' : '五书文件' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="versionNo" label="版本" width="70" />
+              <el-table-column label="确认状态" width="110">
+                <template #default="{ row }">
+                  <el-tag
+                    :type="row.confirmStatus === 'SUBMITTED' ? 'success' : row.confirmStatus === 'CONFIRMED' ? 'primary' : 'warning'"
+                    size="small"
+                  >
+                    {{ row.confirmStatus === 'UNCONFIRMED' ? '未确认' : row.confirmStatus === 'CONFIRMED' ? '可提交' : '已提交' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="80">
+                <template #default="{ row }">
+                  <el-button size="small" @click="downloadFile(row.fileUrl)">下载</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+        </el-tab-pane>
+
+        <!-- Tab 4: 发送邮件 -->
+        <el-tab-pane label="发送邮件" name="email">
+          <el-form label-width="80px">
+            <el-form-item label="发送模式">
+              <el-radio-group v-model="og.emailMode" @change="ogOnEmailModeChange">
+                <el-radio-button value="normal">普通发送</el-radio-button>
+                <el-radio-button value="template">模板发送</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-form-item v-if="og.emailMode === 'template'" label="选择模板">
+              <el-select
+                v-model="og.emailForm.templateCode"
+                placeholder="选择邮件模板"
+                clearable
+                @change="ogOnEmailTemplateSelect"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="tpl in og.enabledTemplates"
+                  :key="tpl.templateCode"
+                  :label="`${tpl.templateName} (${tpl.templateCode})`"
+                  :value="tpl.templateCode"
+                />
+              </el-select>
+            </el-form-item>
+
+            <template v-if="og.emailMode === 'template' && og.emailTemplateVars.length">
+              <el-form-item v-for="v in og.emailTemplateVars" :key="v" :label="v" required>
+                <el-input v-model="og.emailTemplateData[v]" :placeholder="`输入 ${v} 的值`" />
+              </el-form-item>
+            </template>
+
+            <el-divider />
+            <el-form-item label="收件人" required>
+              <el-input v-model="og.emailForm.to" placeholder="多个邮箱用逗号或分号分隔" />
+            </el-form-item>
+            <el-form-item label="抄送">
+              <el-input v-model="og.emailForm.cc" placeholder="多个邮箱用逗号或分号分隔" />
+            </el-form-item>
+
+            <template v-if="og.emailMode === 'normal'">
+              <el-form-item label="主题" required>
+                <el-input v-model="og.emailForm.subject" />
+              </el-form-item>
+              <el-form-item label="正文" required>
+                <el-input v-model="og.emailForm.text" type="textarea" :rows="6" />
+              </el-form-item>
+            </template>
+
+            <template v-if="og.emailMode === 'template' && og.emailSelectedTemplate">
+              <el-divider content-position="left">模板预览</el-divider>
+              <el-form-item label="主题">
+                <el-input :model-value="og.emailSelectedTemplate.subject" disabled />
+              </el-form-item>
+              <el-form-item label="正文">
+                <div class="content-preview" v-html="og.emailSelectedTemplate.content"></div>
+              </el-form-item>
+            </template>
+
+            <el-divider />
+            <el-form-item label="附件">
+              <el-upload :show-file-list="false" :http-request="ogUploadEmailAtt" action="#">
+                <el-button :loading="og.emailUploading">添加附件</el-button>
+              </el-upload>
+              <div v-if="og.emailAttachments.length" class="attach-items" style="margin-top: 8px">
+                <div
+                  v-for="(a, idx) in og.emailAttachments"
+                  :key="idx"
+                  class="attach-row"
+                >
+                  <span>{{ a.name || a.url }}</span>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    :icon="Delete"
+                    circle
+                    @click="og.emailAttachments.splice(idx, 1)"
+                  />
+                </div>
+              </div>
+            </el-form-item>
+
+            <el-form-item>
+              <el-button
+                type="primary"
+                @click="ogSendEmail"
+                :loading="og.emailSending"
+                size="large"
+                style="width: 120px"
+              >
+                {{ og.emailSending ? '发送中...' : '发送邮件' }}
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
+
+        <!-- Tab 5: 费用 -->
+        <el-tab-pane label="费用" name="fees">
+          <el-table :data="og.fees" border stripe>
+            <el-table-column prop="feeType" label="费用类型" width="120" />
+            <el-table-column prop="feeAmount" label="金额" width="120" />
+            <el-table-column prop="paymentStatus" label="缴费状态" width="100">
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.paymentStatus === 'PAID' ? 'success' : row.paymentStatus === 'VOID' ? 'danger' : 'warning'"
+                  size="small"
+                >
+                  {{ { PENDING: '待缴', PAID: '已缴', PARTIAL: '部分', VOID: '作废' }[row.paymentStatus] || row.paymentStatus }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="payer" label="付款方" width="140" />
+            <el-table-column label="缴费止期" width="110">
+              <template #default="{ row }">
+                {{ formatDate(row.paymentDeadline) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="实缴日期" width="110">
+              <template #default="{ row }">
+                {{ formatDate(row.paymentDate) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
+          </el-table>
+        </el-tab-pane>
+
+        <!-- Tab 6: 开票 -->
+        <el-tab-pane label="开票" name="invoices">
+          <el-table :data="og.invoices" border stripe>
+            <el-table-column prop="invoiceType" label="发票类型" width="100" />
+            <el-table-column prop="invoiceTitle" label="发票抬头" min-width="160" />
+            <el-table-column prop="taxNo" label="税号" width="150" />
+            <el-table-column prop="invoiceAmount" label="开票金额" width="120" />
+            <el-table-column prop="invoiceStatus" label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.invoiceStatus === 'ISSUED' ? 'success' : row.invoiceStatus === 'VOID' ? 'danger' : 'warning'"
+                  size="small"
+                >
+                  {{ { PENDING: '待开', ISSUED: '已开', VOID: '作废' }[row.invoiceStatus] || row.invoiceStatus }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="invoiceNo" label="发票号码" width="140" />
+            <el-table-column label="开票日期" width="110">
+              <template #default="{ row }">
+                {{ formatDate(row.invoiceDate) }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
+
+      <template #footer>
+        <el-button @click="og.dialog.visible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete } from '@element-plus/icons-vue'
+import {
+  search,
+  getById,
+  update,
+  changeStatus,
+  getStatusLogs,
+  getPackages,
+  uploadPackage,
+  getFees,
+  getInvoices,
+  getTemplateList,
+  sendMail,
+  sendMailWithTemplate,
+  uploadFile
+} from '../../../api/disclosureWorkflow'
+import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
+import { downloadFile, formatDate, formatDateTime } from '../../../utils/format'
+import { statusTag, fmtSize, hasPerm, userId, userName } from './shared'
+
+// ========================== State ==========================
+const og = reactive({
+  query: { disclosureName: '', patentType: '', patentStatus: '', internalNo: '' },
+  page: { pageNum: 1, pageSize: 10, total: 0 },
+  tableData: [],
+  loading: false,
+  dialog: { visible: false, activeTab: 'basic' },
+  form: {},
+  saving: false,
+  statusForm: { toStatus: '', remark: '' },
+  statusLogs: [],
+  statusSaving: false,
+  packages: [],
+  uploading: false,
+  pkgType: '',
+  fees: [],
+  invoices: [],
+  emailMode: 'normal',
+  emailForm: { to: '', cc: '', subject: '', text: '', templateCode: '' },
+  emailTemplateVars: [],
+  emailTemplateData: {},
+  emailSelectedTemplate: null,
+  emailAttachments: [],
+  emailSending: false,
+  emailUploading: false,
+  templateList: [],
+  enabledTemplates: computed(() => og.templateList.filter((t) => t.enabled === 1))
+})
+
+// ========================== Data Fetching ==========================
+const ogFetchData = async () => {
+  og.loading = true
+  try {
+    const body = {}
+    if (userId.value) body.sponsorUserId = userId.value
+    if (userName.value) body.sponsor = userName.value
+    Object.keys(og.query).forEach((k) => {
+      if (og.query[k]) body[k] = og.query[k]
+    })
+    const r = await search(
+      { pageNum: og.page.pageNum, pageSize: og.page.pageSize },
+      body
+    )
+    if (r.code === 200) {
+      og.tableData = r.data.records || []
+      og.page.total = r.data.total || 0
+    }
+  } finally {
+    og.loading = false
+  }
+}
+
+const ogResetQuery = () => {
+  Object.keys(og.query).forEach((k) => (og.query[k] = ''))
+  og.page.pageNum = 1
+  ogFetchData()
+}
+
+// ========================== Process Dialog ==========================
+const ogOpenProcess = async (row) => {
+  try {
+    const r = await getById(row.id)
+    if (r.code === 200) {
+      Object.assign(og.form, r.data)
+      og.dialog = { visible: true, activeTab: 'basic' }
+      og.statusForm = { toStatus: '', remark: '' }
+      og.statusLogs = []
+      og.packages = []
+      og.fees = []
+      og.invoices = []
+      og.emailMode = 'normal'
+      og.emailForm = {
+        to: r.data.contactEmail || '',
+        cc: '',
+        subject: `关于专利交底"${r.data.disclosureName}"的通知`,
+        text: '',
+        templateCode: ''
+      }
+      og.emailTemplateVars = []
+      og.emailTemplateData = {}
+      og.emailSelectedTemplate = null
+      og.emailAttachments = []
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+// ========================== Basic Info ==========================
+const ogSaveBasic = async () => {
+  og.saving = true
+  try {
+    const r = await update({ ...og.form })
+    if (r.code === 200) {
+      ElMessage.success('已保存')
+    }
+  } finally {
+    og.saving = false
+  }
+}
+
+// ========================== Status Change ==========================
+const ogChangeStatus = async () => {
+  if (!og.statusForm.toStatus) {
+    ElMessage.warning('请选择新状态')
+    return
+  }
+  og.statusSaving = true
+  try {
+    const r = await changeStatus(og.form.id, {
+      toStatus: og.statusForm.toStatus,
+      remark: og.statusForm.remark,
+      operatorUserId: userId.value,
+      operatorName: userName.value
+    })
+    if (r.code === 200) {
+      ElMessage.success('状态变更成功')
+      og.form.patentStatus = og.statusForm.toStatus
+      og.statusForm.toStatus = ''
+      og.statusForm.remark = ''
+      ogFetchStatusLogs()
+      ogFetchData()
+    }
+  } finally {
+    og.statusSaving = false
+  }
+}
+
+const ogFetchStatusLogs = async () => {
+  try {
+    const r = await getStatusLogs(og.form.id)
+    if (r.code === 200) og.statusLogs = r.data || []
+  } catch {
+    og.statusLogs = []
+  }
+}
+
+// ========================== Packages ==========================
+const ogFetchPackages = async () => {
+  try {
+    const r = await getPackages(og.form.id)
+    if (r.code === 200) og.packages = r.data || []
+  } catch {
+    og.packages = []
+  }
+}
+
+const beforePkg = (file) => {
+  if (file.size > 50 * 1024 * 1024) {
+    ElMessage.warning('文件超过50MB')
+    return false
+  }
+  return true
+}
+
+const ogUploadPkg = async (opt, type) => {
+  const { file, onSuccess, onError } = opt
+  og.pkgType = type
+  og.uploading = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('packageType', type)
+    if (userId.value) fd.append('uploadUserId', userId.value)
+    if (userName.value) fd.append('uploadUserName', userName.value)
+    const r = await uploadPackage(og.form.id, fd)
+    if (r.code === 200) {
+      ElMessage.success('上传成功')
+      ogFetchPackages()
+      onSuccess(r)
+    } else {
+      onError(new Error(r.message))
+    }
+  } catch (e) {
+    onError(e)
+  } finally {
+    og.uploading = false
+    og.pkgType = ''
+  }
+}
+
+// ========================== Fees & Invoices ==========================
+const ogFetchFees = async () => {
+  try {
+    const r = await getFees(og.form.id)
+    if (r.code === 200) og.fees = r.data || []
+  } catch {
+    og.fees = []
+  }
+}
+
+const ogFetchInvoices = async () => {
+  try {
+    const r = await getInvoices(og.form.id)
+    if (r.code === 200) og.invoices = r.data || []
+  } catch {
+    og.invoices = []
+  }
+}
+
+// ========================== Tab Change ==========================
+const ogOnTabChange = (tab) => {
+  if (tab === 'status') ogFetchStatusLogs()
+  else if (tab === 'packages') ogFetchPackages()
+  else if (tab === 'fees') ogFetchFees()
+  else if (tab === 'invoices') ogFetchInvoices()
+  else if (tab === 'email' && !og.templateList.length) ogLoadTemplates()
+}
+
+// ========================== Email ==========================
+const ogLoadTemplates = async () => {
+  try {
+    const r = await getTemplateList()
+    if (r.code === 200) og.templateList = r.data || []
+  } catch {
+    og.templateList = []
+  }
+}
+
+const parseVars = (text) => [
+  ...new Set((text.match(/\$\{(\w+)\}/g) || []).map((m) => m.slice(2, -1)))
+]
+
+const ogOnEmailTemplateSelect = (code) => {
+  Object.keys(og.emailTemplateData).forEach((k) => delete og.emailTemplateData[k])
+  if (!code) {
+    og.emailSelectedTemplate = null
+    og.emailTemplateVars = []
+    return
+  }
+  const tpl = og.templateList.find((t) => t.templateCode === code)
+  if (tpl) {
+    og.emailSelectedTemplate = tpl
+    const vars = [
+      ...new Set([
+        ...parseVars(tpl.subject || ''),
+        ...parseVars(tpl.content || '')
+      ])
+    ]
+    og.emailTemplateVars = vars
+    vars.forEach((v) => {
+      og.emailTemplateData[v] = ''
+    })
+  }
+}
+
+const ogOnEmailModeChange = () => {
+  og.emailForm.subject = ''
+  og.emailForm.text = ''
+  og.emailForm.templateCode = ''
+  Object.keys(og.emailTemplateData).forEach((k) => delete og.emailTemplateData[k])
+  og.emailSelectedTemplate = null
+  og.emailTemplateVars = []
+}
+
+const ogUploadEmailAtt = async (opt) => {
+  const { file, onSuccess, onError } = opt
+  og.emailUploading = true
+  try {
+    const r = await uploadFile(file)
+    if (r.code === 200) {
+      og.emailAttachments.push({ name: file.name, url: r.data })
+      ElMessage.success('上传成功')
+      onSuccess(r)
+    } else {
+      onError(new Error(r.message))
+    }
+  } catch (e) {
+    onError(e)
+  } finally {
+    og.emailUploading = false
+  }
+}
+
+const ogSendEmail = async () => {
+  if (!og.emailForm.to.trim()) {
+    ElMessage.warning('请输入收件人')
+    return
+  }
+  if (og.emailMode === 'normal') {
+    if (!og.emailForm.subject.trim() || !og.emailForm.text.trim()) {
+      ElMessage.warning('主题和正文不能为空')
+      return
+    }
+  } else {
+    if (!og.emailForm.templateCode) {
+      ElMessage.warning('请选择邮件模板')
+      return
+    }
+    const ev = og.emailTemplateVars.find(
+      (v) => !og.emailTemplateData[v]?.trim()
+    )
+    if (ev) {
+      ElMessage.warning(`请填写模板变量：${ev}`)
+      return
+    }
+  }
+  og.emailSending = true
+  try {
+    let r
+    if (og.emailMode === 'normal') {
+      const fd = new FormData()
+      fd.append('to', og.emailForm.to.trim())
+      fd.append('subject', og.emailForm.subject.trim())
+      fd.append('content', og.emailForm.text.trim())
+      if (og.emailForm.cc.trim()) {
+        fd.append('cc', og.emailForm.cc.trim())
+      }
+      r = await sendMail(fd)
+    } else {
+      r = await sendMailWithTemplate({
+        to: og.emailForm.to.trim(),
+        cc: og.emailForm.cc.trim() || undefined,
+        templateCode: og.emailForm.templateCode,
+        templateData: { ...og.emailTemplateData }
+      })
+    }
+    if (r.code === 200) {
+      ElMessage.success('发送成功')
+    }
+  } finally {
+    og.emailSending = false
+  }
+}
+
+// ========================== Init ==========================
+onMounted(() => {
+  ogFetchData()
+})
+</script>
+
+<style scoped>
+.page {
+  max-width: 1600px;
+}
+
+.search-form {
+  margin-bottom: 10px;
+}
+
+.toolbar {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.view-hint {
+  color: #909399;
+  font-size: 13px;
+}
+
+.pagination {
+  margin-top: 16px;
+  justify-content: flex-end;
+  display: flex;
+}
+
+.upload-group {
+  margin-bottom: 4px;
+}
+
+.upload-group h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #303133;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-left: 8px;
+}
+
+.attach-items {
+  margin-top: 8px;
+}
+
+.attach-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.attach-row:last-child {
+  border-bottom: none;
+}
+
+.file-link {
+  color: #409eff;
+  cursor: pointer;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-link:hover {
+  text-decoration: underline;
+}
+
+.file-size {
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
+}
+
+.empty-hint {
+  color: #909399;
+  font-size: 13px;
+  padding: 12px 0;
+}
+
+.content-preview {
+  background: #f5f7fa;
+  padding: 12px;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+</style>

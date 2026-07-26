@@ -78,9 +78,9 @@
           <el-col :span="12"><el-form-item label="内部编号"><el-input v-model="form.internalNo" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="申请号"><el-input v-model="form.applicationNo" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="专利名称" required><el-input v-model="form.patentName" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="申请人"><el-input v-model="form.applicant" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="申请人"><ApplicantAgentSelect v-model="form.applicant" type="applicant" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="主办人"><el-input v-model="form.sponsor" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="代理人"><el-input v-model="form.agent" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="代理人"><ApplicantAgentSelect v-model="form.agent" type="agent" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="发文日"><el-date-picker v-model="form.issueDate" type="date" style="width:100%" value-format="YYYY-MM-DD" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="提交日期"><el-date-picker v-model="form.submitDate" type="date" style="width:100%" value-format="YYYY-MM-DD" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="规费"><el-input v-model="form.officialFee" /></el-form-item></el-col>
@@ -113,6 +113,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import api from '../../api/ptable'
+import ApplicantAgentSelect from '../../components/ApplicantAgentSelect.vue'
 import { uploadFile } from '../../api/mail'
 import { parseFileName, downloadFile, formatDate } from '../../utils/format'
 import { useUserStore } from '../../stores/user'

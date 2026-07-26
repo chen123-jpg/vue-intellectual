@@ -1487,11 +1487,11 @@ POST /api/ttable/{id}/packages
 
 ---
 
-## 十二、代理人接口 `/api/agent`
+## 十二、代理人/申请人接口 `/api/agent`
 
-> 对应数据表：`agent`
+> 对应数据表：`agent`、`applicant`
 
-### 12.1 分页列表
+### 12.1 代理人分页列表
 
 ```
 GET /api/agent/list
@@ -1518,7 +1518,7 @@ GET /api/agent/list
 | createTime | datetime | 创建时间 |
 | updateTime | datetime | 更新时间 |
 
-### 12.2 全部列表（不分页）
+### 12.2 代理人全部列表（不分页）
 
 ```
 GET /api/agent/all
@@ -1526,7 +1526,7 @@ GET /api/agent/all
 
 > 需权限：`patent:agent:list`
 
-### 12.3 详情
+### 12.3 代理人详情
 
 ```
 GET /api/agent/{id}
@@ -1534,7 +1534,7 @@ GET /api/agent/{id}
 
 > 需权限：`patent:agent:query`
 
-### 12.4 新增
+### 12.4 代理人新增
 
 ```
 POST /api/agent
@@ -1544,7 +1544,7 @@ POST /api/agent
 
 **请求体** (JSON) — `Agent` 对象（`name` 必填）
 
-### 12.5 修改
+### 12.5 代理人修改
 
 ```
 PUT /api/agent
@@ -1554,7 +1554,7 @@ PUT /api/agent
 
 **请求体** (JSON) — `Agent` 对象，`id` 必填
 
-### 12.6 删除
+### 12.6 代理人删除
 
 ```
 DELETE /api/agent/{id}
@@ -1562,13 +1562,96 @@ DELETE /api/agent/{id}
 
 > 需权限：`patent:agent:delete`
 
-### 12.7 批量删除
+### 12.7 代理人批量删除
 
 ```
 DELETE /api/agent/batch
 ```
 
 > 需权限：`patent:agent:delete`
+
+**请求体** (JSON) — `[1, 2, 3]`
+
+---
+
+### 12.8 申请人分页列表
+
+```
+GET /api/agent/applicant/list
+```
+
+> 需权限：`patent:applicant:list`
+
+**请求参数** (Query)
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| pageNum | int | 否 | 1 | 页码 |
+| pageSize | int | 否 | 10 | 每页条数 |
+| name | string | 否 | — | 申请人姓名（模糊匹配） |
+
+**响应** — 分页格式 `{ records, total, pageNum, pageSize }`，`records` 为 `Applicant[]`
+
+**Applicant 实体字段**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | long | 主键 |
+| name | string | 申请人姓名 |
+| createTime | datetime | 创建时间 |
+| updateTime | datetime | 更新时间 |
+
+### 12.9 申请人全部列表（不分页）
+
+```
+GET /api/agent/applicant/all
+```
+
+> 需权限：`patent:applicant:list`
+
+### 12.10 申请人详情
+
+```
+GET /api/agent/applicant/{id}
+```
+
+> 需权限：`patent:applicant:query`
+
+### 12.11 申请人新增
+
+```
+POST /api/agent/applicant
+```
+
+> 需权限：`patent:applicant:add`
+
+**请求体** (JSON) — `Applicant` 对象（`name` 必填）
+
+### 12.12 申请人修改
+
+```
+PUT /api/agent/applicant
+```
+
+> 需权限：`patent:applicant:edit`
+
+**请求体** (JSON) — `Applicant` 对象，`id` 必填
+
+### 12.13 申请人删除
+
+```
+DELETE /api/agent/applicant/{id}
+```
+
+> 需权限：`patent:applicant:delete`
+
+### 12.14 申请人批量删除
+
+```
+DELETE /api/agent/applicant/batch
+```
+
+> 需权限：`patent:applicant:delete`
 
 **请求体** (JSON) — `[1, 2, 3]`
 
@@ -1746,9 +1829,10 @@ patent:intermediateChange:list|query|add|edit|delete   — 中间著变
 patent:reexamination:list|query|add|edit|delete        — 复审无效
 ```
 
-### 代理人
+### 代理人/申请人
 ```
-patent:agent:list|query|add|edit|delete  — 代理人管理
+patent:agent:list|query|add|edit|delete      — 代理人管理
+patent:applicant:list|query|add|edit|delete  — 申请人管理
 ```
 
 ### 申请包

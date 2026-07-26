@@ -1,7 +1,9 @@
 import request from '../utils/request'
 
 export function sendMail(data) {
-  return request.post('/api/mail/sendMaill', data)
+  return request.post('/api/mail/sendMaill', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 }
 
 export function sendMailWithTemplate(data) {
@@ -17,5 +19,5 @@ export function uploadFile(file) {
 }
 
 export function getTemplateList() {
-  return request.get('/api/mail-template')
+  return request.get('/api/mail-template/all')
 }

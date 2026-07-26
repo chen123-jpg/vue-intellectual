@@ -53,7 +53,7 @@
           <el-col :span="12"><el-form-item label="业务类型"><el-input v-model="form.businessType" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="申请号"><el-input v-model="form.applicationNo" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="专利名称" required><el-input v-model="form.patentName" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="申请人"><el-input v-model="form.applicant" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="申请人"><ApplicantAgentSelect v-model="form.applicant" type="applicant" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="发明人"><el-input v-model="form.inventor" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="状态"><el-input v-model="form.status" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="费用金额"><el-input v-model="form.feeAmount" /></el-form-item></el-col>
@@ -72,6 +72,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../../api/ptable'
+import ApplicantAgentSelect from '../../components/ApplicantAgentSelect.vue'
 import { useUserStore } from '../../stores/user'
 
 const moduleApi = api['intermediate-change']

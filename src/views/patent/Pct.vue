@@ -52,10 +52,10 @@
           <el-col :span="12"><el-form-item label="申请名称" required><el-input v-model="form.applicationName" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="申请号"><el-input v-model="form.applicationNo" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="状态"><el-input v-model="form.status" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="申请人"><el-input v-model="form.applicant" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="申请人"><ApplicantAgentSelect v-model="form.applicant" type="applicant" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="发明人"><el-input v-model="form.inventor" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="主办人"><el-input v-model="form.sponsor" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="代理人"><el-input v-model="form.agent" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="代理人"><ApplicantAgentSelect v-model="form.agent" type="agent" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="在先内部编号"><el-input v-model="form.priorInternalNo" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="在先申请号"><el-input v-model="form.priorApplicationNo" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="PCT申请日"><el-date-picker v-model="form.pctApplicationDate" type="date" style="width:100%" value-format="YYYY-MM-DD" /></el-form-item></el-col>
@@ -75,6 +75,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDate } from '../../utils/format'
 import api from '../../api/ptable'
+import ApplicantAgentSelect from '../../components/ApplicantAgentSelect.vue'
 import { useUserStore } from '../../stores/user'
 
 const moduleApi = api['pct']
