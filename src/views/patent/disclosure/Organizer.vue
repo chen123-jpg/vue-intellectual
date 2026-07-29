@@ -2,35 +2,14 @@
   <div class="page">
     <el-card>
       <!-- Search Form -->
-      <el-form :inline="true" :model="og.query" class="search-form">
-        <el-form-item label="交底名称">
-          <el-input v-model="og.query.disclosureName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="专利类型">
-          <el-select v-model="og.query.patentType" placeholder="全部" clearable>
-            <el-option label="发明" value="发明" />
-            <el-option label="实用新型" value="实用新型" />
-            <el-option label="外观" value="外观" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="专利状态">
-          <el-select v-model="og.query.patentStatus" placeholder="全部" clearable>
-            <el-option label="草稿" value="草稿" />
-            <el-option label="受理" value="受理" />
-            <el-option label="审核中" value="审核中" />
-            <el-option label="定稿" value="定稿" />
-            <el-option label="定稿待报" value="定稿待报" />
-            <el-option label="驳回" value="驳回" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="内部编号">
-          <el-input v-model="og.query.internalNo" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="ogFetchData">查询</el-button>
-          <el-button @click="ogResetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <SearchBar
+        v-model="og.query"
+        :fields="og.searchFields"
+        :loading="og.loading"
+        :collapsed-threshold="4"
+        @search="ogFetchData"
+        @reset="ogResetQuery"
+      />
 
       <!-- Toolbar -->
       <div class="toolbar">
@@ -39,11 +18,9 @@
 
       <!-- Table -->
       <el-table :data="og.tableData" v-loading="og.loading" border stripe>
-        <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="tempNo" label="临时编号" width="120" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="patentType" label="专利类型" width="100" />
         <el-table-column label="专利状态" width="130">
           <template #default="{ row }">
             <el-tag :type="statusTag(row.patentStatus)" size="small" effect="dark">{{ row.patentStatus || '-' }}</el-tag>
@@ -474,12 +451,20 @@ import {
   uploadFile
 } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
+import SearchBar from '../../../components/SearchBar.vue'
 import { downloadFile, formatDate, formatDateTime } from '../../../utils/format'
 import { statusTag, fmtSize, hasPerm, userId, userName } from './shared'
 
 // ========================== State ==========================
 const og = reactive({
-  query: { disclosureName: '', patentType: '', patentStatus: '', internalNo: '' },
+  searchFields: [
+    { key: 'disclosureName', label: '名称', type: 'input', matchType: 'fuzzy', width: 200 },
+    { key: 'internalNo', label: '内部编号', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 }
+  ],
+  query: { disclosureName: '', internalNo: '', applicant: '', inventor: '', sponsor: '' },
   page: { pageNum: 1, pageSize: 10, total: 0 },
   tableData: [],
   loading: false,
@@ -513,15 +498,18 @@ const ogFetchData = async () => {
     const body = {}
     if (userId.value) body.sponsorUserId = userId.value
     if (userName.value) body.sponsor = userName.value
+    const keyword = og.query.internalNo
     Object.keys(og.query).forEach((k) => {
-      if (og.query[k]) body[k] = og.query[k]
+      if (og.query[k] && k !== 'internalNo') body[k] = og.query[k]
     })
     const r = await search(
       { pageNum: og.page.pageNum, pageSize: og.page.pageSize },
       body
     )
     if (r.code === 200) {
-      og.tableData = r.data.records || []
+      let records = r.data.records || []
+      if (keyword) records = records.filter(r => r.internalNo && r.internalNo.includes(keyword))
+      og.tableData = records
       og.page.total = r.data.total || 0
     }
   } finally {

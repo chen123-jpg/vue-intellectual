@@ -1,24 +1,14 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="角色名称">
-          <el-input v-model="query.roleName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="权限字符">
-          <el-input v-model="query.roleKey" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="全部" clearable>
-            <el-option label="正常" value="0" />
-            <el-option label="停用" value="1" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="fetchData">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <SearchBar
+        v-model="query"
+        :fields="searchFields"
+        :loading="loading"
+        :collapsed-threshold="4"
+        @search="fetchData"
+        @reset="resetQuery"
+      />
 
       <div class="toolbar">
         <el-button v-if="hasPerm('system:role:add')" type="primary" @click="openAdd">新增</el-button>
@@ -108,19 +98,30 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/role'
 import { useUserStore } from '../../stores/user'
+import { useSearch } from '../../composables/useSearch'
+import SearchBar from '../../components/SearchBar.vue'
 
 const { state } = useUserStore()
 const hasPerm = (perm) => state.permissions.includes(perm)
 
 const dataScopeMap = { '1': '全部', '2': '自定义', '3': '本部门', '4': '本部门及以下' }
 
+const searchFields = [
+  { key: 'roleName', label: '角色名称', type: 'input', matchType: 'fuzzy', width: 200 },
+  { key: 'roleKey', label: '权限字符', type: 'input', matchType: 'fuzzy', width: 200 },
+  { key: 'status', label: '状态', type: 'select', options: [
+    { label: '正常', value: '0' },
+    { label: '停用', value: '1' }
+  ], width: 140 }
+]
+
+const { query, page, loading } = useSearch({
+  defaultQuery: { roleName: '', roleKey: '', status: '' }
+})
+
 const tableData = ref([])
 const selected = ref([])
-const loading = ref(false)
 const saving = ref(false)
-
-const query = reactive({ roleName: '', roleKey: '', status: '' })
-const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
 const form = reactive({
   roleId: null, roleName: '', roleKey: '', roleSort: 0,
@@ -130,20 +131,19 @@ const form = reactive({
 const fetchData = async () => {
   loading.value = true
   try {
-    const params = { pageNum: page.pageNum, pageSize: page.pageSize, ...query }
-    Object.keys(params).forEach(k => { if (!params[k] && params[k] !== 0) delete params[k] })
+    const params = { pageNum: page.pageNum, pageSize: page.pageSize }
+    Object.keys(query).forEach(k => {
+      const v = query[k]
+      if (v === 0 || (v !== '' && v !== null && v !== undefined)) {
+        params[k] = typeof v === 'string' ? v.trim() : v
+      }
+    })
     const res = await getList(params)
     if (res.code === 200) {
       tableData.value = res.data.records || []
       page.total = res.data.total || 0
     }
   } finally { loading.value = false }
-}
-
-const resetQuery = () => {
-  Object.keys(query).forEach(k => query[k] = '')
-  page.pageNum = 1
-  fetchData()
 }
 
 const openAdd = () => {
@@ -189,6 +189,11 @@ const handleBatchDelete = async () => {
     const res = await batchRemove(selected.value.map(r => r.roleId))
     if (res.code === 200) { ElMessage.success('批量删除成功'); fetchData() }
   } catch { /* cancelled */ }
+}
+
+const resetQuery = () => {
+  page.pageNum = 1
+  fetchData()
 }
 
 const onSelectionChange = (sel) => { selected.value = sel }

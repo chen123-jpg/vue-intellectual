@@ -1,31 +1,22 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="po.query" class="search-form">
-        <el-form-item label="交底名称">
-          <el-input v-model="po.query.disclosureName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="内部编号">
-          <el-input v-model="po.query.internalNo" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item label="申请人">
-          <el-input v-model="po.query.applicant" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="poFetchData">查询</el-button>
-          <el-button @click="poResetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <SearchBar
+        v-model="po.query"
+        :fields="po.searchFields"
+        :loading="po.loading"
+        :collapsed-threshold="4"
+        @search="poFetchData"
+        @reset="poResetQuery"
+      />
 
       <div class="toolbar">
         <span class="view-hint">待审核交底列表（状态：定稿 / 定稿待报，共 {{ po.page.total }} 条）</span>
       </div>
 
       <el-table :data="po.tableData" v-loading="po.loading" border stripe>
-        <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="patentType" label="专利类型" width="100" />
         <el-table-column label="专利状态" width="130">
           <template #default="{ row }">
             <el-tag :type="statusTag(row.patentStatus)" size="small" effect="dark">{{ row.patentStatus || '-' }}</el-tag>
@@ -143,11 +134,19 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, changeStatus, getPackages, confirmPackage } from '../../../api/disclosureWorkflow'
+import SearchBar from '../../../components/SearchBar.vue'
 import { downloadFile, formatDateTime } from '../../../utils/format'
 import { statusTag, hasPerm, userId, userName } from './shared'
 
 const po = reactive({
-  query: { disclosureName: '', internalNo: '', applicant: '' },
+  searchFields: [
+    { key: 'disclosureName', label: '名称', type: 'input', matchType: 'fuzzy', width: 200 },
+    { key: 'internalNo', label: '内部编号', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 }
+  ],
+  query: { disclosureName: '', internalNo: '', applicant: '', inventor: '', sponsor: '' },
   page: { pageNum: 1, pageSize: 10, total: 0 },
   tableData: [],
   loading: false,
@@ -161,12 +160,16 @@ const poFetchData = async () => {
   po.loading = true
   try {
     const params = { pageNum: po.page.pageNum, pageSize: po.page.pageSize, patentStatus: '定稿' }
-    if (po.query.disclosureName) params.disclosureName = po.query.disclosureName
-    if (po.query.internalNo) params.internalNo = po.query.internalNo
-    if (po.query.applicant) params.applicant = po.query.applicant
+    const keyword = po.query.internalNo
+    Object.keys(po.query).forEach(k => {
+      const v = po.query[k]
+      if (v !== '' && v !== null && v !== undefined && k !== 'internalNo') params[k] = v
+    })
     const res = await getList(params)
     if (res.code === 200) {
-      po.tableData = res.data.records || []
+      let records = res.data.records || []
+      if (keyword) records = records.filter(r => r.internalNo && r.internalNo.includes(keyword))
+      po.tableData = records
       po.page.total = res.data.total || 0
     }
   } finally {

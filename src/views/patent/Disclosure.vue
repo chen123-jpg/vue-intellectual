@@ -5,21 +5,17 @@
         <el-form-item label="交底名称">
           <el-input v-model="query.disclosureName" placeholder="模糊搜索" clearable />
         </el-form-item>
-        <el-form-item label="专利类型">
-          <el-select v-model="query.patentType" placeholder="全部" clearable>
-            <el-option label="发明" value="发明" />
-            <el-option label="实用新型" value="实用新型" />
-            <el-option label="外观" value="外观" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="专利状态">
-          <el-input v-model="query.patentStatus" placeholder="精确搜索" clearable />
-        </el-form-item>
         <el-form-item label="内部编号">
           <el-input v-model="query.internalNo" placeholder="精确搜索" clearable />
         </el-form-item>
         <el-form-item label="申请人">
           <el-input v-model="query.applicant" placeholder="模糊搜索" clearable />
+        </el-form-item>
+        <el-form-item label="主办人">
+          <el-input v-model="query.sponsor" placeholder="模糊搜索" clearable />
+        </el-form-item>
+        <el-form-item label="发明人">
+          <el-input v-model="query.inventor" placeholder="模糊搜索" clearable />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="fetchData">查询</el-button>
@@ -36,16 +32,14 @@
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="tempNo" label="临时编号" width="120" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
-        <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="patentType" label="专利类型" width="100" />
+        <el-table-column prop="disclosureName" label="交底名称" min-width="100" show-overflow-tooltip />
         <el-table-column prop="patentStatus" label="专利状态" width="100" />
-        <el-table-column prop="applicant" label="申请人" width="140" />
-        <el-table-column prop="inventor" label="发明人" width="120" />
-        <el-table-column prop="manager" label="负责人" width="100" />
-        <el-table-column prop="agent" label="代理人" width="140" />
+        <el-table-column prop="applicant" label="申请人" width="100" />
+        <el-table-column prop="inventor" label="发明人" width="100" />
+        <el-table-column prop="sponsor" label="主办人" width="100" />
+        <el-table-column prop="agent" label="代理人" width="100" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button v-if="hasPerm('patent:disclosure:edit')" size="small" type="primary" @click="openEdit(row)">编辑</el-button>
@@ -91,7 +85,7 @@
             <el-form-item label="联系人"><el-input v-model="form.contactPerson" /></el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="主办人"><el-input v-model="form.manager" /></el-form-item>
+            <el-form-item label="主办人"><el-input v-model="form.sponsor" /></el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="代理人"><ApplicantAgentSelect v-model="form.agent" type="agent" /></el-form-item>
@@ -130,12 +124,20 @@ const selected = ref([])
 const loading = ref(false)
 const saving = ref(false)
 
-const query = reactive({ disclosureName: '', patentType: '', patentStatus: '', internalNo: '', applicant: '' })
+const query = reactive({
+  disclosureName: '',
+  patentType: '',
+  patentStatus: '',
+  internalNo: '',
+  applicant: '',
+  sponsor: '',
+  inventor: ''   // 新增发明人搜索字段
+})
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
 const form = reactive({
   id: null, internalNo: '', patentStatus: '', disclosureName: '', patentType: '',
-  applicant: '', inventor: '', contactPerson: '', manager: '', agent: '',
+  applicant: '', inventor: '', contactPerson: '', sponsor: '', agent: '',
   disclosureDate: '', requirement: '', remark: ''
 })
 
@@ -146,6 +148,7 @@ const fetchData = async () => {
     Object.keys(params).forEach(k => { if (!params[k]) delete params[k] })
     const res = await getList(params)
     if (res.code === 200) {
+      console.log('fetchData sample record:', res.data.records && res.data.records[0])
       tableData.value = res.data.records || []
       page.total = res.data.total || 0
     }
@@ -210,7 +213,8 @@ onMounted(() => fetchData())
 
 <style scoped>
 .page { max-width: 1600px; }
-.search-form { margin-bottom: 10px; }
+.search-form { margin-bottom: 8px; }
 .toolbar { margin-bottom: 12px; display: flex; gap: 10px; }
 .pagination { margin-top: 16px; justify-content: flex-end; }
-</style>
+</style>                               isplay: flex; gap: 10px; }
+.pagination { margin-top: 16px; justify-content: fle
