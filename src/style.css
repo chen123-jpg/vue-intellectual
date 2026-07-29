@@ -14,3 +14,12 @@ body {
   width: 100%;
   height: 100vh;
 }
+
+/* 搜索框较窄样式（用于页面顶部的搜索表单） */
+.search-input {
+  width: 180px !important;
+}
+
+.search-input.short {
+  width: 140px !important;
+}

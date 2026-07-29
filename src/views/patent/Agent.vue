@@ -1,15 +1,13 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="代理人姓名">
-          <el-input v-model="query.name" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="fetchData">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <SearchBar
+        v-model="query"
+        :fields="searchFields"
+        :loading="loading"
+        @search="fetchData"
+        @reset="resetQuery"
+      />
 
       <div class="toolbar">
         <el-button v-if="hasPerm('patent:agent:add')" type="primary" @click="openAdd">新增</el-button>
@@ -62,26 +60,35 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/externalPersonnelController.js'
 import { useUserStore } from '../../stores/user'
+import { useSearch } from '../../composables/useSearch'
+import SearchBar from '../../components/SearchBar.vue'
 import { formatDate } from '../../utils/format'
 
 const { state } = useUserStore()
 const hasPerm = (perm) => state.permissions.includes(perm)
 
+const searchFields = [
+  { key: 'name', label: '代理人姓名', type: 'input', matchType: 'fuzzy', width: 240 }
+]
+
+const { query, page, loading } = useSearch({
+  defaultQuery: { name: '' }
+})
+
 const tableData = ref([])
 const selected = ref([])
-const loading = ref(false)
 const saving = ref(false)
-
-const query = reactive({ name: '' })
-const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
 const form = reactive({ id: null, name: '' })
 
 const fetchData = async () => {
   loading.value = true
   try {
-    const params = { pageNum: page.pageNum, pageSize: page.pageSize, ...query }
-    Object.keys(params).forEach(k => { if (!params[k]) delete params[k] })
+    const params = { pageNum: page.pageNum, pageSize: page.pageSize }
+    Object.keys(query).forEach(k => {
+      const v = query[k]
+      if (v !== '' && v !== null && v !== undefined) params[k] = v
+    })
     const res = await getList(params)
     if (res.code === 200) {
       tableData.value = res.data.records || []
@@ -91,7 +98,6 @@ const fetchData = async () => {
 }
 
 const resetQuery = () => {
-  Object.keys(query).forEach(k => query[k] = '')
   page.pageNum = 1
   fetchData()
 }

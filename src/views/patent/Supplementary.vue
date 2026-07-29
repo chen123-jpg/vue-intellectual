@@ -18,8 +18,6 @@
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="seqNo" label="序号" width="70" />
         <el-table-column prop="applicationNo" label="申请号" width="150" />
         <el-table-column prop="patentName" label="发明创造名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="applicant" label="申请人" width="140" />

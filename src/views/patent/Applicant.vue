@@ -20,7 +20,6 @@
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="申请人姓名" min-width="200" />
         <el-table-column prop="createTime" label="创建时间" width="160" :formatter="(_,__,v) => formatDate(v)" />
         <el-table-column label="操作" width="180" fixed="right">

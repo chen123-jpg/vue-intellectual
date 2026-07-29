@@ -2,31 +2,14 @@
   <div class="page">
     <el-card>
       <!-- Search Form -->
-      <el-form :inline="true" :model="ec.query" class="search-form">
-        <el-form-item label="交底名称">
-          <el-input v-model="ec.query.disclosureName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="专利类型">
-          <el-select v-model="ec.query.patentType" placeholder="全部" clearable>
-            <el-option label="发明" value="发明" />
-            <el-option label="实用新型" value="实用新型" />
-            <el-option label="外观" value="外观" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="专利状态">
-          <el-input v-model="ec.query.patentStatus" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item label="内部编号">
-          <el-input v-model="ec.query.internalNo" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item label="申请人">
-          <el-input v-model="ec.query.applicant" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="ecFetchData">查询</el-button>
-          <el-button @click="ecResetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <SearchBar
+        v-model="ec.query"
+        :fields="ec.searchFields"
+        :loading="ec.loading"
+        :collapsed-threshold="4"
+        @search="ecFetchData"
+        @reset="ecResetQuery"
+      />
 
       <!-- Toolbar -->
       <div class="toolbar">
@@ -38,7 +21,6 @@
       <!-- Table -->
       <el-table :data="ec.tableData" v-loading="ec.loading" border stripe @selection-change="(s) => ec.selected = s">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="tempNo" label="临时编号" width="120" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column label="交底书" min-width="180">
@@ -265,13 +247,21 @@ import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
 import DisclosureAttachmentLinks from '../../../components/DisclosureAttachmentLinks.vue'
 import FilePreviewDialog from '../../../components/FilePreviewDialog.vue'
+import SearchBar from '../../../components/SearchBar.vue'
 import { getUserList } from '../../../api/user'
 import { formatDate } from '../../../utils/format'
 import { statusTag, emptyForm, hasPerm, mergeDisclosureAttachments } from './shared'
 
 // ========================== Reactive State ==========================
 const ec = reactive({
-  query: { disclosureName: '', patentType: '', patentStatus: '', internalNo: '', applicant: '' },
+  searchFields: [
+    { key: 'disclosureName', label: '名称', type: 'input', matchType: 'fuzzy', width: 200 },
+    { key: 'internalNo', label: '内部编号', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 }
+  ],
+  query: { disclosureName: '', internalNo: '', applicant: '', inventor: '', sponsor: '' },
   page: { pageNum: 1, pageSize: 10, total: 0 },
   tableData: [],
   selected: [],
@@ -298,13 +288,13 @@ const ecFetchData = async () => {
   ec.loading = true
   try {
     const params = { pageNum: ec.page.pageNum, pageSize: ec.page.pageSize }
-    Object.keys(ec.query).forEach(k => { if (ec.query[k]) params[k] = ec.query[k] })
+    const keyword = ec.query.internalNo
+    Object.keys(ec.query).forEach(k => { if (ec.query[k] && k !== 'internalNo') params[k] = ec.query[k] })
     const res = await getList(params)
     if (res.code === 200) {
-      ec.tableData = mergeDisclosureAttachments(
-        res.data.records,
-        res.data.attachmentsByDisclosureId
-      )
+      let records = res.data.records || []
+      if (keyword) records = records.filter(r => r.internalNo && r.internalNo.includes(keyword))
+      ec.tableData = records
       ec.page.total = res.data.total || 0
     }
   } finally {

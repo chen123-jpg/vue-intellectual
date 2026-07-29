@@ -24,7 +24,19 @@
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="roleId" label="角色ID" width="120" />
+        <el-table-column label="角色名称" width="150">
+          <template #default="{ row }">{{ row.roleName || roleNameMap[row.roleId] }}</template>
+        </el-table-column>
         <el-table-column prop="menuId" label="菜单ID" width="120" />
+        <el-table-column label="菜单名称" width="150">
+          <template #default="{ row }">{{ row.menuName || menuNameMap[row.menuId] }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="hasPerm('system:roleMenu:add')" size="small" type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="hasPerm('system:roleMenu:delete')" size="small" type="danger" @click="handleDelete(row.menuId)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <el-pagination
@@ -39,13 +51,17 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" title="新增角色菜单关联" width="450px" destroy-on-close>
+    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑角色菜单关联' : '新增角色菜单关联'" width="450px" destroy-on-close>
       <el-form ref="formRef" :model="form" label-width="100px">
-        <el-form-item label="角色ID" required>
-          <el-input-number v-model="form.roleId" :min="1" style="width:100%" />
+        <el-form-item label="角色" required>
+          <el-select v-model="form.roleId" placeholder="请选择角色" filterable style="width:100%">
+            <el-option v-for="r in roleOptions" :key="r.roleId" :label="r.roleName" :value="r.roleId" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="菜单ID" required>
-          <el-input-number v-model="form.menuId" :min="1" style="width:100%" />
+        <el-form-item label="菜单" required>
+          <el-select v-model="form.menuId" placeholder="请选择菜单" filterable style="width:100%">
+            <el-option v-for="m in menuOptions" :key="m.menuId" :label="m.menuName" :value="m.menuId" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -57,9 +73,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, create, remove, batchRemove } from '../../api/roleMenu'
+import { getAll as getRoleAll } from '../../api/role'
+import { getAll as getMenuAll } from '../../api/menu'
 import { useUserStore } from '../../stores/user'
 
 const { state } = useUserStore()
@@ -69,11 +87,25 @@ const tableData = ref([])
 const selected = ref([])
 const loading = ref(false)
 const saving = ref(false)
+const roleOptions = ref([])
+const menuOptions = ref([])
 
 const query = reactive({ roleId: '', menuId: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
-const dialog = reactive({ visible: false })
+const dialog = reactive({ visible: false, isEdit: false })
 const form = reactive({ roleId: null, menuId: null })
+const editOriginMenuId = ref(null)
+
+const roleNameMap = computed(() => {
+  const map = {}
+  roleOptions.value.forEach(r => { map[r.roleId] = r.roleName })
+  return map
+})
+const menuNameMap = computed(() => {
+  const map = {}
+  menuOptions.value.forEach(m => { map[m.menuId] = m.menuName })
+  return map
+})
 
 const fetchData = async () => {
   loading.value = true
@@ -88,6 +120,19 @@ const fetchData = async () => {
   } finally { loading.value = false }
 }
 
+const fetchOptions = async () => {
+  const [roleRes, menuRes] = await Promise.all([
+    getRoleAll(),
+    getMenuAll()
+  ])
+  if (roleRes.code === 200) {
+    roleOptions.value = roleRes.data || []
+  }
+  if (menuRes.code === 200) {
+    menuOptions.value = menuRes.data || []
+  }
+}
+
 const resetQuery = () => {
   Object.keys(query).forEach(k => query[k] = '')
   page.pageNum = 1
@@ -97,15 +142,28 @@ const resetQuery = () => {
 const openAdd = () => {
   form.roleId = null
   form.menuId = null
+  editOriginMenuId.value = null
+  dialog.isEdit = false
+  dialog.visible = true
+}
+
+const openEdit = (row) => {
+  form.roleId = row.roleId
+  form.menuId = row.menuId
+  editOriginMenuId.value = row.menuId
+  dialog.isEdit = true
   dialog.visible = true
 }
 
 const handleSave = async () => {
   saving.value = true
   try {
-    const res = await create({ ...form })
+    if (dialog.isEdit) {
+      await remove(editOriginMenuId.value)
+    }
+    const res = await create({ roleId: form.roleId, menuId: form.menuId })
     if (res.code === 200) {
-      ElMessage.success('新增成功')
+      ElMessage.success(dialog.isEdit ? '编辑成功' : '新增成功')
       dialog.visible = false
       fetchData()
     }
@@ -130,7 +188,7 @@ const handleBatchDelete = async () => {
 
 const onSelectionChange = (sel) => { selected.value = sel }
 
-onMounted(() => fetchData())
+onMounted(() => { fetchData(); fetchOptions() })
 </script>
 
 <style scoped>
