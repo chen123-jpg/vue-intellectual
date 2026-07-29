@@ -118,11 +118,10 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="主办人" required>
-                  <el-select v-if="ec.userList.length" v-model="ec.form.sponsorUserId" filterable placeholder="搜索选择主办人" style="width:100%"
-                    @change="ecOnSponsorChange">
+                  <el-select v-model="ec.form.sponsorUserId" filterable placeholder="搜索选择主办人" style="width:100%"
+                    :loading="ec.sponsorLoading" no-data-text="暂无启用的主办人" @change="ecOnSponsorChange">
                     <el-option v-for="u in ec.userList" :key="u.userId" :label="`${u.userName || u.loginName} (ID:${u.userId})`" :value="u.userId" />
                   </el-select>
-                  <el-input v-else v-model="ec.form.sponsor" placeholder="主办人姓名" @input="ec.form.sponsorUserId = null" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -242,13 +241,12 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getList, getById, createWithAttachments, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
+import { getList, getById, getSponsorOptions, createWithAttachments, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
 import DisclosureAttachmentLinks from '../../../components/DisclosureAttachmentLinks.vue'
 import FilePreviewDialog from '../../../components/FilePreviewDialog.vue'
 import SearchBar from '../../../components/SearchBar.vue'
-import { getUserList } from '../../../api/user'
 import { formatDate } from '../../../utils/format'
 import { statusTag, emptyForm, hasPerm, mergeDisclosureAttachments } from './shared'
 
@@ -278,7 +276,8 @@ const ec = reactive({
   copyPage: { pageNum: 1, pageSize: 10, total: 0 },
   copyList: [],
   copyLoading: false,
-  userList: []
+  userList: [],
+  sponsorLoading: false
 })
 
 const ecFormRef = ref(null)
@@ -315,13 +314,17 @@ const ecResetQuery = () => {
 
 // ========================== User Loading ==========================
 const ecLoadUsers = async () => {
+  ec.sponsorLoading = true
   try {
-    const r = await getUserList({ pageSize: 999 })
+    const r = await getSponsorOptions()
     if (r.code === 200 && r.data) {
-      ec.userList = Array.isArray(r.data) ? r.data : (r.data.records || [])
+      ec.userList = Array.isArray(r.data) ? r.data : []
     }
   } catch {
     ec.userList = []
+    ElMessage.error('主办人列表加载失败，请稍后重试')
+  } finally {
+    ec.sponsorLoading = false
   }
 }
 
@@ -368,6 +371,10 @@ const ecSave = async () => {
   }
   if (!ec.form.patentType) {
     ElMessage.warning('请选择专利类型')
+    return
+  }
+  if (!ec.form.sponsorUserId) {
+    ElMessage.warning('请选择主办人')
     return
   }
   if (!ec.dialog.isEdit && !ec.pendingDocument) {
@@ -478,6 +485,7 @@ const ecDoCopy = async (row) => {
 // ========================== Mount ==========================
 onMounted(() => {
   ecFetchData()
+  ecLoadUsers()
 })
 </script>
 

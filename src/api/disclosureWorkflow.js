@@ -19,6 +19,10 @@ export function getDetail(id) {
   return request.get(`${BASE}/${id}/detail`)
 }
 
+export function getSponsorOptions() {
+  return request.get(`${BASE}/sponsor-options`)
+}
+
 export function create(data, disclosureDocument, otherAttachments = [], sourceId = null) {
   const formData = new FormData()
   formData.append('request', new Blob([JSON.stringify(data)], { type: 'application/json' }))

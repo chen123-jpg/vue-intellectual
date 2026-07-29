@@ -4,7 +4,10 @@ import { useUserStore } from '../../../stores/user'
 const { state } = useUserStore()
 
 export const roles = computed(() => state.userInfo?.roles || [])
-export const isEntryClerk = computed(() => roles.value.includes('businessEntryClerk') && !roles.value.includes('admin'))
+export const isEntryClerk = computed(() =>
+  (roles.value.includes('businessEntryClerk') || roles.value.includes('projectInitiator'))
+  && !roles.value.includes('admin')
+)
 export const isOrganizer = computed(() => roles.value.includes('organizer') && !roles.value.includes('admin'))
 export const isProcessOp = computed(() => roles.value.includes('processOperator') && !roles.value.includes('admin'))
 export const isAdmin = computed(() => roles.value.includes('admin'))

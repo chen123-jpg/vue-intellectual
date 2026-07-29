@@ -150,8 +150,23 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="主办人">
-              <el-input v-model="ad.form.sponsor" />
+            <el-form-item label="主办人" required>
+              <el-select
+                v-model="ad.form.sponsorUserId"
+                filterable
+                :loading="ad.sponsorLoading"
+                placeholder="搜索选择主办人"
+                no-data-text="暂无启用的主办人"
+                style="width:100%"
+                @change="adOnSponsorChange"
+              >
+                <el-option
+                  v-for="u in ad.sponsorOptions"
+                  :key="u.userId"
+                  :label="`${u.userName || u.loginName} (ID:${u.userId})`"
+                  :value="u.userId"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -211,7 +226,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getList, getById, create, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
+import { getList, getById, getSponsorOptions, create, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import SearchBar from '../../../components/SearchBar.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
@@ -244,8 +259,28 @@ const ad = reactive({
   form: emptyForm(),
   disclosureDocument: null,
   otherAttachments: [],
-  saving: false
+  saving: false,
+  sponsorOptions: [],
+  sponsorLoading: false
 })
+
+const adLoadSponsors = async () => {
+  ad.sponsorLoading = true
+  try {
+    const res = await getSponsorOptions()
+    ad.sponsorOptions = res.code === 200 && Array.isArray(res.data) ? res.data : []
+  } catch {
+    ad.sponsorOptions = []
+    ElMessage.error('主办人列表加载失败，请稍后重试')
+  } finally {
+    ad.sponsorLoading = false
+  }
+}
+
+const adOnSponsorChange = (userId) => {
+  const sponsor = ad.sponsorOptions.find(item => item.userId === userId)
+  ad.form.sponsor = sponsor ? (sponsor.userName || sponsor.loginName) : ''
+}
 
 const adFetchData = async () => {
   ad.loading = true
@@ -279,6 +314,7 @@ const adOpenAdd = () => {
   ad.otherAttachments = []
   ad.dialog.isEdit = false
   ad.dialog.visible = true
+  if (!ad.sponsorOptions.length) adLoadSponsors()
 }
 
 const adOpenPreview = (attachment) => {
@@ -295,6 +331,7 @@ const adOpenEdit = async (row) => {
       ad.otherAttachments = []
       ad.dialog.isEdit = true
       ad.dialog.visible = true
+      if (!ad.sponsorOptions.length) adLoadSponsors()
     }
   } catch {
     /* handled */
@@ -308,6 +345,10 @@ const adSave = async () => {
   }
   if (!ad.form.patentType) {
     ElMessage.warning('请选择专利类型')
+    return
+  }
+  if (!ad.form.sponsorUserId) {
+    ElMessage.warning('请选择主办人')
     return
   }
   if (!ad.dialog.isEdit && !ad.disclosureDocument) {
@@ -355,7 +396,10 @@ const adBatchDelete = async () => {
   }
 }
 
-onMounted(() => adFetchData())
+onMounted(() => {
+  adFetchData()
+  adLoadSponsors()
+})
 </script>
 
 <style scoped>
