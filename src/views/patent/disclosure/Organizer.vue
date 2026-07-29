@@ -227,9 +227,20 @@
             </el-form-item>
 
             <template v-if="og.emailMode === 'template' && og.emailTemplateVars.length">
-              <el-form-item v-for="v in og.emailTemplateVars" :key="v" :label="v" required>
-                <el-input v-model="og.emailTemplateData[v]" :placeholder="`输入 ${v} 的值`" />
-              </el-form-item>
+              <template v-for="v in og.emailTemplateVars" :key="v">
+                <el-form-item v-if="ogIsImageVar(v)" :label="v">
+                  <template v-if="og.emailTemplateData[v]">
+                    <div class="var-image-filled">
+                      <img :src="og.emailTemplateData[v]" class="var-image-thumb" />
+                      <el-button size="small" type="danger" text @click="og.emailTemplateData[v]=''">清除</el-button>
+                    </div>
+                  </template>
+                  <span v-else class="var-image-waiting">上传图片后自动填入</span>
+                </el-form-item>
+                <el-form-item v-else :label="v" required>
+                  <el-input v-model="og.emailTemplateData[v]" :placeholder="`输入 ${v} 的值`" />
+                </el-form-item>
+              </template>
             </template>
 
             <el-divider />
@@ -256,6 +267,27 @@
               </el-form-item>
               <el-form-item label="正文">
                 <div class="content-preview" v-html="og.emailSelectedTemplate.content"></div>
+              </el-form-item>
+            </template>
+
+            <template v-if="og.emailMode === 'template' && og.emailTemplateVars.some(v => ogIsImageVar(v))">
+              <el-form-item label="插入图片">
+                <div class="image-upload-area">
+                  <el-upload :show-file-list="false" :before-upload="ogBeforeImageUpload" :http-request="ogUploadImage" accept="image/*" action="#">
+                    <el-button :loading="og.emailImageUploading" size="small">选择图片</el-button>
+                  </el-upload>
+                  <span class="upload-tip">上传后在模板正文中以 cid 或 URL 引用</span>
+                </div>
+                <div v-if="og.emailImageUrls.length" class="image-preview-list">
+                  <div v-for="(url, idx) in og.emailImageUrls" :key="idx" class="image-preview-item">
+                    <img :src="url" class="image-thumb" @click="ogCopyImageUrl(url)" title="点击复制 URL" />
+                    <span class="image-url-text">{{ ogGetImageName(url) }}</span>
+                    <div class="image-url-actions">
+                      <el-button size="small" text @click="ogCopyImageUrl(url)">复制URL</el-button>
+                      <el-button size="small" type="danger" text @click="og.emailImageUrls.splice(idx, 1)">删除</el-button>
+                    </div>
+                  </div>
+                </div>
               </el-form-item>
             </template>
 
@@ -413,8 +445,10 @@ const og = reactive({
   emailTemplateData: {},
   emailSelectedTemplate: null,
   emailAttachments: [],
+  emailImageUrls: [],
   emailSending: false,
   emailUploading: false,
+  emailImageUploading: false,
   templateList: [],
   enabledTemplates: computed(() => og.templateList.filter((t) => t.enabled === 1))
 })
@@ -475,6 +509,7 @@ const ogOpenProcess = async (row) => {
       og.emailTemplateData = {}
       og.emailSelectedTemplate = null
       og.emailAttachments = []
+      og.emailImageUrls = []
     }
   } catch {
     /* ignore */
@@ -620,6 +655,49 @@ const ogUploadEmailAtt = async (opt) => {
   }
 }
 
+const ogBeforeImageUpload = (file) => {
+  if (!file.type.startsWith('image/')) { ElMessage.warning('仅支持图片文件'); return false }
+  if (file.size > 5 * 1024 * 1024) { ElMessage.warning('图片大小不能超过 5MB'); return false }
+  return true
+}
+
+const ogUploadImage = async (opt) => {
+  const { file, onSuccess, onError } = opt
+  og.emailImageUploading = true
+  try {
+    const r = await uploadFile(file)
+    if (r.code === 200) {
+      og.emailImageUrls.push(r.data)
+      ElMessage.success('图片上传成功')
+      const imageVar = og.emailTemplateVars.find(v => ogIsImageVar(v))
+      if (imageVar) {
+        og.emailTemplateData[imageVar] = r.data
+      }
+      onSuccess(r)
+    } else {
+      onError(new Error(r.message || '上传失败'))
+    }
+  } catch (e) {
+    onError(e)
+  } finally { og.emailImageUploading = false }
+}
+
+const ogIsImageVar = (name) => /image|logo|pic|img|photo|banner|icon|avatar|qr/i.test(name)
+
+const ogGetImageName = (url) => {
+  const m = (url || '').match(/[?&]name=([^&]+)/)
+  return m ? decodeURIComponent(m[1]) : (url || '').split('/').pop() || 'image'
+}
+
+const ogCopyImageUrl = async (url) => {
+  try {
+    await navigator.clipboard.writeText(url)
+    ElMessage.success('URL 已复制到剪贴板')
+  } catch {
+    ElMessage.warning('复制失败，请手动选择 URL')
+  }
+}
+
 const ogSendEmail = async () => {
   if (!og.emailForm.to.trim()) {
     ElMessage.warning('请输入收件人')
@@ -645,7 +723,7 @@ const ogSendEmail = async () => {
   }
   og.emailSending = true
   try {
-    const attachmentUrls = og.emailAttachments.map(a => a.url)
+    const attachmentUrls = [...og.emailAttachments.map(a => a.url), ...og.emailImageUrls]
     let r
     if (og.emailMode === 'normal') {
       r = await sendMail({
@@ -773,4 +851,14 @@ onMounted(() => {
   overflow-y: auto;
   font-size: 13px;
 }
+.image-upload-area { display: flex; align-items: center; gap: 12px; }
+.image-preview-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.image-preview-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 1px solid #e4e7ed; border-radius: 4px; background: #fafafa; }
+.image-thumb { width: 100px; height: 80px; object-fit: cover; border-radius: 2px; cursor: pointer; transition: opacity 0.2s; }
+.image-thumb:hover { opacity: 0.8; }
+.image-url-text { font-size: 12px; color: #606266; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.image-url-actions { display: flex; gap: 4px; }
+.var-image-filled { display: flex; align-items: center; gap: 10px; }
+.var-image-thumb { width: 60px; height: 60px; object-fit: cover; border: 1px solid #e4e7ed; border-radius: 4px; }
+.var-image-waiting { color: #909399; font-size: 13px; }
 </style>

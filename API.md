@@ -1046,7 +1046,7 @@ POST /api/mail/sendMaill
 | text | string | 是 | — | 邮件正文 |
 | cc | string | 否 | — | 抄送邮箱 |
 | bcc | string | 否 | — | 密送邮箱 |
-| attachmentUrls | string[] | 否 | — | 附件URL列表（通过上传接口返回的路径），发送成功后会记录到 `mail_send_attachment` 表 |
+| attachmentUrls | string[] | 否 | — | 附件URL列表（通过上传接口返回的路径），含图片时自动以内联方式嵌入邮件正文，发送成功后会记录到 `mail_send_attachment` 表 |
 | disclosureAttachmentIds | long[] | 否 | — | 关联的交底附件ID列表，与attachmentUrls按索引一一对应，非必填 |
 
 **请求参数** (FormData)
@@ -1109,7 +1109,7 @@ POST /api/mail/sendMailWithTemplate
 | text | string | 否 | 正文（模板优先时可为空） |
 | templateCode | string | 否 | 模板编码，选用模板时传入 |
 | templateData | map | 否 | 模板变量，用于 Thymeleaf 渲染 |
-| attachmentUrls | string[] | 否 | 附件 URL 列表，来自上传接口返回的路径，发送成功后会记录到 `mail_send_attachment` 表 |
+| attachmentUrls | string[] | 否 | 附件 URL 列表，来自上传接口返回的路径，含图片时自动以内联方式嵌入邮件正文，发送成功后会记录到 `mail_send_attachment` 表 |
 | disclosureAttachmentIds | long[] | 否 | 关联的交底附件ID列表，与attachmentUrls按索引一一对应，用于标记附件来源，非必填 |
 
 ---

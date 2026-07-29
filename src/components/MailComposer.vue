@@ -28,9 +28,20 @@
         <!-- 模板变量 -->
         <template v-if="sendMode === 'template' && templateVariables.length">
           <el-divider content-position="left">模板变量</el-divider>
-          <el-form-item v-for="v in templateVariables" :key="v" :label="v" required>
-            <el-input v-model="templateData[v]" :placeholder="`输入 ${v} 的值`" />
-          </el-form-item>
+          <template v-for="v in templateVariables" :key="v">
+            <el-form-item v-if="isImageVar(v)" :label="v">
+              <template v-if="templateData[v]">
+                <div class="var-image-filled">
+                  <img :src="templateData[v]" class="var-image-thumb" />
+                  <el-button size="small" type="danger" text @click="templateData[v]=''">清除</el-button>
+                </div>
+              </template>
+              <span v-else class="var-image-waiting">上传图片后自动填入</span>
+            </el-form-item>
+            <el-form-item v-else :label="v" required>
+              <el-input v-model="templateData[v]" :placeholder="`输入 ${v} 的值`" />
+            </el-form-item>
+          </template>
         </template>
 
         <!-- 模板预览 -->
@@ -81,6 +92,34 @@
           </el-form-item>
           <el-form-item label="正文" required>
             <el-input v-model="sendForm.text" type="textarea" :rows="6" placeholder="邮件正文，支持 HTML" />
+          </el-form-item>
+        </template>
+
+        <!-- 模板模式：图片上传（仅模板含图片变量时显示） -->
+        <template v-if="sendMode === 'template' && templateVariables.some(v => isImageVar(v))">
+          <el-form-item label="插入图片">
+            <div class="image-upload-area">
+              <el-upload
+                :show-file-list="false"
+                :before-upload="beforeImageUpload"
+                :http-request="uploadImage"
+                accept="image/*"
+                action="#"
+              >
+                <el-button :loading="uploadingImage" size="small">选择图片</el-button>
+              </el-upload>
+              <span class="upload-tip">上传后在模板正文中以 cid 或 URL 引用</span>
+            </div>
+            <div v-if="imageUrls.length" class="image-preview-list">
+              <div v-for="(url, idx) in imageUrls" :key="idx" class="image-preview-item">
+                <img :src="url" class="image-thumb" @click="copyImageUrl(url)" title="点击复制 URL" />
+                <span class="image-url-text">{{ getFileName(url) }}</span>
+                <div class="image-url-actions">
+                  <el-button size="small" text @click="copyImageUrl(url)">复制URL</el-button>
+                  <el-button size="small" type="danger" text @click="removeImage(idx)">删除</el-button>
+                </div>
+              </div>
+            </div>
           </el-form-item>
         </template>
 
@@ -123,9 +162,20 @@
         <!-- 模板变量 -->
         <template v-if="sendMode === 'template' && templateVariables.length">
           <el-divider content-position="left">模板变量</el-divider>
-          <el-form-item v-for="v in templateVariables" :key="v" :label="v" required>
-            <el-input v-model="templateData[v]" :placeholder="`输入 ${v} 的值`" />
-          </el-form-item>
+          <template v-for="v in templateVariables" :key="v">
+            <el-form-item v-if="isImageVar(v)" :label="v">
+              <template v-if="templateData[v]">
+                <div class="var-image-filled">
+                  <img :src="templateData[v]" class="var-image-thumb" />
+                  <el-button size="small" type="danger" text @click="templateData[v]=''">清除</el-button>
+                </div>
+              </template>
+              <span v-else class="var-image-waiting">上传图片后自动填入</span>
+            </el-form-item>
+            <el-form-item v-else :label="v" required>
+              <el-input v-model="templateData[v]" :placeholder="`输入 ${v} 的值`" />
+            </el-form-item>
+          </template>
         </template>
 
         <!-- 模板预览 -->
@@ -179,6 +229,34 @@
           </el-form-item>
         </template>
 
+        <!-- 模板模式：图片上传（仅模板含图片变量时显示） -->
+        <template v-if="sendMode === 'template' && templateVariables.some(v => isImageVar(v))">
+          <el-form-item label="插入图片">
+            <div class="image-upload-area">
+              <el-upload
+                :show-file-list="false"
+                :before-upload="beforeImageUpload"
+                :http-request="uploadImage"
+                accept="image/*"
+                action="#"
+              >
+                <el-button :loading="uploadingImage" size="small">选择图片</el-button>
+              </el-upload>
+              <span class="upload-tip">上传后在模板正文中以 cid 或 URL 引用</span>
+            </div>
+            <div v-if="imageUrls.length" class="image-preview-list">
+              <div v-for="(url, idx) in imageUrls" :key="idx" class="image-preview-item">
+                <img :src="url" class="image-thumb" @click="copyImageUrl(url)" title="点击复制 URL" />
+                <span class="image-url-text">{{ getFileName(url) }}</span>
+                <div class="image-url-actions">
+                  <el-button size="small" text @click="copyImageUrl(url)">复制URL</el-button>
+                  <el-button size="small" type="danger" text @click="removeImage(idx)">删除</el-button>
+                </div>
+              </div>
+            </div>
+          </el-form-item>
+        </template>
+
         <!-- 附件 -->
         <el-form-item label="附件">
           <FileUpload ref="fileUploadRef" v-model="attachmentUrls" tip="支持上传多个文件" />
@@ -198,7 +276,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { sendMail, sendMailWithTemplate, getTemplateList } from '../api/mail'
+import { sendMail, sendMailWithTemplate, getTemplateList, uploadFile } from '../api/mail'
 import { ArrowRight } from '@element-plus/icons-vue'
 import FileUpload from './FileUpload.vue'
 
@@ -230,6 +308,8 @@ const visible = computed({
 const sendMode = ref('normal')
 const sending = ref(false)
 const attachmentUrls = ref([])
+const imageUrls = ref([])
+const uploadingImage = ref(false)
 const fileUploadRef = ref(null)
 const templateList = ref([])
 const templateLoading = ref(false)
@@ -312,11 +392,12 @@ const handleSend = async () => {
 
   sending.value = true
   try {
+    const allAttachmentUrls = [...attachmentUrls.value, ...imageUrls.value]
     const body = {
       to: sendForm.to.trim(),
       cc: sendForm.cc.trim() || undefined,
       bcc: sendForm.bcc.trim() || undefined,
-      attachmentUrls: attachmentUrls.value
+      attachmentUrls: allAttachmentUrls
     }
     if (props.disclosureId) body.disclosureId = props.disclosureId
     if (props.disclosureAttachmentIds.length) body.disclosureAttachmentIds = props.disclosureAttachmentIds
@@ -366,6 +447,7 @@ const resetForm = () => {
   sendForm.templateCode = ''
   showCcBcc.value = false
   attachmentUrls.value = []
+  imageUrls.value = []
   Object.keys(templateData).forEach(k => delete templateData[k])
   selectedTemplate.value = null
   templateVariables.value = []
@@ -378,6 +460,55 @@ const loadTemplates = async () => {
     const res = await getTemplateList()
     if (res.code === 200) templateList.value = res.data || []
   } finally { templateLoading.value = false }
+}
+
+// ==================== 图片上传 ====================
+const beforeImageUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  if (!isImage) { ElMessage.warning('仅支持图片文件'); return false }
+  const maxSize = 5 * 1024 * 1024
+  if (file.size > maxSize) { ElMessage.warning('图片大小不能超过 5MB'); return false }
+  return true
+}
+
+const uploadImage = async (option) => {
+  const { file, onSuccess, onError } = option
+  uploadingImage.value = true
+  try {
+    const res = await uploadFile(file)
+    if (res.code === 200) {
+      imageUrls.value.push(res.data)
+      ElMessage.success('图片上传成功')
+      // 自动填入匹配的模板变量（qrImageUrl/imageUrl/logo 等）并通知后端
+      const imageVar = templateVariables.value.find(v => isImageVar(v))
+      if (imageVar) {
+        templateData[imageVar] = res.data
+      }
+      onSuccess(res)
+    } else {
+      onError(new Error(res.message || '上传失败'))
+    }
+  } catch (e) {
+    onError(e)
+  } finally { uploadingImage.value = false }
+}
+
+const isImageVar = (name) => /image|logo|pic|img|photo|banner|icon|avatar|qr/i.test(name)
+
+const removeImage = (idx) => { imageUrls.value.splice(idx, 1) }
+
+const copyImageUrl = async (url) => {
+  try {
+    await navigator.clipboard.writeText(url)
+    ElMessage.success('URL 已复制到剪贴板')
+  } catch {
+    ElMessage.warning('复制失败，请手动选择 URL')
+  }
+}
+
+const getFileName = (url) => {
+  const m = (url || '').match(/[?&]name=([^&]+)/)
+  return m ? decodeURIComponent(m[1]) : (url || '').split('/').pop() || 'image'
 }
 
 // ==================== 暴露给外部的方法 ====================
@@ -466,5 +597,75 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-left: 4px;
+}
+
+/* ========== 图片上传区域 ========== */
+.image-upload-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.upload-tip {
+  font-size: 12px;
+  color: #909399;
+}
+.image-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.image-preview-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  background: #fafafa;
+}
+.image-thumb {
+  width: 100px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.image-thumb:hover {
+  opacity: 0.8;
+}
+.image-url-text {
+  font-size: 12px;
+  color: #606266;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+.image-url-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* ========== 模板变量图片预览 ========== */
+.var-image-filled {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.var-image-thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+}
+.var-image-waiting {
+  color: #909399;
+  font-size: 13px;
 }
 </style>
