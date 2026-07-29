@@ -370,8 +370,6 @@ import {
   update,
   changeStatus,
   getStatusLogs,
-  getPackages,
-  uploadPackage,
   getFees,
   getInvoices,
   getTemplateList,
@@ -506,9 +504,7 @@ const ogChangeStatus = async () => {
   try {
     const r = await changeStatus(og.form.id, {
       toStatus: og.statusForm.toStatus,
-      remark: og.statusForm.remark,
-      operatorUserId: userId.value,
-      operatorName: userName.value
+      remark: og.statusForm.remark
     })
     if (r.code === 200) {
       ElMessage.success('状态变更成功')

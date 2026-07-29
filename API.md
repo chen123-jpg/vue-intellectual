@@ -67,13 +67,37 @@ GET /api/acount/checkCode
 
 ---
 
-### 1.2 用户注册
+### 1.2 获取手机验证码
+
+```
+GET /api/acount/getSmsCode
+```
+
+> **公开接口**，无需认证
+
+**请求参数** (Query)
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| mobile | string | 是 | 手机号码（`1[3-9]` 开头 11 位） |
+
+**响应**
+
+```json
+{ "code": 200, "message": "验证码发送成功", "data": null }
+```
+
+> 验证码 5 分钟内有效，同一手机号 60 秒内不允许重复发送。验证码存入 Redis，登录/注册时校验后立即删除。
+
+---
+
+### 1.3 用户注册
 
 ```
 POST /api/acount/register
 ```
 
-> **公开接口**
+> **公开接口**。注册时系统会根据邮箱域名自动识别 SMTP 服务器地址与端口，无需手动填写。
 
 **请求体** (JSON)
 
@@ -82,6 +106,7 @@ POST /api/acount/register
   "loginName": "zhangsan",
   "email": "zhangsan@example.com",
   "phoneNumber": "13800138000",
+  "smsCode": "123456",
   "password": "123456",
   "checkCodeKey": "uuid-from-checkCode",
   "checkCode": "8"
@@ -93,9 +118,10 @@ POST /api/acount/register
 | loginName | string | 是 | 3~30 位 |
 | email | string | 是 | 合法邮箱格式 |
 | phoneNumber | string | 是 | `1[3-9]` 开头 11 位 |
+| smsCode | string | 是 | 6 位手机验证码 |
 | password | string | 是 | 6~20 位 |
-| checkCodeKey | string | 否 | 验证码 Key |
-| checkCode | string | 是 | 用户输入的验证码结果 |
+| checkCodeKey | string | 否 | 图形验证码 Key |
+| checkCode | string | 是 | 用户输入的图形验证码结果 |
 
 **响应** — 成功
 
@@ -109,23 +135,25 @@ POST /api/acount/register
 { "code": 500, "message": "账号已存在", "data": null }
 ```
 
-> 可能失败原因：账号已存在、邮箱已被注册、验证码错误或过期
+> 可能失败原因：账号已存在、邮箱已被注册、图形验证码错误或过期、手机验证码错误或过期
 
 ---
 
-### 1.3 用户登录
+### 1.4 用户登录
 
 ```
 POST /api/acount/login
 ```
 
-> **公开接口**
+> **公开接口**。支持两种登录方式：**账号+密码** 或 **手机号+密码**，均需提供手机验证码和图形验证码。
 
 **请求体** (JSON)
 
 ```json
 {
   "loginName": "zhangsan",
+  "phoneNumber": "13800138000",
+  "smsCode": "123456",
   "password": "123456",
   "checkCodeKey": "uuid-from-checkCode",
   "checkCode": "8"
@@ -134,11 +162,12 @@ POST /api/acount/login
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| loginName | string | 否 | 登录账号（与 phoneNumber 二选一） |
-| phoneNumber | string | 否 | 手机号（与 loginName 二选一） |
+| loginName | string | 否 | 登录账号（与 phoneNumber 二选一，优先使用 loginName） |
+| phoneNumber | string | 否 | 手机号（loginName 为空时使用） |
+| smsCode | string | 是 | 6 位手机验证码 |
 | password | string | 是 | 密码 |
-| checkCodeKey | string | 否 | 验证码 Key |
-| checkCode | string | 是 | 验证码结果 |
+| checkCodeKey | string | 否 | 图形验证码 Key |
+| checkCode | string | 是 | 图形验证码结果 |
 
 **响应** — 成功
 
@@ -162,7 +191,7 @@ POST /api/acount/login
 
 ---
 
-### 1.4 退出登录
+### 1.5 退出登录
 
 ```
 POST /api/acount/logout
@@ -180,7 +209,7 @@ POST /api/acount/logout
 
 ---
 
-### 1.5 获取当前用户信息
+### 1.6 获取当前用户信息
 
 ```
 GET /api/acount/me
@@ -208,21 +237,21 @@ GET /api/acount/me
 
 ---
 
-### 1.6 保存邮箱授权码
+### 1.7 保存邮箱授权码
 
 ```
 POST /api/acount/authCode
 ```
 
-> **需认证**
+> **需认证**。SMTP 服务器地址与端口已在注册时根据邮箱域名自动识别，此处只需填写邮箱 SMTP 授权码。
 
 **请求参数** (Form / Query)
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| userId | long | 是 | 用户 ID |
+| userId | long | 是 | 用户 ID（需与当前登录用户一致） |
 | email | string | 是 | 邮箱地址 |
-| authCode | string | 是 | 邮箱 SMTP 授权码 |
+| authCode | string | 是 | 邮箱 SMTP 授权码（非邮箱登录密码） |
 
 **响应**
 
@@ -230,9 +259,11 @@ POST /api/acount/authCode
 { "code": 200, "message": "success", "data": null }
 ```
 
+> 授权码保存失败时（如用户 ID 不匹配）静默返回，不报错。
+
 ---
 
-### 1.7 修改密码
+### 1.8 修改密码
 
 ```
 POST /api/acount/password
@@ -307,6 +338,190 @@ GET /api/user/list
 
 ---
 
+### 2.2 用户详情
+
+```
+GET /api/user/{id}
+```
+
+> 需权限：`system:user:query`
+
+**响应**
+
+```json
+{
+  "code": 200,
+  "data": {
+    "userId": 1,
+    "deptId": null,
+    "loginName": "zhangsan",
+    "userName": "张三",
+    "userType": "01",
+    "email": "zhangsan@example.com",
+    "phoneNumber": "13800138000",
+    "sex": "0",
+    "status": "0",
+    "createTime": "2026-07-21T10:00:00",
+    "roleIds": [1, 2],
+    "remark": null
+  }
+}
+```
+
+> `roleIds` 为关联的角色 ID 列表；不存在时返回 `code: 500, message: "用户不存在"`
+
+---
+
+### 2.3 新增用户
+
+```
+POST /api/user
+```
+
+> 需权限：`system:user:add`
+
+**请求体** (JSON)
+
+```json
+{
+  "loginName": "lisi",
+  "userName": "李四",
+  "email": "lisi@example.com",
+  "phoneNumber": "13900139000",
+  "sex": "0",
+  "status": "0",
+  "deptId": 1,
+  "password": "123456",
+  "roleIds": [1, 2],
+  "remark": "备注"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| loginName | string | 是 | 登录账号 |
+| userName | string | 否 | 用户昵称 |
+| email | string | 否 | 邮箱 |
+| phoneNumber | string | 否 | 手机号 |
+| sex | string | 否 | 0 男，1 女，2 未知 |
+| status | string | 否 | 0 正常，1 停用（默认 0） |
+| deptId | long | 否 | 部门 ID |
+| password | string | 否 | 密码（不传则默认 123456） |
+| roleIds | long[] | 否 | 角色 ID 列表 |
+| remark | string | 否 | 备注 |
+
+**响应** — 成功
+
+```json
+{ "code": 200, "message": "新增成功", "data": null }
+```
+
+> 可能失败原因：账号已存在
+
+---
+
+### 2.4 修改用户
+
+```
+PUT /api/user
+```
+
+> 需权限：`system:user:edit`
+
+**请求体** (JSON)
+
+```json
+{
+  "userId": 1,
+  "loginName": "lisi_new",
+  "userName": "李四(改)",
+  "email": "newlisi@example.com",
+  "status": "1"
+}
+```
+
+> 所有字段均为可选，仅更新传入的非 null 字段。`password` 仅在显式传入时才会更新。`roleIds` 传入时会先清旧角色再绑定新角色。
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| userId | long | 是 | 用户 ID |
+| loginName | string | 否 | 新登录账号 |
+| userName | string | 否 | 新昵称 |
+| email | string | 否 | 新邮箱 |
+| phoneNumber | string | 否 | 新手机号 |
+| sex | string | 否 | 性别 |
+| status | string | 否 | 状态 |
+| deptId | long | 否 | 部门 ID |
+| password | string | 否 | 新密码（不传则不改） |
+| roleIds | long[] | 否 | 角色 ID 列表（全量替换） |
+| remark | string | 否 | 备注 |
+
+**响应** — 成功
+
+```json
+{ "code": 200, "message": "修改成功", "data": null }
+```
+
+> 可能失败原因：用户不存在、新账号已存在
+
+---
+
+### 2.5 删除用户
+
+```
+DELETE /api/user/{id}
+```
+
+> 需权限：`system:user:remove`
+
+> 软删除，将 `delFlag` 置为 `"2"`，不会物理删除数据。
+
+**响应**
+
+```json
+{ "code": 200, "message": "删除成功", "data": null }
+```
+
+---
+
+### 2.6 Excel 导入用户
+
+```
+POST /api/excel/import
+```
+
+> 需权限：`system:user:import`
+> Content-Type: `multipart/form-data`
+
+**请求参数** (FormData)
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| file | file | 是 | Excel 文件（.xlsx / .xls） |
+
+**Excel 模板格式**
+
+| 列名 | 必填 | 说明 |
+|------|------|------|
+| 用户名 | 是 | 登录账号 |
+| 手机号 | 否 | 手机号码 |
+| 邮箱 | 否 | 邮箱地址 |
+| 角色 | 否 | 角色名称（需与系统中角色名一致） |
+
+**响应**
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": "导入完成：成功5条，跳过2条。详细信息：用户名[admin]已存在，跳过；用户[test]的角色[测试员]不存在，跳过"
+}
+```
+
+> 默认密码为 `123456`，用户类型为系统用户（00）。已存在的用户名和未匹配的角色名会自动跳过。
+
+---
+
 ## 三、用户角色接口 `/sys-user-role`
 
 > 对应数据表：`sys_user_role`（用户-角色关联表，无独立详情/修改接口）
@@ -328,7 +543,14 @@ GET /sys-user-role/list
 | userId | long | 否 | — | 用户 ID（精确） |
 | roleId | long | 否 | — | 角色 ID（精确） |
 
-**响应** — 分页格式 `{ records, total, pageNum, pageSize }`，`records` 为 `UserRole[]`
+**响应** — 分页格式 `{ records, total, pageNum, pageSize }`，`records` 各项字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| userId | long | 用户 ID |
+| loginName | string | 登录账号 |
+| roleId | long | 角色 ID |
+| roleName | string | 角色名称 |
 
 ### 3.2 全部列表（不分页）
 
@@ -348,7 +570,17 @@ POST /sys-user-role
 
 **请求体** (JSON) — `UserRole` 对象（含 `userId`、`roleId`）
 
-### 3.4 删除
+### 3.4 编辑
+
+```
+PUT /sys-user-role
+```
+
+> 需权限：`system:userRole:edit`
+
+**请求体** (JSON) — `UserRole` 对象（含 `userId`、`roleId`，按 `roleId` 定位记录）
+
+### 3.5 删除
 
 ```
 DELETE /sys-user-role/{roleId}
@@ -356,7 +588,7 @@ DELETE /sys-user-role/{roleId}
 
 > 需权限：`system:userRole:delete`
 
-### 3.5 批量删除
+### 3.6 批量删除
 
 ```
 DELETE /sys-user-role/batch
@@ -486,7 +718,14 @@ GET /sys-role-menu/list
 | roleId | long | 否 | — | 角色 ID（精确） |
 | menuId | long | 否 | — | 菜单 ID（精确） |
 
-**响应** — 分页格式 `{ records, total, pageNum, pageSize }`，`records` 为 `RoleMenu[]`
+**响应** — 分页格式 `{ records, total, pageNum, pageSize }`，`records` 各项字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| roleId | long | 角色 ID |
+| roleName | string | 角色名称 |
+| menuId | long | 菜单 ID |
+| menuName | string | 菜单名称 |
 
 ### 5.2 全部列表（不分页）
 
@@ -506,7 +745,17 @@ POST /sys-role-menu
 
 **请求体** (JSON) — `RoleMenu` 对象（含 `roleId`、`menuId`）
 
-### 5.4 删除
+### 5.4 编辑
+
+```
+PUT /sys-role-menu
+```
+
+> 需权限：`system:roleMenu:edit`
+
+**请求体** (JSON) — `RoleMenu` 对象（含 `roleId`、`menuId`，按 `menuId` 定位记录）
+
+### 5.5 删除
 
 ```
 DELETE /sys-role-menu/{menuId}
@@ -514,7 +763,7 @@ DELETE /sys-role-menu/{menuId}
 
 > 需权限：`system:roleMenu:delete`
 
-### 5.5 批量删除
+### 5.6 批量删除
 
 ```
 DELETE /sys-role-menu/batch
@@ -578,7 +827,7 @@ GET /sys-menu/list
 GET /sys-menu/all
 ```
 
-> 需权限：`system:menu:list`
+> **需认证**（根据当前用户权限过滤，无权限标识的菜单/目录所有人可见）
 
 ### 6.3 详情
 
@@ -672,7 +921,7 @@ GET /api/mail-template/list
 GET /api/mail-template/all
 ```
 
-> 需权限：`system:mailTemplate:list`
+> **需认证**
 
 ### 7.3 详情
 
@@ -680,7 +929,7 @@ GET /api/mail-template/all
 GET /api/mail-template/{id}
 ```
 
-> 需权限：`system:mailTemplate:query`
+> **需认证**
 
 ### 7.4 新增
 
@@ -791,12 +1040,13 @@ POST /api/mail/sendMaill
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
+| disclosureId | long | 否 | — | 关联专利交底ID，非必填 |
 | to | string | 是 | — | 收件人邮箱 |
 | subject | string | 是 | — | 邮件主题 |
 | content | string | 是 | — | 邮件正文 |
 | cc | string | 否 | — | 抄送邮箱 |
 | isHtml | boolean | 否 | false | 正文是否为 HTML |
-| files | file | 否 | — | 附件 |
+| files | file | 否 | — | 附件，发送成功后会记录到 `mail_send_attachment` 表 |
 
 **响应**
 
@@ -818,6 +1068,7 @@ POST /api/mail/sendMailWithTemplate
 
 ```json
 {
+  "disclosureId": 1,
   "to": "user@example.com",
   "cc": "cc@example.com",
   "subject": "邮件主题",
@@ -835,13 +1086,51 @@ POST /api/mail/sendMailWithTemplate
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
+| disclosureId | long | 否 | 关联专利交底ID，非必填 |
 | to | string | 是 | 收件人，逗号/分号分隔多人 |
 | cc | string | 否 | 抄送，逗号/分号分隔多人 |
 | subject | string | 否 | 主题（模板优先时可为空） |
 | text | string | 否 | 正文（模板优先时可为空） |
 | templateCode | string | 否 | 模板编码，选用模板时传入 |
 | templateData | map | 否 | 模板变量，用于 Thymeleaf 渲染 |
-| attachmentUrls | string[] | 否 | 附件 URL 列表，来自上传接口返回的路径 |
+| attachmentUrls | string[] | 否 | 附件 URL 列表，来自上传接口返回的路径，发送成功后会记录到 `mail_send_attachment` 表 |
+
+---
+
+### 9.3 邮件发送日志查询
+
+```
+GET /api/mail-send-log
+```
+
+> **需认证**
+
+**请求参数** (Query)
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| disclosureId | long | 是 | 专利交底 ID |
+
+**响应** — `data` 为 `MailSendLog[]` 数组，各字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | long | 主键 |
+| disclosureId | long | 关联交底 ID |
+| fromEmail | string | 发件人邮箱 |
+| toEmails | string | 收件人 |
+| ccEmails | string | 抄送 |
+| subject | string | 邮件主题 |
+| content | string | 邮件正文 |
+| sendStatus | int | 0 PENDING / 1 SUCCESS / 2 FAILED |
+| errorMessage | string | 失败原因 |
+| senderUserId | long | 发送人用户 ID |
+| senderName | string | 发送人姓名 |
+| businessType | string | 业务类型（如 APPLICATION_PACKAGE） |
+| businessRef | string | 业务关联标识 |
+| businessAction | string | 业务动作（SEND/REJECT/APPROVE/UNLOCK/SUBMIT） |
+| sentAt | datetime | 实际发送时间 |
+| createTime | datetime | 创建时间 |
 
 ---
 
@@ -1014,9 +1303,13 @@ POST /api/ttable/add
 | request | application/json | 是 | `PatentDisclosureDTO` JSON |
 | disclosureDocument | file | 是 | 必须且只能一份 `.doc`/`.docx` Word 交底书 |
 | otherAttachments | file[] | 否 | 其他附件，可上传一份或多份 |
-| sourceId | long | 否 | 复制的历史交底 ID |
+| sourceId | long | 否 | 复制的历史交底 ID，仅用于记录 `copyFromId` |
 
-主记录、附件元数据、缴费和开票记录作为一个业务提交。数据库事务失败时会回滚数据库记录并清理本次上传的文件。兼容地址为 `POST /api/ttable/with-attachments`。
+`request` 仅允许提交 `PatentDisclosureDTO` 中定义的业务字段；其中的 `id` 会在新增时忽略，录入人使用当前认证用户。
+
+系统将主记录、附件元数据、缴费记录和开票记录放在同一数据库事务中写入。附件文件上传失败或数据库事务回滚时，会清理本次已上传的文件，避免孤儿文件。缴费和开票记录的初始状态均为 `PENDING`、来源均为 `DISCLOSURE_SYNC`。
+
+兼容地址 `POST /api/ttable/with-attachments` 与本接口行为一致。
 
 ### 10.7 修改
 
@@ -1028,7 +1321,8 @@ PUT /api/ttable
 
 > `projectInitiator`（立项专员）拥有该权限，但后端仍按 `entryUserId` 校验数据范围，只允许编辑本人录入的交底；管理员可编辑全部可见交底。
 
-**请求体** (JSON) — `PatentDisclosure` 对象，`id` 字段必填，否则返回 `"ID不能为空"`
+**请求体** (JSON) — `PatentDisclosureDTO` 对象，`id`、`disclosureName`、`patentType` 必填。
+请求体中的服务端维护字段会被忽略。
 
 ### 10.8 删除
 
@@ -1176,7 +1470,7 @@ GET /api/ttable/{id}/invoices
 POST /api/ttable/copy
 ```
 
-> 需权限：`patent:disclosure:copy`
+> 需权限：`patent:disclosure:copy` 或 `patent:disclosure:add`
 
 **请求体** (JSON)
 
@@ -1188,7 +1482,7 @@ POST /api/ttable/copy
 |------|------|------|------|
 | sourceId | long | 是 | 源交底ID |
 
-**响应** — `data` 为历史数据生成的 `PatentDisclosureDTO`，仅用于预填录入表单，不直接创建主记录；补充交底书和其他附件后调用新增接口完成创建。
+**响应** — `data` 为用于预填录入表单的 `PatentDisclosureDTO`，不会直接创建新记录。用户补充一份 Word 交底书及可选的其他附件后，再调用新增接口；新增接口的 `sourceId` 会写入主记录的 `copyFromId`。
 
 ### 10.15 按主办人查询
 
@@ -1231,7 +1525,7 @@ POST /api/ttable/{id}/status
 POST /api/ttable/{id}/attachments
 ```
 
-> 需权限：`patent:disclosure:attachment:upload`
+> 需权限：`patent:disclosure:attachment:upload` 或 `patent:disclosure:add`
 > Content-Type: `multipart/form-data`
 
 **请求参数** (FormData)
@@ -1240,6 +1534,9 @@ POST /api/ttable/{id}/attachments
 |------|------|------|--------|------|
 | file | file | 是 | — | 附件文件 |
 | bizType | string | 否 | DISCLOSURE_OTHER | DISCLOSURE_DOC 交底书 / DISCLOSURE_OTHER 其他 |
+
+> `DISCLOSURE_DOC` 只能是 `.doc`/`.docx`，且每条交底只能保留一份；上传人信息取自当前认证用户。
+
 **响应** — `data` 为新创建的 `DisclosureAttachment` 对象，包含文件访问 URL。
 
 ### 10.17.1 更换交底书
@@ -1255,7 +1552,7 @@ PUT /api/ttable/{id}/attachments/disclosure-document
 |------|------|------|------|
 | file | file | 是 | 新的 `.doc`/`.docx` Word 交底书 |
 
-新文件保存成功后再逻辑删除旧交底书；失败时保留原交底书。
+新交底书文件及元数据保存成功后，旧交底书元数据才会被逻辑删除；数据库失败时会回滚元数据并清理新上传文件。
 
 ### 10.18 删除附件（逻辑删除）
 
@@ -1263,7 +1560,7 @@ PUT /api/ttable/{id}/attachments/disclosure-document
 DELETE /api/ttable/attachments/{attachmentId}
 ```
 
-> 需权限：`patent:disclosure:delete`
+> 需权限：`patent:disclosure:delete`、`patent:disclosure:attachment:upload` 或 `patent:disclosure:add` 中任一权限
 
 > 将 `deleted` 字段置为 1，不会物理删除文件。
 
@@ -1492,7 +1789,7 @@ DELETE /api/ttable/attachments/{attachmentId}
 
 ---
 
-## 十二、代理人/申请人接口 `/api/agent`
+## 十二、代理人/申请人接口
 
 > 对应数据表：`agent`、`applicant`
 
@@ -1582,7 +1879,7 @@ DELETE /api/agent/batch
 ### 12.8 申请人分页列表
 
 ```
-GET /api/agent/applicant/list
+GET /api/applicant/list
 ```
 
 > 需权限：`patent:applicant:list`
@@ -1609,7 +1906,7 @@ GET /api/agent/applicant/list
 ### 12.9 申请人全部列表（不分页）
 
 ```
-GET /api/agent/applicant/all
+GET /api/applicant/all
 ```
 
 > 需权限：`patent:applicant:list`
@@ -1617,7 +1914,7 @@ GET /api/agent/applicant/all
 ### 12.10 申请人详情
 
 ```
-GET /api/agent/applicant/{id}
+GET /api/applicant/{id}
 ```
 
 > 需权限：`patent:applicant:query`
@@ -1625,7 +1922,7 @@ GET /api/agent/applicant/{id}
 ### 12.11 申请人新增
 
 ```
-POST /api/agent/applicant
+POST /api/applicant
 ```
 
 > 需权限：`patent:applicant:add`
@@ -1635,7 +1932,7 @@ POST /api/agent/applicant
 ### 12.12 申请人修改
 
 ```
-PUT /api/agent/applicant
+PUT /api/applicant
 ```
 
 > 需权限：`patent:applicant:edit`
@@ -1645,7 +1942,7 @@ PUT /api/agent/applicant
 ### 12.13 申请人删除
 
 ```
-DELETE /api/agent/applicant/{id}
+DELETE /api/applicant/{id}
 ```
 
 > 需权限：`patent:applicant:delete`
@@ -1653,7 +1950,7 @@ DELETE /api/agent/applicant/{id}
 ### 12.14 申请人批量删除
 
 ```
-DELETE /api/agent/applicant/batch
+DELETE /api/applicant/batch
 ```
 
 > 需权限：`patent:applicant:delete`
@@ -1795,13 +2092,23 @@ GET  /api/application-package/download/{ticket}
 
 ### 13.11 旧版 Word 在线预览
 
-- `POST /api/file-preview/legacy-word`
-- 使用 `multipart/form-data` 的 `file` 字段上传 `.doc` 文件。
-- 后端在 `GOTENBERG_ENABLED=true` 时通过内网 Gotenberg 服务转换并返回 `application/pdf`，前端使用现有 PDF 预览框展示。
-- 当前后端默认关闭旧版 `.doc` 在线预览；未安装 Docker 时仍可上传、下载 `.doc`，预览操作会提示下载原文件查看。
-- 不需要增加前端 npm 预览组件，也不要求 Spring Boot 所在主机直接安装 LibreOffice。
-- Gotenberg 只能部署在内网或绑定宿主机 `127.0.0.1`，不能直接暴露到公网。
-- 申请包当前文件、历史文件、已保存的交底附件和待提交的本地交底书都复用该接口。
+```text
+POST /api/file-preview/legacy-word
+```
+
+使用 `multipart/form-data` 的 `file` 字段上传真实 `.doc`，最大 10 MB。成功时返回临时 `application/pdf`；转换结果只用于当前页面，不替换原文件，也不写入数据库。接口需要登录，转换任务限制并发和超时。
+
+Spring Boot 校验文件格式后，通过内网调用 Gotenberg 的 `/forms/libreoffice/convert`。当前默认 `GOTENBERG_ENABLED=false`，未安装 Docker 时 `.doc` 在线预览关闭，但不影响文件上传、下载和其他业务。Gotenberg 不得暴露到公网；需要开启时使用仓库根目录的 `compose.gotenberg.yml`，默认只绑定 `127.0.0.1:3000`：
+
+```text
+docker compose -f compose.gotenberg.yml up -d
+GOTENBERG_ENABLED=true
+GOTENBERG_BASE_URL=http://127.0.0.1:3000
+GOTENBERG_READ_TIMEOUT_SECONDS=70
+GOTENBERG_MAX_CONCURRENT=2
+```
+
+如果 Spring Boot 与 Gotenberg 位于同一 Docker Compose 网络，使用 `GOTENBERG_BASE_URL=http://gotenberg:3000`，无需将 Gotenberg 映射到宿主机公网端口。`.docx` 仍由前端 `@vue-office/docx` 渲染；申请包当前文件、历史版本和交底附件共同复用旧版 `.doc` 转 PDF 能力。
 
 ---
 
@@ -1810,10 +2117,15 @@ GET  /api/application-package/download/{ticket}
 ### 系统管理
 ```
 system:user:list               — 用户列表
-system:userRole:list|add|delete       — 用户角色关联
+system:user:query              — 用户详情
+system:user:add                — 新增用户
+system:user:edit               — 修改用户
+system:user:remove             — 删除用户
+system:user:import             — Excel 导入用户
+system:userRole:list|add|edit|delete   — 用户角色关联
 system:role:list|query|add|edit|delete — 角色管理
 system:menu:list|query|add|edit|delete — 菜单管理
-system:roleMenu:list|add|delete        — 角色菜单关联
+system:roleMenu:list|add|edit|delete    — 角色菜单关联
 system:mailTemplate:list|query|add|edit|delete — 邮件模板管理
 ```
 

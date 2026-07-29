@@ -101,10 +101,11 @@ export function getInvoices(id) {
 }
 
 // ==================== Mail ====================
-export function sendMail(formData) {
-  return request.post('/api/mail/sendMaill', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
+export function sendMail(data) {
+  const headers = data instanceof FormData
+    ? { 'Content-Type': 'multipart/form-data' }
+    : { 'Content-Type': 'application/json' }
+  return request.post('/api/mail/sendMaill', data, { headers })
 }
 
 export function sendMailWithTemplate(data) {
@@ -127,4 +128,15 @@ export function uploadFile(file) {
 // ==================== Agent list ====================
 export function getAgentAll() {
   return request.get('/api/agent/all')
+}
+
+// ==================== Application Package bridge (旧 packages API 已迁移) ====================
+import { getBatchByDisclosure, approveBatch } from './applicationPackage'
+
+export function getPackages(disclosureId) {
+  return getBatchByDisclosure(disclosureId)
+}
+
+export function confirmPackage(packageToken) {
+  return approveBatch(packageToken)
 }

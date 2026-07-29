@@ -67,43 +67,39 @@
         <el-descriptions-item label="联系人">{{ po.form.contactPerson || '-' }}</el-descriptions-item>
       </el-descriptions>
 
-      <el-divider content-position="left">申请包列表</el-divider>
+      <el-divider content-position="left">申请包文件</el-divider>
       <div v-if="po.packages.length === 0" class="empty-hint" style="margin-bottom:16px">暂无申请包</div>
-      <el-table v-else :data="po.packages" border stripe size="small" style="margin-bottom:16px">
-        <el-table-column label="类型" width="140">
-          <template #default="{ row }">
-            <el-tag :type="row.packageType==='XML_PACKAGE'?'primary':'success'" size="small">
-              {{ row.packageType==='XML_PACKAGE'?'XML申请包':'五书申请文件' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="fileName" label="文件名" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="versionNo" label="版本" width="70" />
-        <el-table-column prop="uploadUserName" label="上传人" width="100" />
-        <el-table-column label="确认状态" width="120">
-          <template #default="{ row }">
-            <el-tag
-              :type="row.confirmStatus==='SUBMITTED'?'success':row.confirmStatus==='CONFIRMED'?'primary':'warning'"
-              size="small"
-            >
-              {{ row.confirmStatus==='UNCONFIRMED'?'未确认':row.confirmStatus==='CONFIRMED'?'可提交':'已提交' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160">
-          <template #default="{ row }">
-            <el-button size="small" @click="downloadFile(row.fileUrl)">下载查看</el-button>
-            <el-button
-              v-if="row.confirmStatus === 'UNCONFIRMED'"
-              size="small"
-              type="success"
-              @click="poConfirmPkg(row)"
-            >
-              确认可提交
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <template v-else>
+        <div style="margin-bottom:10px;display:flex;align-items:center;gap:12px">
+          <span style="font-size:13px;color:#606266">申请包状态：</span>
+          <el-tag :type="po.batchStatus==='APPROVED'?'success':po.batchStatus==='REVIEWING'?'primary':po.batchStatus==='PENDING_RECEIVE'?'warning':'info'" size="small">
+            {{ po.batchStatus || '未知' }}
+          </el-tag>
+          <el-button
+            v-if="po.batchStatus === 'REVIEWING'"
+            size="small"
+            type="success"
+            @click="poConfirmPkg"
+          >
+            审核通过
+          </el-button>
+        </div>
+        <el-table :data="po.packages" border stripe size="small" style="margin-bottom:16px">
+          <el-table-column label="文件类型" width="140">
+            <template #default="{ row }">
+              <el-tag size="small">{{ row.documentLabel }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="fileName" label="文件名" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="versionNo" label="版本" width="70" />
+          <el-table-column prop="uploadUserName" label="上传人" width="100" />
+          <el-table-column label="操作" width="120">
+            <template #default="{ row }">
+              <el-button size="small" @click="poDownloadFile(row.fileToken)">下载查看</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
 
       <el-divider content-position="left">状态操作</el-divider>
       <el-form inline>
@@ -134,9 +130,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, changeStatus, getPackages, confirmPackage } from '../../../api/disclosureWorkflow'
+import { createDownloadTicket } from '../../../api/applicationPackage'
 import SearchBar from '../../../components/SearchBar.vue'
-import { downloadFile, formatDateTime } from '../../../utils/format'
-import { statusTag, hasPerm, userId, userName } from './shared'
+import { statusTag } from './shared'
 
 const po = reactive({
   searchFields: [
@@ -153,6 +149,8 @@ const po = reactive({
   dialog: { visible: false },
   form: {},
   packages: [],
+  batchToken: null,
+  batchStatus: null,
   statusSaving: false
 })
 
@@ -200,25 +198,48 @@ const poOpenReview = async (row) => {
 const poFetchPkg = async () => {
   try {
     const res = await getPackages(po.form.id)
-    if (res.code === 200) po.packages = res.data || []
+    if (res.code === 200) {
+      const batch = res.data
+      po.batchToken = batch.packageToken
+      po.batchStatus = batch.status
+      const labelMap = { XML: 'XML申请包', REQUEST: '请求书', DESCRIPTION: '说明书', CLAIMS: '权利要求书', ABSTRACT: '摘要', ABSTRACT_DRAWING: '摘要附图' }
+      po.packages = (batch.currentFiles || []).map(f => ({
+        fileToken: f.fileToken,
+        documentCode: f.documentCode,
+        documentLabel: labelMap[f.documentCode] || f.documentCode,
+        fileName: f.fileName,
+        versionNo: f.versionNo,
+        uploadUserName: f.uploadUserName || '-',
+        fileSize: f.fileSize
+      }))
+    }
   } catch {
     po.packages = []
   }
 }
 
-const poConfirmPkg = async (row) => {
+const poConfirmPkg = async () => {
   try {
-    await ElMessageBox.confirm('确认该申请包可提交至国知局？', '确认', { type: 'warning' })
-    const res = await confirmPackage(row.id, {
-      confirmUserId: userId.value,
-      confirmUserName: userName.value
-    })
+    await ElMessageBox.confirm('确认审核通过该申请包？通过后将锁定文件并可提交至国知局。', '确认', { type: 'warning' })
+    const res = await confirmPackage(po.batchToken)
     if (res.code === 200) {
-      ElMessage.success('已确认可提交')
+      ElMessage.success('审核通过')
+      po.batchStatus = 'APPROVED'
       poFetchPkg()
     }
   } catch {
     /* cancelled */
+  }
+}
+
+const poDownloadFile = async (fileToken) => {
+  try {
+    const res = await createDownloadTicket(fileToken)
+    if (res.code === 200) {
+      window.open(`/api/application-package/download/${res.data}`, '_blank')
+    }
+  } catch {
+    ElMessage.error('文件下载失败')
   }
 }
 
@@ -227,8 +248,6 @@ const poSetStatus = async (toStatus) => {
   try {
     const res = await changeStatus(po.form.id, {
       toStatus,
-      operatorUserId: userId.value,
-      operatorName: userName.value,
       remark: '流程人员确认，提交至国知局系统'
     })
     if (res.code === 200) {

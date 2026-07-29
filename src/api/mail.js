@@ -1,9 +1,10 @@
 import request from '../utils/request'
 
 export function sendMail(data) {
-  return request.post('/api/mail/sendMaill', data, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
+  const headers = data instanceof FormData
+    ? { 'Content-Type': 'multipart/form-data' }
+    : { 'Content-Type': 'application/json' }
+  return request.post('/api/mail/sendMaill', data, { headers })
 }
 
 export function sendMailWithTemplate(data) {

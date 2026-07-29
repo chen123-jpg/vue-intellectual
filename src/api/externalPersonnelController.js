@@ -25,11 +25,11 @@ export function update(data) {
 }
 
 export function remove(id) {
-  return request.delete(`${AGENT_BASE}/agent/${id}`)
+  return request.delete(`${AGENT_BASE}/${id}`)
 }
 
 export function batchRemove(ids) {
-  return request.delete(`${AGENT_BASE}/agent/batch`, { data: ids })
+  return request.delete(`${AGENT_BASE}/batch`, { data: ids })
 }
 
 // ========== 申请人 ==========
