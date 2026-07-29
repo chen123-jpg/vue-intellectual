@@ -19,8 +19,6 @@
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="seqNo" label="序号" width="70" />
         <el-table-column prop="pctInternalNo" label="PCT内部编号" width="130" />
         <el-table-column prop="applicationName" label="申请名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="applicationNo" label="申请号(PCT号)" width="140" />

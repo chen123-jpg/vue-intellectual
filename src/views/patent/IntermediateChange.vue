@@ -20,8 +20,6 @@
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="seqNo" label="序号" width="70" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="businessType" label="业务类型" width="100" />
         <el-table-column prop="patentName" label="发明创造名称" min-width="180" show-overflow-tooltip />

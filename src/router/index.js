@@ -119,6 +119,11 @@ const routes = [
         path: 'mail',
         name: 'Mail',
         component: () => import('../views/mail/Mail.vue')
+      },
+      {
+        path: 'mail-records',
+        name: 'MailRecords',
+        component: () => import('../views/mail/MailRecords.vue')
       }
     ]
   }

@@ -8,13 +8,6 @@
         <el-form-item label="申请号">
           <el-input v-model="query.applicationNo" placeholder="精确搜索" clearable />
         </el-form-item>
-        <el-form-item label="专利类型">
-          <el-select v-model="query.patentType" placeholder="全部" clearable>
-            <el-option label="发明" value="发明" />
-            <el-option label="实用新型" value="实用新型" />
-            <el-option label="外观" value="外观" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="申请人">
           <el-input v-model="query.applicant" placeholder="模糊搜索" clearable />
         </el-form-item>
@@ -31,8 +24,6 @@
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="seqNo" label="序号" width="70" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="patentName" label="发明创造名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="applicationNo" label="申请号" width="150" />
