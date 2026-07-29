@@ -31,7 +31,7 @@
       <!-- Toolbar -->
       <div class="toolbar">
         <el-button v-if="hasPerm('patent:disclosure:add')" type="primary" @click="ecOpenAdd">新增交底</el-button>
-        <el-button type="success" @click="ecOpenCopy">复制历史交底</el-button>
+        <el-button v-if="hasPerm('patent:disclosure:copy') || hasPerm('patent:disclosure:add')" type="success" @click="ecOpenCopy">复制历史交底</el-button>
         <el-button v-if="hasPerm('patent:disclosure:delete')" type="danger" :disabled="!ec.selected.length" @click="ecBatchDelete">批量删除</el-button>
       </div>
 
@@ -41,6 +41,24 @@
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="tempNo" label="临时编号" width="120" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
+        <el-table-column label="交底书" min-width="180">
+          <template #default="{ row }">
+            <DisclosureAttachmentLinks
+              :attachments="row.attachments"
+              biz-type="DISCLOSURE_DOC"
+              @preview="ecOpenPreview"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="其他文件" min-width="200">
+          <template #default="{ row }">
+            <DisclosureAttachmentLinks
+              :attachments="row.attachments"
+              biz-type="DISCLOSURE_OTHER"
+              @preview="ecOpenPreview"
+            />
+          </template>
+        </el-table-column>
         <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="patentType" label="专利类型" width="100" />
         <el-table-column prop="patentStatus" label="专利状态" width="110">
@@ -73,7 +91,7 @@
 
     <!-- Add/Edit Dialog -->
     <el-dialog v-model="ec.dialog.visible" :title="ec.dialog.isEdit ? '编辑交底' : '新增交底'" width="900px" destroy-on-close top="3vh">
-      <el-tabs v-model="ec.dialog.activeTab" @tab-change="ecOnTabChange">
+      <el-tabs v-model="ec.dialog.activeTab">
         <el-tab-pane label="基本信息" name="basic">
           <el-form ref="ecFormRef" :model="ec.form" label-width="100px">
             <el-row :gutter="20">
@@ -172,55 +190,20 @@
           </el-form>
         </el-tab-pane>
 
-        <el-tab-pane v-if="ec.dialog.isEdit" label="附件" name="attachments">
-          <div class="tab-section">
-            <div class="upload-group">
-              <h4>交底书（必填，仅支持 Word）</h4>
-              <el-upload
-                :show-file-list="false"
-                :http-request="(opt) => ecUploadAtt(opt, 'DISCLOSURE_DOC')"
-                :before-upload="ecBeforeDoc"
-                :disabled="ec.uploading"
-                action="#"
-              >
-                <el-button type="primary" :loading="ec.uploading && ec.uploadBizType === 'DISCLOSURE_DOC'">上传交底书</el-button>
-              </el-upload>
-              <span class="upload-hint">仅支持 .doc / .docx</span>
-              <div class="attach-items">
-                <div v-for="a in ec.docAtts" :key="a.id" class="attach-row">
-                  <span class="file-link" @click="downloadFile(a.fileUrl)">{{ a.fileName }}</span>
-                  <span class="file-size">{{ fmtSize(a.fileSize) }}</span>
-                  <el-button size="small" type="danger" :icon="Delete" circle @click="ecDelAtt(a.id)" />
-                </div>
-              </div>
-            </div>
-            <el-divider />
-            <div class="upload-group">
-              <h4>其他附件（可多个）</h4>
-              <el-upload
-                :show-file-list="false"
-                :http-request="(opt) => ecUploadAtt(opt, 'DISCLOSURE_OTHER')"
-                :disabled="ec.uploading"
-                action="#"
-              >
-                <el-button :loading="ec.uploading && ec.uploadBizType === 'DISCLOSURE_OTHER'">上传其他附件</el-button>
-              </el-upload>
-              <div class="attach-items">
-                <div v-for="a in ec.otherAtts" :key="a.id" class="attach-row">
-                  <span class="file-link" @click="downloadFile(a.fileUrl)">{{ a.fileName }}</span>
-                  <span class="file-size">{{ fmtSize(a.fileSize) }}</span>
-                  <el-button size="small" type="danger" :icon="Delete" circle @click="ecDelAtt(a.id)" />
-                </div>
-              </div>
-            </div>
-          </div>
+        <el-tab-pane label="附件" name="attachments">
+          <DisclosureAttachmentEditor
+              :disclosure-id="ec.dialog.isEdit ? ec.form.id : null"
+              v-model:document-file="ec.pendingDocument"
+              v-model:other-files="ec.pendingOthers"
+              @changed="ecFetchData"
+            />
         </el-tab-pane>
       </el-tabs>
 
       <template #footer>
         <el-button @click="ec.dialog.visible = false">关闭</el-button>
-        <el-button v-if="ec.dialog.activeTab === 'basic'" type="primary" @click="ecSave" :loading="ec.saving">
-          {{ ec.dialog.isEdit ? '保存修改' : '创建并继续上传附件' }}
+        <el-button v-if="ec.dialog.activeTab === 'basic' || !ec.dialog.isEdit" type="primary" @click="ecSave" :loading="ec.saving">
+          {{ ec.dialog.isEdit ? '保存修改' : '创建交底' }}
         </el-button>
       </template>
     </el-dialog>
@@ -269,18 +252,22 @@
         <el-button @click="ec.copyDialog.visible = false">取消</el-button>
       </template>
     </el-dialog>
+
+    <FilePreviewDialog v-model="ec.preview.visible" :attachment="ec.preview.attachment" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete } from '@element-plus/icons-vue'
-import { getList, getById, create, update, remove, batchRemove, copy, getAttachments, uploadAttachment, deleteAttachment } from '../../../api/disclosureWorkflow'
+import { getList, getById, createWithAttachments, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
+import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
+import DisclosureAttachmentLinks from '../../../components/DisclosureAttachmentLinks.vue'
+import FilePreviewDialog from '../../../components/FilePreviewDialog.vue'
 import { getUserList } from '../../../api/user'
-import { downloadFile, formatDate } from '../../../utils/format'
-import { statusTag, fmtSize, emptyForm, hasPerm, userId, userName } from './shared'
+import { formatDate } from '../../../utils/format'
+import { statusTag, emptyForm, hasPerm, mergeDisclosureAttachments } from './shared'
 
 // ========================== Reactive State ==========================
 const ec = reactive({
@@ -290,11 +277,12 @@ const ec = reactive({
   selected: [],
   loading: false,
   dialog: { visible: false, isEdit: false, activeTab: 'basic' },
+  preview: { visible: false, attachment: null },
   form: emptyForm(),
   saving: false,
-  attList: [],
-  uploading: false,
-  uploadBizType: '',
+  pendingDocument: null,
+  pendingOthers: [],
+  copySourceId: null,
   copyDialog: { visible: false },
   copyQuery: { disclosureName: '', internalNo: '', patentType: '' },
   copyPage: { pageNum: 1, pageSize: 10, total: 0 },
@@ -305,10 +293,6 @@ const ec = reactive({
 
 const ecFormRef = ref(null)
 
-// Computed attachment lists by bizType (attached to ec for template access)
-ec.docAtts = computed(() => ec.attList.filter(a => a.bizType === 'DISCLOSURE_DOC'))
-ec.otherAtts = computed(() => ec.attList.filter(a => a.bizType === 'DISCLOSURE_OTHER'))
-
 // ========================== Data Fetching ==========================
 const ecFetchData = async () => {
   ec.loading = true
@@ -317,12 +301,20 @@ const ecFetchData = async () => {
     Object.keys(ec.query).forEach(k => { if (ec.query[k]) params[k] = ec.query[k] })
     const res = await getList(params)
     if (res.code === 200) {
-      ec.tableData = res.data.records || []
+      ec.tableData = mergeDisclosureAttachments(
+        res.data.records,
+        res.data.attachmentsByDisclosureId
+      )
       ec.page.total = res.data.total || 0
     }
   } finally {
     ec.loading = false
   }
+}
+
+const ecOpenPreview = (attachment) => {
+  ec.preview.attachment = attachment
+  ec.preview.visible = true
 }
 
 const ecResetQuery = () => {
@@ -354,7 +346,9 @@ const ecOpenAdd = () => {
   ec.dialog.visible = true
   ec.dialog.isEdit = false
   ec.dialog.activeTab = 'basic'
-  ec.attList = []
+  ec.pendingDocument = null
+  ec.pendingOthers = []
+  ec.copySourceId = null
   if (!ec.userList.length) ecLoadUsers()
 }
 
@@ -366,7 +360,9 @@ const ecOpenEdit = async (row) => {
       ec.dialog.visible = true
       ec.dialog.isEdit = true
       ec.dialog.activeTab = 'basic'
-      ec.attList = []
+      ec.pendingDocument = null
+      ec.pendingOthers = []
+      ec.copySourceId = null
       if (!ec.userList.length) ecLoadUsers()
     }
   } catch {
@@ -384,16 +380,29 @@ const ecSave = async () => {
     ElMessage.warning('请选择专利类型')
     return
   }
+  if (!ec.dialog.isEdit && !ec.pendingDocument) {
+    ElMessage.warning('请在附件页上传一份 Word 格式的交底书')
+    ec.dialog.activeTab = 'attachments'
+    return
+  }
   ec.saving = true
   try {
     const res = ec.dialog.isEdit
       ? await update({ ...ec.form })
-      : await create({ ...ec.form })
+      : await createWithAttachments(
+          { ...ec.form },
+          ec.pendingDocument,
+          ec.pendingOthers,
+          ec.copySourceId
+        )
     if (res.code === 200) {
-      ElMessage.success(ec.dialog.isEdit ? '修改成功' : '创建成功，可切换到附件Tab上传文件')
+      ElMessage.success(ec.dialog.isEdit ? '修改成功' : '交底信息和附件创建成功')
       if (!ec.dialog.isEdit && res.data?.id) {
         ec.form.id = res.data.id
         ec.dialog.isEdit = true
+        ec.pendingDocument = null
+        ec.pendingOthers = []
+        ec.copySourceId = null
       }
       ecFetchData()
     }
@@ -430,69 +439,6 @@ const ecBatchDelete = async () => {
   }
 }
 
-// ========================== Attachments ==========================
-const ecOnTabChange = (tab) => {
-  if (tab === 'attachments') ecFetchAtts()
-}
-
-const ecFetchAtts = async () => {
-  if (!ec.form.id) return
-  try {
-    const r = await getAttachments(ec.form.id)
-    if (r.code === 200) ec.attList = r.data || []
-  } catch {
-    ec.attList = []
-  }
-}
-
-const ecBeforeDoc = (file) => {
-  const ext = file.name.split('.').pop().toLowerCase()
-  if (ext !== 'doc' && ext !== 'docx') {
-    ElMessage.warning('交底书仅支持 Word (.doc/.docx)')
-    return false
-  }
-  return true
-}
-
-const ecUploadAtt = async (opt, bizType) => {
-  const { file, onSuccess, onError } = opt
-  ec.uploadBizType = bizType
-  ec.uploading = true
-  try {
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('bizType', bizType)
-    if (userId.value) fd.append('uploadUserId', userId.value)
-    if (userName.value) fd.append('uploadUserName', userName.value)
-    const r = await uploadAttachment(ec.form.id, fd)
-    if (r.code === 200) {
-      ElMessage.success('上传成功')
-      ecFetchAtts()
-      onSuccess(r)
-    } else {
-      onError(new Error(r.message))
-    }
-  } catch (e) {
-    onError(e)
-  } finally {
-    ec.uploading = false
-    ec.uploadBizType = ''
-  }
-}
-
-const ecDelAtt = async (attId) => {
-  try {
-    await ElMessageBox.confirm('确认删除该附件？', '提示', { type: 'warning' })
-    const r = await deleteAttachment(attId)
-    if (r.code === 200) {
-      ElMessage.success('已删除')
-      ecFetchAtts()
-    }
-  } catch {
-    // user cancelled
-  }
-}
-
 // ========================== Copy ==========================
 const ecOpenCopy = () => {
   ec.copyDialog.visible = true
@@ -516,13 +462,24 @@ const ecCopySearch = async () => {
 
 const ecDoCopy = async (row) => {
   try {
-    await ElMessageBox.confirm(`确认从"${row.disclosureName}"复制新建交底？`, '确认复制', { type: 'info' })
-    const r = await copy(row.id)
-    if (r.code === 200) {
-      ElMessage.success('复制成功')
-      ec.copyDialog.visible = false
-      ecFetchData()
-    }
+    await ElMessageBox.confirm(`确认复制"${row.disclosureName}"的交底信息？`, '确认复制', { type: 'info' })
+    const copiedForm = emptyForm()
+    Object.keys(copiedForm).forEach(key => {
+      if (row[key] !== undefined && row[key] !== null) copiedForm[key] = row[key]
+    })
+    copiedForm.id = null
+    copiedForm.internalNo = ''
+    copiedForm.patentStatus = '草稿'
+    Object.assign(ec.form, copiedForm)
+    ec.copySourceId = row.id
+    ec.pendingDocument = null
+    ec.pendingOthers = []
+    ec.dialog.isEdit = false
+    ec.dialog.activeTab = 'basic'
+    ec.dialog.visible = true
+    ec.copyDialog.visible = false
+    if (!ec.userList.length) ecLoadUsers()
+    ElMessage.success('历史信息已回填，请确认内容并上传新的交底书')
   } catch {
     // user cancelled
   }
@@ -546,6 +503,7 @@ onMounted(() => {
 .attach-items { margin-top: 8px; }
 .attach-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
 .attach-row:last-child { border-bottom: none; }
+.pending-attach { background: #f0f9eb; padding-left: 8px; padding-right: 8px; }
 .file-link { color: #409eff; cursor: pointer; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-link:hover { text-decoration: underline; }
 .file-size { font-size: 12px; color: #909399; white-space: nowrap; }

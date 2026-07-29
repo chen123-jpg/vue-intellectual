@@ -9,9 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vue-office/docx": "^1.6.3",
+    "@vue-office/excel": "^1.7.14",
+    "@vue-office/pptx": "^1.0.1",
     "axios": "^1.7.7",
     "element-plus": "^2.8.3",
     "vue": "^3.5.8",
+    "vue-demi": "^0.14.6",
     "vue-router": "^4.4.5"
   },
   "devDependencies": {

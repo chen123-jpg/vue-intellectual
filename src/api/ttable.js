@@ -14,8 +14,15 @@ export function getById(id) {
   return request.get(`${BASE}/${id}`)
 }
 
-export function create(data) {
-  return request.post(BASE, data)
+export function create(data, disclosureDocument, otherAttachments = [], sourceId = null) {
+  const formData = new FormData()
+  formData.append('request', new Blob([JSON.stringify(data)], { type: 'application/json' }))
+  formData.append('disclosureDocument', disclosureDocument)
+  otherAttachments.forEach(file => formData.append('otherAttachments', file))
+  if (sourceId) formData.append('sourceId', sourceId)
+  return request.post(`${BASE}/add`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 }
 
 export function update(data) {

@@ -29,15 +29,57 @@ export function isFilePath(value) {
   return value && typeof value === 'string' && value.startsWith('/files/')
 }
 
+export async function fetchFileBlob(path) {
+  if (!path) return
+  const token = localStorage.getItem('token')
+  const requestUrl = /^https?:\/\//i.test(path) ? path : `${BASE_URL}${path}`
+  const res = await fetch(requestUrl, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  })
+  if (!res.ok) throw new Error('文件读取失败')
+  return res.blob()
+}
+
+async function readErrorMessage(response, fallback) {
+  try {
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const body = await response.json()
+      return body?.message || fallback
+    }
+    const text = await response.text()
+    return text || fallback
+  } catch {
+    return fallback
+  }
+}
+
+/** 将旧版 .doc 发送给后端 LibreOffice 服务，返回只用于当前页面预览的 PDF Blob。 */
+export async function convertLegacyWordToPdf(fileBlob, fileName) {
+  if (!fileBlob) throw new Error('没有可转换的 DOC 文件')
+  const token = localStorage.getItem('token')
+  const formData = new FormData()
+  const originalName = String(fileName || 'preview.doc')
+  const safeName = originalName.toLowerCase().endsWith('.doc')
+    ? originalName
+    : `${originalName}.doc`
+  formData.append('file', fileBlob, safeName)
+  const response = await fetch(`${BASE_URL}/api/file-preview/legacy-word`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData
+  })
+  const contentType = response.headers.get('content-type') || ''
+  if (!response.ok || !contentType.includes('application/pdf')) {
+    throw new Error(await readErrorMessage(response, 'DOC 在线预览转换失败'))
+  }
+  return response.blob()
+}
+
 export async function downloadFile(path) {
   if (!path) return
   try {
-    const token = localStorage.getItem('token')
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (!res.ok) throw new Error('下载失败')
-    const blob = await res.blob()
+    const blob = await fetchFileBlob(path)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

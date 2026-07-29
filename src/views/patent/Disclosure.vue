@@ -106,6 +106,12 @@
             <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="3" /></el-form-item>
           </el-col>
         </el-row>
+        <el-divider content-position="left">附件管理</el-divider>
+        <DisclosureAttachmentEditor
+          :disclosure-id="dialog.isEdit ? form.id : null"
+          v-model:document-file="disclosureDocument"
+          v-model:other-files="otherAttachments"
+        />
       </el-form>
       <template #footer>
         <el-button @click="dialog.visible = false">取消</el-button>
@@ -120,6 +126,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/ttable'
 import ApplicantAgentSelect from '../../components/ApplicantAgentSelect.vue'
+import DisclosureAttachmentEditor from '../../components/DisclosureAttachmentEditor.vue'
 import { useUserStore } from '../../stores/user'
 
 const { state } = useUserStore()
@@ -129,6 +136,8 @@ const tableData = ref([])
 const selected = ref([])
 const loading = ref(false)
 const saving = ref(false)
+const disclosureDocument = ref(null)
+const otherAttachments = ref([])
 
 const query = reactive({ disclosureName: '', patentType: '', patentStatus: '', internalNo: '', applicant: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
@@ -160,6 +169,8 @@ const resetQuery = () => {
 
 const openAdd = () => {
   Object.keys(form).forEach(k => form[k] = k === 'id' ? null : '')
+  disclosureDocument.value = null
+  otherAttachments.value = []
   dialog.isEdit = false
   dialog.visible = true
 }
@@ -169,6 +180,8 @@ const openEdit = async (row) => {
     const res = await getById(row.id)
     if (res.code === 200) {
       Object.assign(form, res.data)
+      disclosureDocument.value = null
+      otherAttachments.value = []
       dialog.isEdit = true
       dialog.visible = true
     }
@@ -176,9 +189,15 @@ const openEdit = async (row) => {
 }
 
 const handleSave = async () => {
+  if (!dialog.isEdit && !disclosureDocument.value) {
+    ElMessage.warning('请选择一份 Word 格式的交底书')
+    return
+  }
   saving.value = true
   try {
-    const res = dialog.isEdit ? await update({ ...form }) : await create({ ...form })
+    const res = dialog.isEdit
+      ? await update({ ...form })
+      : await create({ ...form }, disclosureDocument.value, otherAttachments.value)
     if (res.code === 200) {
       ElMessage.success(dialog.isEdit ? '修改成功' : '新增成功')
       dialog.visible = false

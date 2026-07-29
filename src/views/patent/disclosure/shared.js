@@ -29,6 +29,12 @@ export const fmtSize = (bytes) => {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+export const mergeDisclosureAttachments = (records = [], grouped = {}) =>
+  records.map(record => ({
+    ...record,
+    attachments: grouped?.[record.id] || grouped?.[String(record.id)] || []
+  }))
+
 export const emptyForm = () => ({
   id: null, internalNo: '', patentStatus: '草稿', disclosureName: '', patentType: '',
   applicant: '', inventor: '', contactPerson: '', sponsor: '', sponsorUserId: null, agent: '',

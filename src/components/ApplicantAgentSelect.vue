@@ -22,6 +22,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getAll as getAgentAll, getApplicantAll } from '../api/externalPersonnelController.js'
+import { useUserStore } from '../stores/user'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -29,8 +30,12 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+const { state } = useUserStore()
 
 const options = ref([])
+const requiredPermission = computed(() =>
+  props.type === 'agent' ? 'patent:agent:list' : 'patent:applicant:list'
+)
 
 const placeholder = computed(() => props.type === 'agent' ? '选择或输入代理人' : '选择或输入申请人')
 
@@ -43,6 +48,11 @@ const innerValue = computed(() => {
 })
 
 const fetchOptions = async () => {
+  // 低权限角色仍可手工录入名称，不发起必然返回 403 的候选项请求。
+  if (!state.permissions.includes(requiredPermission.value)) {
+    options.value = []
+    return
+  }
   try {
     const api = props.type === 'agent' ? getAgentAll : getApplicantAll
     const res = await api()

@@ -1,39 +1,79 @@
 import request from '../utils/request'
 
 const BASE = '/api/application-package'
-
-export function getList(params) {
-  return request.get(`${BASE}/list`, { params })
+const uploadConfig = {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  timeout: 120000
 }
 
-export function getAll() {
-  return request.get(`${BASE}/all`)
+export function getBatches(params) {
+  return request.get(`${BASE}/batches`, { params })
 }
 
-export function getById(id) {
-  return request.get(`${BASE}/${id}`)
+export function getBatch(packageToken) {
+  return request.get(`${BASE}/batches/${encodeURIComponent(packageToken)}`)
 }
 
-export function create(data) {
-  return request.post(BASE, data)
+export function getBatchByDisclosure(disclosureId) {
+  return request.get(`${BASE}/batches/by-disclosure/${encodeURIComponent(disclosureId)}`)
 }
 
-export function update(data) {
-  return request.put(BASE, data)
+export function createDraft(disclosureId) {
+  return request.post(`${BASE}/drafts`, { disclosureId })
 }
 
-export function remove(id) {
-  return request.delete(`${BASE}/${id}`)
+export function uploadBatchFile(packageToken, documentCode, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.put(
+    `${BASE}/batches/${encodeURIComponent(packageToken)}/files/${encodeURIComponent(documentCode)}`,
+    formData,
+    uploadConfig
+  )
 }
 
-export function batchRemove(ids) {
-  return request.delete(`${BASE}/batch`, { data: ids })
+export function removeBatchFile(packageToken, documentCode) {
+  return request.delete(
+    `${BASE}/batches/${encodeURIComponent(packageToken)}/files/${encodeURIComponent(documentCode)}`
+  )
 }
 
-export function getByDisclosure(disclosureId) {
-  return request.get(`${BASE}/by-disclosure/${disclosureId}`)
+export function sendBatch(packageToken, processUserId) {
+  return request.post(`${BASE}/batches/${encodeURIComponent(packageToken)}/send`, { processUserId })
 }
 
-export function confirmPackage(id, params) {
-  return request.put(`${BASE}/${id}/confirm`, null, { params })
+export function receiveBatch(packageToken) {
+  return request.post(`${BASE}/batches/${encodeURIComponent(packageToken)}/receive`)
+}
+
+export function rejectBatch(packageToken, data) {
+  return request.post(`${BASE}/batches/${encodeURIComponent(packageToken)}/reject`, data)
+}
+
+export function approveBatch(packageToken) {
+  return request.post(`${BASE}/batches/${encodeURIComponent(packageToken)}/approve`)
+}
+
+export function unlockBatch(packageToken, reason) {
+  return request.post(`${BASE}/batches/${encodeURIComponent(packageToken)}/unlock`, { reason })
+}
+
+export function submitCnipa(packageToken, { submissionNo, submittedAt, receipt }) {
+  const formData = new FormData()
+  formData.append('submissionNo', submissionNo)
+  formData.append('submittedAt', submittedAt)
+  formData.append('receipt', receipt)
+  return request.post(
+    `${BASE}/batches/${encodeURIComponent(packageToken)}/submit-cnipa`,
+    formData,
+    uploadConfig
+  )
+}
+
+export function getProcessOperators() {
+  return request.get(`${BASE}/process-operators`)
+}
+
+export function createDownloadTicket(fileToken) {
+  return request.post(`${BASE}/files/${encodeURIComponent(fileToken)}/download-ticket`)
 }

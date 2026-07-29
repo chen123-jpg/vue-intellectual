@@ -218,79 +218,7 @@
 
         <!-- Tab 3: 申请包 -->
         <el-tab-pane label="申请包" name="packages">
-          <div
-            v-if="og.form.patentStatus !== '定稿' && og.form.patentStatus !== '定稿待报'"
-            class="empty-hint"
-          >
-            当前状态为"{{ og.form.patentStatus }}"，定稿后才能上传申请包
-          </div>
-          <template v-else>
-            <div class="upload-group">
-              <h4>XML 申请包</h4>
-              <el-upload
-                :show-file-list="false"
-                :http-request="(opt) => ogUploadPkg(opt, 'XML_PACKAGE')"
-                :before-upload="beforePkg"
-                :disabled="og.uploading"
-                action="#"
-              >
-                <el-button
-                  type="primary"
-                  :loading="og.uploading && og.pkgType === 'XML_PACKAGE'"
-                >
-                  上传 XML 包
-                </el-button>
-              </el-upload>
-            </div>
-            <el-divider />
-            <div class="upload-group">
-              <h4>五书申请文件（Word）</h4>
-              <el-upload
-                :show-file-list="false"
-                :http-request="(opt) => ogUploadPkg(opt, 'FIVE_BOOKS_WORD')"
-                :before-upload="beforePkg"
-                :disabled="og.uploading"
-                action="#"
-              >
-                <el-button
-                  :loading="og.uploading && og.pkgType === 'FIVE_BOOKS_WORD'"
-                >
-                  上传五书文件
-                </el-button>
-              </el-upload>
-            </div>
-            <el-divider />
-            <h4 style="margin-bottom: 8px">已上传申请包</h4>
-            <el-table :data="og.packages" border stripe size="small">
-              <el-table-column label="类型" width="130">
-                <template #default="{ row }">
-                  <el-tag
-                    :type="row.packageType === 'XML_PACKAGE' ? 'primary' : 'success'"
-                    size="small"
-                  >
-                    {{ row.packageType === 'XML_PACKAGE' ? 'XML申请包' : '五书文件' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
-              <el-table-column prop="versionNo" label="版本" width="70" />
-              <el-table-column label="确认状态" width="110">
-                <template #default="{ row }">
-                  <el-tag
-                    :type="row.confirmStatus === 'SUBMITTED' ? 'success' : row.confirmStatus === 'CONFIRMED' ? 'primary' : 'warning'"
-                    size="small"
-                  >
-                    {{ row.confirmStatus === 'UNCONFIRMED' ? '未确认' : row.confirmStatus === 'CONFIRMED' ? '可提交' : '已提交' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="80">
-                <template #default="{ row }">
-                  <el-button size="small" @click="downloadFile(row.fileUrl)">下载</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </template>
+          <ApplicationPackageComposer :disclosure="og.form" />
         </el-tab-pane>
 
         <!-- Tab 4: 发送邮件 -->
@@ -464,8 +392,6 @@ import {
   update,
   changeStatus,
   getStatusLogs,
-  getPackages,
-  uploadPackage,
   getFees,
   getInvoices,
   getTemplateList,
@@ -474,6 +400,7 @@ import {
   uploadFile
 } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
+import ApplicationPackageComposer from '../../../components/ApplicationPackageComposer.vue'
 import { downloadFile, formatDate, formatDateTime } from '../../../utils/format'
 import { statusTag, fmtSize, hasPerm, userId, userName } from './shared'
 
@@ -489,9 +416,6 @@ const og = reactive({
   statusForm: { toStatus: '', remark: '' },
   statusLogs: [],
   statusSaving: false,
-  packages: [],
-  uploading: false,
-  pkgType: '',
   fees: [],
   invoices: [],
   emailMode: 'normal',
@@ -544,7 +468,6 @@ const ogOpenProcess = async (row) => {
       og.dialog = { visible: true, activeTab: 'basic' }
       og.statusForm = { toStatus: '', remark: '' }
       og.statusLogs = []
-      og.packages = []
       og.fees = []
       og.invoices = []
       og.emailMode = 'normal'
@@ -614,50 +537,6 @@ const ogFetchStatusLogs = async () => {
   }
 }
 
-// ========================== Packages ==========================
-const ogFetchPackages = async () => {
-  try {
-    const r = await getPackages(og.form.id)
-    if (r.code === 200) og.packages = r.data || []
-  } catch {
-    og.packages = []
-  }
-}
-
-const beforePkg = (file) => {
-  if (file.size > 50 * 1024 * 1024) {
-    ElMessage.warning('文件超过50MB')
-    return false
-  }
-  return true
-}
-
-const ogUploadPkg = async (opt, type) => {
-  const { file, onSuccess, onError } = opt
-  og.pkgType = type
-  og.uploading = true
-  try {
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('packageType', type)
-    if (userId.value) fd.append('uploadUserId', userId.value)
-    if (userName.value) fd.append('uploadUserName', userName.value)
-    const r = await uploadPackage(og.form.id, fd)
-    if (r.code === 200) {
-      ElMessage.success('上传成功')
-      ogFetchPackages()
-      onSuccess(r)
-    } else {
-      onError(new Error(r.message))
-    }
-  } catch (e) {
-    onError(e)
-  } finally {
-    og.uploading = false
-    og.pkgType = ''
-  }
-}
-
 // ========================== Fees & Invoices ==========================
 const ogFetchFees = async () => {
   try {
@@ -680,7 +559,6 @@ const ogFetchInvoices = async () => {
 // ========================== Tab Change ==========================
 const ogOnTabChange = (tab) => {
   if (tab === 'status') ogFetchStatusLogs()
-  else if (tab === 'packages') ogFetchPackages()
   else if (tab === 'fees') ogFetchFees()
   else if (tab === 'invoices') ogFetchInvoices()
   else if (tab === 'email' && !og.templateList.length) ogLoadTemplates()

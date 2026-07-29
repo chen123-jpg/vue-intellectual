@@ -68,6 +68,24 @@
             <el-tag :type="row.syncedToPatent===1?'success':'info'" size="small">{{ row.syncedToPatent===1?'已同步':'未' }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="交底书" min-width="180">
+          <template #default="{ row }">
+            <DisclosureAttachmentLinks
+              :attachments="row.attachments"
+              biz-type="DISCLOSURE_DOC"
+              @preview="adOpenPreview"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="其他文件" min-width="200">
+          <template #default="{ row }">
+            <DisclosureAttachmentLinks
+              :attachments="row.attachments"
+              biz-type="DISCLOSURE_OTHER"
+              @preview="adOpenPreview"
+            />
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button
@@ -191,12 +209,21 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-divider content-position="left">附件管理</el-divider>
+        <DisclosureAttachmentEditor
+          :disclosure-id="ad.dialog.isEdit ? ad.form.id : null"
+          v-model:document-file="ad.disclosureDocument"
+          v-model:other-files="ad.otherAttachments"
+          @changed="adFetchData"
+        />
       </el-form>
       <template #footer>
         <el-button @click="ad.dialog.visible = false">取消</el-button>
         <el-button type="primary" @click="adSave" :loading="ad.saving">保存</el-button>
       </template>
     </el-dialog>
+
+    <FilePreviewDialog v-model="ad.preview.visible" :attachment="ad.preview.attachment" />
   </div>
 </template>
 
@@ -205,8 +232,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, create, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
+import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
+import DisclosureAttachmentLinks from '../../../components/DisclosureAttachmentLinks.vue'
+import FilePreviewDialog from '../../../components/FilePreviewDialog.vue'
 import { formatDate } from '../../../utils/format'
-import { statusTag, emptyForm, hasPerm } from './shared'
+import { statusTag, emptyForm, hasPerm, mergeDisclosureAttachments } from './shared'
 
 const ad = reactive({
   query: {
@@ -221,7 +251,10 @@ const ad = reactive({
   selected: [],
   loading: false,
   dialog: { visible: false, isEdit: false },
+  preview: { visible: false, attachment: null },
   form: emptyForm(),
+  disclosureDocument: null,
+  otherAttachments: [],
   saving: false
 })
 
@@ -234,7 +267,10 @@ const adFetchData = async () => {
     })
     const res = await getList(params)
     if (res.code === 200) {
-      ad.tableData = res.data.records || []
+      ad.tableData = mergeDisclosureAttachments(
+        res.data.records,
+        res.data.attachmentsByDisclosureId
+      )
       ad.page.total = res.data.total || 0
     }
   } finally {
@@ -250,8 +286,15 @@ const adResetQuery = () => {
 
 const adOpenAdd = () => {
   Object.assign(ad.form, emptyForm())
+  ad.disclosureDocument = null
+  ad.otherAttachments = []
   ad.dialog.isEdit = false
   ad.dialog.visible = true
+}
+
+const adOpenPreview = (attachment) => {
+  ad.preview.attachment = attachment
+  ad.preview.visible = true
 }
 
 const adOpenEdit = async (row) => {
@@ -259,6 +302,8 @@ const adOpenEdit = async (row) => {
     const res = await getById(row.id)
     if (res.code === 200) {
       Object.assign(ad.form, res.data)
+      ad.disclosureDocument = null
+      ad.otherAttachments = []
       ad.dialog.isEdit = true
       ad.dialog.visible = true
     }
@@ -276,9 +321,15 @@ const adSave = async () => {
     ElMessage.warning('请选择专利类型')
     return
   }
+  if (!ad.dialog.isEdit && !ad.disclosureDocument) {
+    ElMessage.warning('请选择一份 Word 格式的交底书')
+    return
+  }
   ad.saving = true
   try {
-    const res = ad.dialog.isEdit ? await update({ ...ad.form }) : await create({ ...ad.form })
+    const res = ad.dialog.isEdit
+      ? await update({ ...ad.form })
+      : await create({ ...ad.form }, ad.disclosureDocument, ad.otherAttachments)
     if (res.code === 200) {
       ElMessage.success(ad.dialog.isEdit ? '修改成功' : '新增成功')
       ad.dialog.visible = false

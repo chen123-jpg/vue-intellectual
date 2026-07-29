@@ -1,7 +1,6 @@
 import request from '../utils/request'
 
 const BASE = '/api/ttable'
-const PKG_BASE = '/api/application-package'
 
 // ==================== Basic CRUD ====================
 export function getList(params) {
@@ -20,9 +19,18 @@ export function getDetail(id) {
   return request.get(`${BASE}/${id}/detail`)
 }
 
-export function create(data) {
-  return request.post(BASE, data)
+export function create(data, disclosureDocument, otherAttachments = [], sourceId = null) {
+  const formData = new FormData()
+  formData.append('request', new Blob([JSON.stringify(data)], { type: 'application/json' }))
+  formData.append('disclosureDocument', disclosureDocument)
+  otherAttachments.forEach(file => formData.append('otherAttachments', file))
+  if (sourceId) formData.append('sourceId', sourceId)
+  return request.post(`${BASE}/add`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 }
+
+export const createWithAttachments = create
 
 export function update(data) {
   return request.put(BASE, data)
@@ -71,6 +79,14 @@ export function uploadAttachment(id, formData) {
   })
 }
 
+export function replaceDisclosureDocument(id, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.put(`${BASE}/${id}/attachments/disclosure-document`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
 export function deleteAttachment(attachmentId) {
   return request.delete(`${BASE}/attachments/${attachmentId}`)
 }
@@ -82,25 +98,6 @@ export function getFees(id) {
 
 export function getInvoices(id) {
   return request.get(`${BASE}/${id}/invoices`)
-}
-
-// ==================== Packages ====================
-export function getPackages(id) {
-  return request.get(`${BASE}/${id}/packages`)
-}
-
-export function uploadPackage(id, formData) {
-  return request.post(`${BASE}/${id}/packages`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
-}
-
-export function getPackageList(params) {
-  return request.get(`${PKG_BASE}/list`, { params })
-}
-
-export function confirmPackage(packageId, params) {
-  return request.put(`${PKG_BASE}/${packageId}/confirm`, null, { params })
 }
 
 // ==================== Mail ====================
