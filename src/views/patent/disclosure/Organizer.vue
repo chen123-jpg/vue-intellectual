@@ -111,6 +111,11 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
+                <el-form-item label="主办人">
+                  <el-input :model-value="og.form.sponsor || '-'" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
                 <el-form-item label="代理人">
                   <ApplicantAgentSelect v-model="og.form.agent" type="agent" />
                 </el-form-item>
@@ -485,7 +490,8 @@ const ogOpenProcess = async (row) => {
 const ogSaveBasic = async () => {
   og.saving = true
   try {
-    const r = await update({ ...og.form })
+    const { sponsor, sponsorUserId, ...editableForm } = og.form
+    const r = await update(editableForm)
     if (r.code === 200) {
       ElMessage.success('已保存')
     }
