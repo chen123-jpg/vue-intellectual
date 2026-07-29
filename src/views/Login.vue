@@ -3,32 +3,32 @@
     <el-card class="login-card" shadow="hover">
       <template #header>
         <div class="tab-header">
-          <span
-              class="tab-item"
-              :class="{ active: activeTab === 'login' }"
-              @click="activeTab = 'login'"
-          >账号登录</span>
-          <span
-              class="tab-item"
-              :class="{ active: activeTab === 'register' }"
-              @click="activeTab = 'register'"
-          >用户注册</span>
+          <span class="tab-item" :class="{ active: activeTab === 'login' }" @click="activeTab = 'login'">
+            账号登录</span>
+          <span class="tab-item" :class="{ active: activeTab === 'register' }" @click="activeTab = 'register'">
+            用户注册</span>
         </div>
       </template>
 
       <!-- 登录表单 -->
-      <el-form
-          v-if="activeTab === 'login'"
-          ref="loginRef"
-          :model="loginForm"
-          label-width="90px"
-      >
+      <el-form v-if="activeTab === 'login'" ref="loginRef" :model="loginForm" label-width="90px">
         <el-form-item label="登录账号">
           <el-input v-model="loginForm.loginName" placeholder="请输入账号"></el-input>
         </el-form-item>
-<!--        <el-form-item label="手机号">-->
-<!--          <el-input v-model="loginForm.phoneNumber" placeholder="请输入手机号"></el-input>-->
-<!--        </el-form-item>-->
+        <el-form-item label="手机号">
+          <el-input v-model="loginForm.phoneNumber" placeholder="请输入手机号"></el-input>
+        </el-form-item>
+        <el-form-item label="手机验证码">
+          <el-input v-model="loginForm.smsCode" placeholder="请输入验证码">
+            <template #append>
+              <el-button @click="sendSmsCode" :disabled="isSending">
+                {{ isSending ? `${remainTime}s后重试` : '获取验证码' }}
+              </el-button>
+            </template>
+
+          </el-input>
+
+        </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="loginForm.password" type="password" placeholder="请输入密码"></el-input>
         </el-form-item>
@@ -52,12 +52,7 @@
       </el-form>
 
       <!-- 注册表单 -->
-      <el-form
-          v-if="activeTab === 'register'"
-          ref="regRef"
-          :model="regForm"
-          label-width="90px"
-      >
+      <el-form v-if="activeTab === 'register'" ref="regRef" :model="regForm" label-width="90px">
         <el-form-item label="登录账号">
           <el-input v-model="regForm.loginName" placeholder="3~30位账号"></el-input>
         </el-form-item>
@@ -66,6 +61,15 @@
         </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="regForm.phoneNumber" placeholder="请输入手机号"></el-input>
+        </el-form-item>
+        <el-form-item label="手机验证码">
+          <el-input v-model="regForm.smsCode" placeholder="请输入手机验证码">
+            <template #append>
+              <el-button @click="sendSmsCode" :disabled="isSending">
+                {{ isSending ? `${remainTime}s后重试` : '获取验证码' }}
+              </el-button>
+            </template>
+          </el-input>
         </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="regForm.password" type="password" placeholder="6~20位密码"></el-input>
@@ -95,7 +99,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getCheckCode, register as registerApi } from '../api/acount'
+import {getCheckCode, getSmsCode, register as registerApi} from '../api/acount'
 import { useUserStore } from '../stores/user'
 import { ElMessage } from 'element-plus'
 
@@ -103,15 +107,18 @@ const router = useRouter()
 const { login } = useUserStore()
 
 const activeTab = ref('login')
+const isSending = ref(false);
 const loginLoading = ref(false)
 const regLoading = ref(false)
 
 const captchaImg = ref('')
 const checkCodeKey = ref('')
+const remainTime = ref(60)
 
 const loginForm = ref({
   loginName: '',
   phoneNumber: '',
+  smsCode: '',
   password: '',
   checkCodeKey: '',
   checkCode: ''
@@ -121,6 +128,7 @@ const regForm = ref({
   loginName: '',
   email: '',
   phoneNumber: '',
+  smsCode: '',
   password: '',
   checkCodeKey: '',
   checkCode: ''
@@ -132,6 +140,33 @@ const refreshCaptcha = async () => {
   checkCodeKey.value = res.data.checkCodeKey
   loginForm.value.checkCodeKey = checkCodeKey.value
   regForm.value.checkCodeKey = checkCodeKey.value
+}
+
+//后端生成手机验证码
+const sendSmsCode = async () => {
+  const phone = activeTab.value === 'register'?regForm.value.phoneNumber:loginForm.value.phoneNumber
+  if (!phone) {
+    ElMessage.warning("请输入手机号")
+    return
+  }
+  try {
+    const res = await getSmsCode(phone)
+    isSending.value = true
+    //60秒倒计时
+    remainTime.value = 60
+    const timer = setInterval(() => {
+      remainTime.value--
+      if (remainTime.value <= 0) {
+        clearInterval(timer)
+        isSending.value = false
+      }
+    },1000)
+  }catch (err){
+    console.error("请求失败了:",err)
+    ElMessage.warning("验证码发送失败，请稍后再试！")
+    isSending.value = false
+  }
+
 }
 
 const handleLogin = async () => {
