@@ -27,6 +27,10 @@
           </el-icon>
         </div>
         <div class="header-right">
+          <div class="mail-entry" @click="goMail">
+            <el-icon :size="20"><Message /></el-icon>
+            <span class="mail-entry-text">邮件中心</span>
+          </div>
           <span class="user-name">{{ userName }}</span>
           <el-dropdown @command="handleCommand">
             <span class="dropdown-trigger">
@@ -59,7 +63,7 @@ import RecursiveMenuItem from '../components/RecursiveMenuItem.vue'
 import {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
-  Edit, Warning, Fold, Expand, UserFilled, ArrowDown,
+  Edit, Warning, Fold, Expand, UserFilled, ArrowDown, Message,
 } from '@element-plus/icons-vue'
 
 const iconMap = {
@@ -89,6 +93,7 @@ const resolveIcon = (iconName) => {
   return component ? markRaw(component) : markRaw(Document)
 }
 
+// ========== 递归构建菜单树（支持无限层级） ==========
 // ========== 递归构建菜单树（支持无限层级） ==========
 const buildMenuTree = (list, parentId = 0) => {
   return list
@@ -130,6 +135,7 @@ const visibleMenus = computed(() => {
 const activeMenu = computed(() => route.path)
 
 const goHome = () => router.push('/home')
+const goMail = () => router.push('/mail')
 
 const handleCommand = async (cmd) => {
   if (cmd === 'logout') {
@@ -209,6 +215,26 @@ watch(() => state.menuVersion, () => {
 .user-name {
   font-size: 14px;
   color: #333;
+}
+.mail-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.08);
+  transition: all 0.2s;
+  user-select: none;
+}
+.mail-entry:hover {
+  background: rgba(64, 158, 255, 0.16);
+  color: #337ecc;
+}
+.mail-entry-text {
+  font-size: 13px;
+  font-weight: 500;
 }
 .dropdown-trigger {
   display: flex;

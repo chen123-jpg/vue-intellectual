@@ -1,214 +1,235 @@
 <template>
-  <div class="mail-container">
-    <el-card>
-      <el-tabs v-model="activeTab" @tab-change="onTabChange">
-        <el-tab-pane label="发送邮件" name="send">
-          <el-form ref="sendFormRef" :model="sendForm" label-width="80px" class="send-form">
-            <el-form-item label="发送模式">
-              <el-radio-group v-model="sendMode" @change="onSendModeChange">
-                <el-radio-button value="normal">普通发送</el-radio-button>
-                <el-radio-button value="template">模板发送</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
-
-            <el-form-item v-if="sendMode === 'template'" label="选择模板">
-              <el-select v-model="sendForm.templateCode" placeholder="选择邮件模板" clearable @change="onTemplateSelect" style="width:100%">
-                <el-option v-for="tpl in enabledTemplates" :key="tpl.templateCode" :label="`${tpl.templateName} (${tpl.templateCode})`" :value="tpl.templateCode" />
-              </el-select>
-            </el-form-item>
-
-            <template v-if="sendMode === 'template' && templateVariables.length">
-              <el-divider content-position="left">模板变量</el-divider>
-              <el-form-item v-for="v in templateVariables" :key="v" :label="v" required>
-                <el-input v-model="templateData[v]" :placeholder="`输入 ${v} 的值`" />
-              </el-form-item>
-            </template>
-
-            <template v-if="sendMode === 'template' && selectedTemplate">
-              <el-divider content-position="left">模板预览</el-divider>
-              <el-form-item label="主题">
-                <el-input :model-value="selectedTemplate.subject" disabled />
-              </el-form-item>
-              <el-form-item label="正文">
-                <div class="content-preview" v-html="selectedTemplate.content"></div>
-              </el-form-item>
-            </template>
-
-            <el-divider />
-
-            <el-form-item label="收件人" required>
-              <el-input v-model="sendForm.to" placeholder="多个邮箱用逗号或分号分隔" />
-            </el-form-item>
-
-            <el-form-item label="抄送">
-              <el-input v-model="sendForm.cc" placeholder="多个邮箱用逗号或分号分隔" />
-            </el-form-item>
-
-            <template v-if="sendMode === 'normal'">
-              <el-form-item label="主题" required>
-                <el-input v-model="sendForm.subject" placeholder="邮件主题" />
-              </el-form-item>
-              <el-form-item label="正文" required>
-                <el-input v-model="sendForm.text" type="textarea" :rows="6" placeholder="邮件正文，支持 HTML" />
-              </el-form-item>
-            </template>
-
-            <el-form-item label="附件">
-              <FileUpload ref="fileUploadRef" v-model="attachmentUrls" tip="支持上传多个文件" />
-            </el-form-item>
-
-            <el-form-item>
-              <el-button type="primary" @click="handleSend" :loading="sending" size="large" style="width:120px">
-                {{ sending ? '发送中...' : '发送邮件' }}
-              </el-button>
-            </el-form-item>
-          </el-form>
-        </el-tab-pane>
-
-        <el-tab-pane label="模板管理" name="templates">
-          <div style="margin-bottom:12px;">
-            <el-button type="primary" @click="loadTemplates" :loading="templateLoading">刷新</el-button>
+  <div class="mail-page">
+    <!-- ========== 顶部横幅 ========== -->
+    <div class="page-hero">
+      <div class="hero-content">
+        <div class="hero-icon">
+          <el-icon :size="36"><Message /></el-icon>
+        </div>
+        <div class="hero-text">
+          <h1 class="hero-title">邮件中心</h1>
+          <p class="hero-subtitle">高效撰写与发送邮件，统一管理发送记录</p>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <span class="stat-num">{{ sentCount }}</span>
+            <span class="stat-label">已发送</span>
           </div>
-          <el-table :data="templateList" v-loading="templateLoading" border>
-            <el-table-column prop="templateCode" label="编码" width="180" />
-            <el-table-column prop="templateName" label="名称" width="160" />
-            <el-table-column prop="subject" label="主题模板" min-width="200" show-overflow-tooltip />
-            <el-table-column label="状态" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.enabled === 1 ? 'success' : 'danger'">
-                  {{ row.enabled === 1 ? '启用' : '停用' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120">
-              <template #default="{ row }">
-                <el-button size="small" type="primary" @click="applyTemplate(row.templateCode)">使用模板</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <p v-if="!templateList.length && !templateLoading" style="color:#909399;">暂无模板数据</p>
-        </el-tab-pane>
-      </el-tabs>
-    </el-card>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 主内容区 ========== -->
+    <div class="page-body">
+      <el-card class="main-card" shadow="never">
+        <el-tabs v-model="activeTab" class="mail-tabs">
+          <!-- ========== 写邮件 ========== -->
+          <el-tab-pane name="compose">
+            <template #label>
+              <div class="tab-label">
+                <el-icon :size="18"><Edit /></el-icon>
+                <span>写邮件</span>
+              </div>
+            </template>
+            <div class="compose-section">
+              <MailComposer
+                ref="composerRef"
+                mode="inline"
+                :show-header="false"
+                shadow="never"
+                @sent="onMailSent"
+                @cancel="onMailCancel"
+              />
+            </div>
+          </el-tab-pane>
+
+          <!-- ========== 发送记录 ========== -->
+          <el-tab-pane name="records">
+            <template #label>
+              <div class="tab-label">
+                <el-icon :size="18"><Clock /></el-icon>
+                <span>发送记录</span>
+              </div>
+            </template>
+            <MailRecordsEmbed />
+          </el-tab-pane>
+        </el-tabs>
+      </el-card>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { sendMail, sendMailWithTemplate, getTemplateList } from '../../api/mail'
-import FileUpload from '../../components/FileUpload.vue'
+import { ref } from 'vue'
+import MailComposer from '../../components/MailComposer.vue'
+import MailRecordsEmbed from './MailRecords.vue'
+import { Message, Edit, Clock } from '@element-plus/icons-vue'
 
-const activeTab = ref('send')
-const sendMode = ref('normal')
-const fileUploadRef = ref(null)
+const activeTab = ref('compose')
+const composerRef = ref(null)
+const sentCount = ref(0)
 
-const sendForm = reactive({
-  to: '', cc: '', subject: '', text: '', templateCode: ''
-})
-const templateData = reactive({})
-const attachmentUrls = ref([])
-
-const sending = ref(false)
-const templateList = ref([])
-const templateLoading = ref(false)
-const selectedTemplate = ref(null)
-const templateVariables = ref([])
-
-const enabledTemplates = computed(() => templateList.value.filter(t => t.enabled === 1))
-
-const parseVariables = (text) => {
-  const matches = text.match(/\$\{(\w+)\}/g) || []
-  return [...new Set(matches.map(m => m.slice(2, -1)))]
+const onMailSent = () => {
+  sentCount.value++
 }
 
-const onTemplateSelect = (code) => {
-  Object.keys(templateData).forEach(k => delete templateData[k])
-  if (!code) { selectedTemplate.value = null; templateVariables.value = []; return }
-  const tpl = templateList.value.find(t => t.templateCode === code)
-  if (tpl) {
-    selectedTemplate.value = tpl
-    const subjectVars = parseVariables(tpl.subject || '')
-    const contentVars = parseVariables(tpl.content || '')
-    templateVariables.value = [...new Set([...subjectVars, ...contentVars])]
-    templateVariables.value.forEach(v => { templateData[v] = '' })
-  }
-}
-
-const handleSend = async () => {
-  if (!sendForm.to.trim()) { ElMessage.warning('请输入收件人'); return }
-  if (sendMode.value === 'normal') {
-    if (!sendForm.subject.trim() || !sendForm.text.trim()) { ElMessage.warning('主题和正文不能为空'); return }
-  } else {
-    if (!sendForm.templateCode) { ElMessage.warning('请选择邮件模板'); return }
-    const emptyVar = templateVariables.value.find(v => !templateData[v]?.trim())
-    if (emptyVar) { ElMessage.warning(`请填写模板变量：${emptyVar}`); return }
-  }
-
-  sending.value = true
-  try {
-    const body = {
-      to: sendForm.to.trim(),
-      cc: sendForm.cc.trim() || undefined,
-      attachmentUrls: attachmentUrls.value
-    }
-
-    let res
-    if (sendMode.value === 'normal') {
-      body.subject = sendForm.subject.trim()
-      body.text = sendForm.text.trim()
-    } else {
-      body.templateCode = sendForm.templateCode
-      body.templateData = { ...templateData }
-    }
-    res = sendMode.value === 'normal' ? await sendMail(body) : await sendMailWithTemplate(body)
-
-    if (res.code === 200) {
-      ElMessage.success('发送成功')
-      resetSendForm()
-    }
-  } finally { sending.value = false }
-}
-
-const resetSendForm = () => {
-  sendForm.to = ''; sendForm.cc = ''; sendForm.subject = ''; sendForm.text = ''; sendForm.templateCode = ''
-  Object.keys(templateData).forEach(k => delete templateData[k])
-  attachmentUrls.value = []
-  selectedTemplate.value = null; templateVariables.value = []
-  if (fileUploadRef.value) fileUploadRef.value.clearFiles()
-}
-
-const onSendModeChange = () => {
-  sendForm.subject = ''; sendForm.text = ''; sendForm.templateCode = ''
-  Object.keys(templateData).forEach(k => delete templateData[k])
-  selectedTemplate.value = null; templateVariables.value = []
-}
-
-const loadTemplates = async () => {
-  templateLoading.value = true
-  try {
-    const res = await getTemplateList()
-    if (res.code === 200) templateList.value = res.data || []
-  } finally { templateLoading.value = false }
-}
-
-const applyTemplate = (code) => {
-  sendMode.value = 'template'
-  sendForm.templateCode = code
-  onTemplateSelect(code)
-  activeTab.value = 'send'
-  ElMessage.success(`已切换到模板发送：${code}`)
-}
-
-const onTabChange = (tabName) => {
-  if (tabName === 'templates' && !templateList.value.length) loadTemplates()
-}
-
-onMounted(() => loadTemplates())
+const onMailCancel = () => {}
 </script>
 
 <style scoped>
-.mail-container { max-width: 1200px; }
-.send-form .el-form-item { margin-bottom: 18px; }
-.content-preview { background: #f5f7fa; padding: 12px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-size: 13px; }
+/* ========== 整体 ========== */
+.mail-page {
+  max-width: 1300px;
+  margin: -20px;
+}
+
+/* ========== 顶部横幅 ========== */
+.page-hero {
+  background: linear-gradient(135deg, #409eff 0%, #337ecc 100%);
+  border-radius: 0 0 20px 20px;
+  padding: 32px 40px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.25);
+}
+
+.hero-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.hero-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  backdrop-filter: blur(4px);
+  flex-shrink: 0;
+}
+
+.hero-text {
+  flex: 1;
+}
+
+.hero-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.hero-subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.stat-item {
+  text-align: center;
+  min-width: 64px;
+}
+
+.stat-num {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 2px;
+}
+
+/* ========== 主内容 ========== */
+.page-body {
+  padding: 0 20px 20px;
+}
+
+.main-card {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #ebeef5;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.main-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+/* ========== Tab 样式 ========== */
+.mail-tabs :deep(.el-tabs__header) {
+  margin: 0;
+  padding: 0 24px;
+  background: #fafbfc;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.mail-tabs :deep(.el-tabs__nav) {
+  border: none;
+}
+
+.mail-tabs :deep(.el-tabs__item) {
+  height: 52px;
+  line-height: 52px;
+  font-size: 15px;
+  color: #606266;
+  padding: 0 24px;
+}
+
+.mail-tabs :deep(.el-tabs__item.is-active) {
+  color: #409eff;
+  font-weight: 600;
+}
+
+.mail-tabs :deep(.el-tabs__active-bar) {
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+}
+
+.mail-tabs :deep(.el-tabs__content) {
+  padding: 24px;
+}
+
+.tab-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ========== 写邮件区域 ========== */
+.compose-section {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* ========== 空状态 ========== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  color: #c0c4cc;
+}
+
+.empty-state p {
+  margin-top: 12px;
+  font-size: 14px;
+}
 </style>
