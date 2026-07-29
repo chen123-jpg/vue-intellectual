@@ -24,7 +24,19 @@
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="userId" label="用户ID" width="120" />
+        <el-table-column label="用户名称" width="150">
+          <template #default="{ row }">{{ row.loginName || loginNameMap[row.userId] }}</template>
+        </el-table-column>
         <el-table-column prop="roleId" label="角色ID" width="120" />
+        <el-table-column label="角色名称" width="150">
+          <template #default="{ row }">{{ row.roleName || roleNameMap[row.roleId] }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="hasPerm('system:userRole:add')" size="small" type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="hasPerm('system:userRole:delete')" size="small" type="danger" @click="handleDelete(row.roleId)">删除</el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <el-pagination
@@ -39,13 +51,17 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" title="新增用户角色关联" width="450px" destroy-on-close>
+    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑用户角色关联' : '新增用户角色关联'" width="450px" destroy-on-close>
       <el-form ref="formRef" :model="form" label-width="100px">
-        <el-form-item label="用户ID" required>
-          <el-input-number v-model="form.userId" :min="1" style="width:100%" />
+        <el-form-item label="用户" required>
+          <el-select v-model="form.userId" placeholder="请选择用户" filterable style="width:100%">
+            <el-option v-for="u in userOptions" :key="u.userId" :label="u.loginName" :value="u.userId" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="角色ID" required>
-          <el-input-number v-model="form.roleId" :min="1" style="width:100%" />
+        <el-form-item label="角色" required>
+          <el-select v-model="form.roleId" placeholder="请选择角色" filterable style="width:100%">
+            <el-option v-for="r in roleOptions" :key="r.roleId" :label="r.roleName" :value="r.roleId" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -57,9 +73,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, create, remove, batchRemove } from '../../api/userRole'
+import { getUserList } from '../../api/user'
+import { getAll as getRoleAll } from '../../api/role'
 import { useUserStore } from '../../stores/user'
 
 const { state } = useUserStore()
@@ -69,11 +87,25 @@ const tableData = ref([])
 const selected = ref([])
 const loading = ref(false)
 const saving = ref(false)
+const userOptions = ref([])
+const roleOptions = ref([])
 
 const query = reactive({ userId: '', roleId: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
-const dialog = reactive({ visible: false })
+const dialog = reactive({ visible: false, isEdit: false })
 const form = reactive({ userId: null, roleId: null })
+const editOriginRoleId = ref(null)
+
+const loginNameMap = computed(() => {
+  const map = {}
+  userOptions.value.forEach(u => { map[u.userId] = u.loginName })
+  return map
+})
+const roleNameMap = computed(() => {
+  const map = {}
+  roleOptions.value.forEach(r => { map[r.roleId] = r.roleName })
+  return map
+})
 
 const fetchData = async () => {
   loading.value = true
@@ -88,6 +120,20 @@ const fetchData = async () => {
   } finally { loading.value = false }
 }
 
+const fetchOptions = async () => {
+  const [userRes, roleRes] = await Promise.all([
+    getUserList({ pageNum: 1, pageSize: 999 }),
+    getRoleAll()
+  ])
+  if (userRes.code === 200) {
+    const data = userRes.data
+    userOptions.value = Array.isArray(data) ? data : (data.records || data || [])
+  }
+  if (roleRes.code === 200) {
+    roleOptions.value = roleRes.data || []
+  }
+}
+
 const resetQuery = () => {
   Object.keys(query).forEach(k => query[k] = '')
   page.pageNum = 1
@@ -97,15 +143,28 @@ const resetQuery = () => {
 const openAdd = () => {
   form.userId = null
   form.roleId = null
+  editOriginRoleId.value = null
+  dialog.isEdit = false
+  dialog.visible = true
+}
+
+const openEdit = (row) => {
+  form.userId = row.userId
+  form.roleId = row.roleId
+  editOriginRoleId.value = row.roleId
+  dialog.isEdit = true
   dialog.visible = true
 }
 
 const handleSave = async () => {
   saving.value = true
   try {
-    const res = await create({ ...form })
+    if (dialog.isEdit) {
+      await remove(editOriginRoleId.value)
+    }
+    const res = await create({ userId: form.userId, roleId: form.roleId })
     if (res.code === 200) {
-      ElMessage.success('新增成功')
+      ElMessage.success(dialog.isEdit ? '编辑成功' : '新增成功')
       dialog.visible = false
       fetchData()
     }
@@ -130,7 +189,7 @@ const handleBatchDelete = async () => {
 
 const onSelectionChange = (sel) => { selected.value = sel }
 
-onMounted(() => fetchData())
+onMounted(() => { fetchData(); fetchOptions() })
 </script>
 
 <style scoped>
