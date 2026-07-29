@@ -3,13 +3,19 @@
     <el-card>
       <el-form :inline="true" :model="po.query" class="search-form">
         <el-form-item label="交底名称">
-          <el-input v-model="po.query.disclosureName" placeholder="模糊搜索" clearable />
+          <el-input class="search-input" v-model="po.query.disclosureName" placeholder="模糊搜索" clearable />
         </el-form-item>
         <el-form-item label="内部编号">
-          <el-input v-model="po.query.internalNo" placeholder="精确搜索" clearable />
+          <el-input class="search-input short" v-model="po.query.internalNo" placeholder="精确搜索" clearable />
         </el-form-item>
         <el-form-item label="申请人">
-          <el-input v-model="po.query.applicant" placeholder="模糊搜索" clearable />
+          <el-input class="search-input" v-model="po.query.applicant" placeholder="模糊搜索" clearable />
+        </el-form-item>
+        <el-form-item label="发明人">
+          <el-input class="search-input" v-model="po.query.inventor" placeholder="模糊搜索" clearable />
+        </el-form-item>
+        <el-form-item label="主办人">
+          <el-input class="search-input" v-model="po.query.sponsor" placeholder="模糊搜索" clearable />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="poFetchData">查询</el-button>
@@ -22,10 +28,8 @@
       </div>
 
       <el-table :data="po.tableData" v-loading="po.loading" border stripe>
-        <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="patentType" label="专利类型" width="100" />
         <el-table-column label="专利状态" width="130">
           <template #default="{ row }">
             <el-tag :type="statusTag(row.patentStatus)" size="small" effect="dark">{{ row.patentStatus || '-' }}</el-tag>
@@ -147,7 +151,7 @@ import { downloadFile, formatDateTime } from '../../../utils/format'
 import { statusTag, hasPerm, userId, userName } from './shared'
 
 const po = reactive({
-  query: { disclosureName: '', internalNo: '', applicant: '' },
+  query: { disclosureName: '', internalNo: '', applicant: '', inventor: '' },
   page: { pageNum: 1, pageSize: 10, total: 0 },
   tableData: [],
   loading: false,

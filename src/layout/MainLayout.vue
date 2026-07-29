@@ -9,30 +9,12 @@
         :default-active="activeMenu"
         :collapse="isCollapse"
         :collapse-transition="false"
-        router
         background-color="#304156"
         text-color="#bfcbd9"
         active-text-color="#409eff"
       >
         <template v-for="menu in visibleMenus" :key="menu.id">
-          <el-sub-menu v-if="menu.children && menu.children.length" :index="menu.id + ''">
-            <template #title>
-              <el-icon><component :is="menu.icon" /></el-icon>
-              <span>{{ menu.label }}</span>
-            </template>
-            <el-menu-item
-              v-for="child in menu.children"
-              :key="child.id"
-              :index="child.path"
-            >
-              <el-icon><component :is="child.icon" /></el-icon>
-              <span>{{ child.label }}</span>
-            </el-menu-item>
-          </el-sub-menu>
-          <el-menu-item v-else :index="menu.path">
-            <el-icon><component :is="menu.icon" /></el-icon>
-            <span>{{ menu.label }}</span>
-          </el-menu-item>
+          <RecursiveMenuItem :menu="menu" />
         </template>
       </el-menu>
     </el-aside>
@@ -45,6 +27,10 @@
           </el-icon>
         </div>
         <div class="header-right">
+          <div class="mail-entry" @click="goMail">
+            <el-icon :size="20"><Message /></el-icon>
+            <span class="mail-entry-text">邮件中心</span>
+          </div>
           <span class="user-name">{{ userName }}</span>
           <el-dropdown @command="handleCommand">
             <span class="dropdown-trigger">
@@ -73,10 +59,11 @@ import { ref, computed, markRaw, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { getMenuList } from '../api/menu'
+import RecursiveMenuItem from '../components/RecursiveMenuItem.vue'
 import {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
-  Edit, Warning, Fold, Expand, UserFilled, ArrowDown
+  Edit, Warning, Fold, Expand, UserFilled, ArrowDown, Message,
 } from '@element-plus/icons-vue'
 
 const iconMap = {
@@ -106,6 +93,7 @@ const resolveIcon = (iconName) => {
   return component ? markRaw(component) : markRaw(Document)
 }
 
+// ========== 递归构建菜单树（支持无限层级） ==========
 const buildMenuTree = (list, parentId = 0) => {
   return list
     .filter(item => item.parentId === parentId && item.menuType !== 'F' && item.visible === '0')
@@ -116,33 +104,37 @@ const buildMenuTree = (list, parentId = 0) => {
         label: item.menuName,
         icon: resolveIcon(item.icon),
         path: item.url || '',
-        perm: item.perms || null
+        perm: item.perms || null,
+        menuType: item.menuType
       }
-      if (item.menuType === 'M') {
-        const children = buildMenuTree(list, item.menuId)
-        if (children.length) menu.children = children
-      }
+      const children = buildMenuTree(list, item.menuId)
+      if (children.length) menu.children = children
       return menu
     })
-    .filter(item => item.menuType !== 'M' || item.children)
 }
 
+// ========== 递归过滤权限 ==========
 const visibleMenus = computed(() => {
-  return fullMenus.value
-    .map(menu => {
-      if (!menu.children) {
-        return hasPermission(menu.perm) ? menu : null
-      }
-      const visibleChildren = menu.children.filter(child => hasPermission(child.perm))
-      if (visibleChildren.length === 0) return null
-      return { ...menu, children: visibleChildren }
-    })
-    .filter(Boolean)
+  const filterByPermission = (menus) => {
+    return menus
+      .map(menu => {
+        if (menu.perm && !hasPermission(menu.perm)) return null
+        if (menu.children) {
+          const filtered = filterByPermission(menu.children)
+          if (filtered.length === 0) return null
+          return { ...menu, children: filtered }
+        }
+        return menu
+      })
+      .filter(Boolean)
+  }
+  return filterByPermission(fullMenus.value)
 })
 
 const activeMenu = computed(() => route.path)
 
 const goHome = () => router.push('/home')
+const goMail = () => router.push('/mail')
 
 const handleCommand = async (cmd) => {
   if (cmd === 'logout') {
@@ -222,6 +214,26 @@ watch(() => state.menuVersion, () => {
 .user-name {
   font-size: 14px;
   color: #333;
+}
+.mail-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.08);
+  transition: all 0.2s;
+  user-select: none;
+}
+.mail-entry:hover {
+  background: rgba(64, 158, 255, 0.16);
+  color: #337ecc;
+}
+.mail-entry-text {
+  font-size: 13px;
+  font-weight: 500;
 }
 .dropdown-trigger {
   display: flex;

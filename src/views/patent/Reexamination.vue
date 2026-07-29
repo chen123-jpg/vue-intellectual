@@ -31,8 +31,6 @@
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="seqNo" label="序号" width="70" />
         <el-table-column prop="patentType" label="类型" width="90" />
         <el-table-column prop="category" label="分类" width="80" />
         <el-table-column prop="caseNo" label="案件编号" width="120" />

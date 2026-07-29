@@ -6,13 +6,6 @@
         <el-form-item label="交底名称">
           <el-input v-model="og.query.disclosureName" placeholder="模糊搜索" clearable />
         </el-form-item>
-        <el-form-item label="专利类型">
-          <el-select v-model="og.query.patentType" placeholder="全部" clearable>
-            <el-option label="发明" value="发明" />
-            <el-option label="实用新型" value="实用新型" />
-            <el-option label="外观" value="外观" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="专利状态">
           <el-select v-model="og.query.patentStatus" placeholder="全部" clearable>
             <el-option label="草稿" value="草稿" />
@@ -25,6 +18,12 @@
         </el-form-item>
         <el-form-item label="内部编号">
           <el-input v-model="og.query.internalNo" placeholder="精确搜索" clearable />
+        </el-form-item>
+        <el-form-item label="申请人">
+          <el-input v-model="og.query.applicant" placeholder="模糊搜索" clearable />
+        </el-form-item>
+        <el-form-item label="发明人">
+          <el-input v-model="og.query.inventor" placeholder="模糊搜索" clearable />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="ogFetchData">查询</el-button>
@@ -39,11 +38,9 @@
 
       <!-- Table -->
       <el-table :data="og.tableData" v-loading="og.loading" border stripe>
-        <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="tempNo" label="临时编号" width="120" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="patentType" label="专利类型" width="100" />
         <el-table-column label="专利状态" width="130">
           <template #default="{ row }">
             <el-tag :type="statusTag(row.patentStatus)" size="small" effect="dark">{{ row.patentStatus || '-' }}</el-tag>
@@ -479,7 +476,7 @@ import { statusTag, fmtSize, hasPerm, userId, userName } from './shared'
 
 // ========================== State ==========================
 const og = reactive({
-  query: { disclosureName: '', patentType: '', patentStatus: '', internalNo: '' },
+  query: { disclosureName: '', patentType: '', patentStatus: '', internalNo: '', applicant: '', inventor: '', sponsor: '' },
   page: { pageNum: 1, pageSize: 10, total: 0 },
   tableData: [],
   loading: false,
