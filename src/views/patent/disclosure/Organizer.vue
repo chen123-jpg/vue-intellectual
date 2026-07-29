@@ -645,22 +645,25 @@ const ogSendEmail = async () => {
   }
   og.emailSending = true
   try {
+    const attachmentUrls = og.emailAttachments.map(a => a.url)
     let r
     if (og.emailMode === 'normal') {
-      const fd = new FormData()
-      fd.append('to', og.emailForm.to.trim())
-      fd.append('subject', og.emailForm.subject.trim())
-      fd.append('content', og.emailForm.text.trim())
-      if (og.emailForm.cc.trim()) {
-        fd.append('cc', og.emailForm.cc.trim())
-      }
-      r = await sendMail(fd)
+      r = await sendMail({
+        disclosureId: og.form.id,
+        to: og.emailForm.to.trim(),
+        subject: og.emailForm.subject.trim(),
+        text: og.emailForm.text.trim(),
+        cc: og.emailForm.cc.trim() || undefined,
+        attachmentUrls
+      })
     } else {
       r = await sendMailWithTemplate({
+        disclosureId: og.form.id,
         to: og.emailForm.to.trim(),
         cc: og.emailForm.cc.trim() || undefined,
         templateCode: og.emailForm.templateCode,
-        templateData: { ...og.emailTemplateData }
+        templateData: { ...og.emailTemplateData },
+        attachmentUrls
       })
     }
     if (r.code === 200) {
