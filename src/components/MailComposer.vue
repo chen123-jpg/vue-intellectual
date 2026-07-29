@@ -214,6 +214,8 @@ const props = defineProps({
   defaultCc: { type: String, default: '' },
   defaultSubject: { type: String, default: '' },
   defaultText: { type: String, default: '' },
+  disclosureId: { type: Number, default: null },
+  disclosureAttachmentIds: { type: Array, default: () => [] },
   modelValue: { type: Boolean, default: false }
 })
 
@@ -316,6 +318,8 @@ const handleSend = async () => {
       bcc: sendForm.bcc.trim() || undefined,
       attachmentUrls: attachmentUrls.value
     }
+    if (props.disclosureId) body.disclosureId = props.disclosureId
+    if (props.disclosureAttachmentIds.length) body.disclosureAttachmentIds = props.disclosureAttachmentIds
 
     let res
     if (sendMode.value === 'normal') {

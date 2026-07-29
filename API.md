@@ -1034,19 +1034,32 @@ POST /api/mail/sendMaill
 ```
 
 > **需认证**
-> Content-Type: `multipart/form-data`
+> 支持 `application/json` 和 `multipart/form-data` 两种 Content-Type。
+
+**请求参数** (JSON)
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| disclosureId | long | 否 | — | 关联专利交底ID，不传则发送无关联邮件 |
+| to | string | 是 | — | 收件人邮箱 |
+| subject | string | 是 | — | 邮件主题 |
+| text | string | 是 | — | 邮件正文 |
+| cc | string | 否 | — | 抄送邮箱 |
+| bcc | string | 否 | — | 密送邮箱 |
+| attachmentUrls | string[] | 否 | — | 附件URL列表（通过上传接口返回的路径），发送成功后会记录到 `mail_send_attachment` 表 |
+| disclosureAttachmentIds | long[] | 否 | — | 关联的交底附件ID列表，与attachmentUrls按索引一一对应，非必填 |
 
 **请求参数** (FormData)
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| disclosureId | long | 否 | — | 关联专利交底ID，非必填 |
+| disclosureId | long | 否 | — | 关联专利交底ID，不传则发送无关联邮件 |
 | to | string | 是 | — | 收件人邮箱 |
 | subject | string | 是 | — | 邮件主题 |
 | content | string | 是 | — | 邮件正文 |
 | cc | string | 否 | — | 抄送邮箱 |
-| isHtml | boolean | 否 | false | 正文是否为 HTML |
-| files | file | 否 | — | 附件，发送成功后会记录到 `mail_send_attachment` 表 |
+| files | file | 否 | — | 附件文件，发送成功后会记录到 `mail_send_attachment` 表 |
+| disclosureAttachmentIds | long[] | 否 | — | 关联的交底附件ID列表，与files按索引一一对应，非必填 |
 
 **响应**
 
@@ -1071,6 +1084,7 @@ POST /api/mail/sendMailWithTemplate
   "disclosureId": 1,
   "to": "user@example.com",
   "cc": "cc@example.com",
+  "bcc": "bcc@example.com",
   "subject": "邮件主题",
   "text": "正文（不使用模板时）",
   "templateCode": "WELCOME",
@@ -1080,20 +1094,23 @@ POST /api/mail/sendMailWithTemplate
   },
   "attachmentUrls": [
     "/files/a1b2c3d4.pdf?name=附件1.pdf"
-  ]
+  ],
+  "disclosureAttachmentIds": [1, 2]
 }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| disclosureId | long | 否 | 关联专利交底ID，非必填 |
+| disclosureId | long | 否 | 关联专利交底ID，不传则发送无关联邮件 |
 | to | string | 是 | 收件人，逗号/分号分隔多人 |
 | cc | string | 否 | 抄送，逗号/分号分隔多人 |
+| bcc | string | 否 | 密送，逗号/分号分隔多人 |
 | subject | string | 否 | 主题（模板优先时可为空） |
 | text | string | 否 | 正文（模板优先时可为空） |
 | templateCode | string | 否 | 模板编码，选用模板时传入 |
 | templateData | map | 否 | 模板变量，用于 Thymeleaf 渲染 |
 | attachmentUrls | string[] | 否 | 附件 URL 列表，来自上传接口返回的路径，发送成功后会记录到 `mail_send_attachment` 表 |
+| disclosureAttachmentIds | long[] | 否 | 关联的交底附件ID列表，与attachmentUrls按索引一一对应，用于标记附件来源，非必填 |
 
 ---
 
@@ -1109,9 +1126,11 @@ GET /api/mail-send-log
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| disclosureId | long | 是 | 专利交底 ID |
+| disclosureId | long | 否 | 专利交底 ID，不传则返回全部发送记录 |
 
-**响应** — `data` 为 `MailSendLog[]` 数组，各字段：
+**响应** — `data` 为对象数组，每个对象包含 `mailSendLog` 和 `attachmentList`：
+
+`mailSendLog` 字段：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -1131,6 +1150,18 @@ GET /api/mail-send-log
 | businessAction | string | 业务动作（SEND/REJECT/APPROVE/UNLOCK/SUBMIT） |
 | sentAt | datetime | 实际发送时间 |
 | createTime | datetime | 创建时间 |
+
+`attachmentList` 为 `MailSendAttachment[]`，各字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | long | 主键 |
+| mailSendLogId | long | 关联发送记录 ID |
+| disclosureAttachmentId | long | 来源交底附件 ID，可空 |
+| fileName | string | 文件名 |
+| filePath | string | 磁盘路径 |
+| fileUrl | string | 访问 URL |
+| fileSize | long | 文件大小（字节） |
 
 ---
 

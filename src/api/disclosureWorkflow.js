@@ -106,10 +106,13 @@ export function getInvoices(id) {
 
 // ==================== Mail ====================
 export function sendMail(data) {
-  const headers = data instanceof FormData
-    ? { 'Content-Type': 'multipart/form-data' }
-    : { 'Content-Type': 'application/json' }
-  return request.post('/api/mail/sendMaill', data, { headers })
+  if (data instanceof FormData) {
+    return request.post('/api/mail/sendMaill', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
+  // JSON 对象走 sendMailWithTemplate，支持 attachmentUrls，不强制要求模板
+  return request.post('/api/mail/sendMailWithTemplate', data)
 }
 
 export function sendMailWithTemplate(data) {
