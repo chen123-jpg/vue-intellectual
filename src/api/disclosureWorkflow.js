@@ -20,7 +20,7 @@ export function getDetail(id) {
 }
 
 export function getSponsorOptions() {
-  return request.get(`${BASE}/sponsor-options`)
+  return request.get(`${BASE}/sponsor-options`, { _mute: true })
 }
 
 export function create(data, disclosureDocument, otherAttachments = [], sourceId = null) {

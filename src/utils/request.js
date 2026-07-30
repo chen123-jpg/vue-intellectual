@@ -21,6 +21,10 @@ service.interceptors.request.use(config => {
 service.interceptors.response.use(res => {
     const body = res.data
     if (body && body.code !== 200) {
+        // 如果请求标记了 _mute，由调用方自行处理
+        if (res.config._mute) {
+            return body
+        }
         ElMessage.error(body.message || '操作失败')
         return Promise.reject(new Error(body.message || '操作失败'))
     }
@@ -41,6 +45,10 @@ service.interceptors.response.use(res => {
             ElMessage.error('权限不足')
             return Promise.reject(err)
         }
+    }
+    // 如果请求标记了 _mute，由调用方自行处理，不弹窗也不 reject
+    if (err.config?._mute) {
+        return response?.data || { code: err.response?.status || 500, message: msg }
     }
     ElMessage.error(msg)
     return Promise.reject(err)

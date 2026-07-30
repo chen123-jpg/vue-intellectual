@@ -79,13 +79,17 @@
 
 <script setup>
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
-import '@vue-office/docx/lib/index.css'
-import '@vue-office/excel/lib/index.css'
+// TODO: @vue-office 包未安装，暂时注释
+// import '@vue-office/docx/lib/index.css'
+// import '@vue-office/excel/lib/index.css'
 import { convertLegacyWordToPdf, downloadFile, fetchFileBlob } from '../utils/format'
 
-const VueOfficeDocx = defineAsyncComponent(() => import('@vue-office/docx'))
-const VueOfficeExcel = defineAsyncComponent(() => import('@vue-office/excel'))
-const VueOfficePptx = defineAsyncComponent(() => import('@vue-office/pptx'))
+// const VueOfficeDocx = defineAsyncComponent(() => import('@vue-office/docx'))
+// const VueOfficeExcel = defineAsyncComponent(() => import('@vue-office/excel'))
+// const VueOfficePptx = defineAsyncComponent(() => import('@vue-office/pptx'))
+const VueOfficeDocx = () => null
+const VueOfficeExcel = () => null
+const VueOfficePptx = () => null
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

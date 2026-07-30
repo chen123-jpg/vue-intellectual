@@ -1,42 +1,48 @@
 <template>
-  <el-container class="layout">
-    <el-aside :width="isCollapse ? '64px' : '220px'" class="aside">
-      <div class="logo" @click="goHome">
-        <span v-show="!isCollapse">知识产权管理系统</span>
-        <span v-show="isCollapse">IP</span>
-      </div>
-      <el-menu
-        :default-active="activeMenu"
-        :collapse="isCollapse"
-        :collapse-transition="false"
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409eff"
-      >
-        <template v-for="menu in visibleMenus" :key="menu.id">
-          <RecursiveMenuItem :menu="menu" />
-        </template>
-      </el-menu>
-    </el-aside>
+  <div class="app-shell">
+    <!-- ==================== 侧边栏菜单（双栏布局） ==================== -->
+    <SidebarMenu
+      :menus="visibleMenus"
+      :active-path="activeMenu"
+      :is-collapse="isCollapse"
+      :user-name="userName"
+      :user-dept="userDept"
+      @navigate="handleMenuNavigate"
+      @toggle-collapse="isCollapse = !isCollapse"
+      @width-change="sidebarWidth = $event"
+    />
 
-    <el-container>
-      <el-header class="header">
-        <div class="header-left">
-          <el-icon class="collapse-btn" @click="isCollapse = !isCollapse" :size="22">
-            <Fold v-if="!isCollapse" /><Expand v-else />
-          </el-icon>
+    <!-- ==================== 右侧主体区域 ==================== -->
+    <div :class="['main-area', { 'main-area--mobile': isMobile }]">
+      <!-- 顶部导航栏 -->
+      <header class="top-header">
+        <div class="top-header__left">
+          <!-- 桌面端折叠按钮 -->
+          <button v-if="!isMobile" class="collapse-btn" @click="isCollapse = !isCollapse">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="15" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
         </div>
-        <div class="header-right">
-          <div class="mail-entry" @click="goMail">
-            <el-icon :size="20"><Message /></el-icon>
-            <span class="mail-entry-text">邮件中心</span>
-          </div>
-          <span class="user-name">{{ userName }}</span>
-          <el-dropdown @command="handleCommand">
-            <span class="dropdown-trigger">
-              <el-icon :size="20"><UserFilled /></el-icon>
-              <el-icon><ArrowDown /></el-icon>
-            </span>
+
+        <div class="top-header__right">
+          <!-- 邮件中心入口 -->
+          <button class="mail-btn" @click="goMail">
+            <el-icon :size="18"><Message /></el-icon>
+            <span class="mail-btn__text">邮件中心</span>
+          </button>
+
+          <!-- 用户信息下拉 -->
+          <el-dropdown @command="handleCommand" trigger="click">
+            <div class="user-dropdown-trigger">
+              <span class="user-avatar-sm">
+                <el-icon :size="16"><UserFilled /></el-icon>
+              </span>
+              <span class="user-dropdown-name">{{ userName }}</span>
+              <el-icon :size="14"><ArrowDown /></el-icon>
+            </div>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="profile">个人信息</el-dropdown-item>
@@ -45,27 +51,29 @@
             </template>
           </el-dropdown>
         </div>
-      </el-header>
+      </header>
 
-      <el-main class="main">
+      <!-- 主内容区 -->
+      <main class="main-content">
         <router-view />
-      </el-main>
-    </el-container>
-  </el-container>
+      </main>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, computed, markRaw, onMounted, watch } from 'vue'
+import { ref, computed, markRaw, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { getMenuList } from '../api/menu'
-import RecursiveMenuItem from '../components/RecursiveMenuItem.vue'
+import SidebarMenu from '../components/SidebarMenu.vue'
 import {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
-  Edit, Warning, Fold, Expand, UserFilled, ArrowDown, Message,
+  Edit, Warning, UserFilled, ArrowDown, Message,
 } from '@element-plus/icons-vue'
 
+// ========== 图标映射表 ==========
 const iconMap = {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
@@ -77,24 +85,28 @@ const route = useRoute()
 const { state, logout, fetchUserInfo } = useUserStore()
 
 const isCollapse = ref(false)
+const isMobile = ref(false)
 const fullMenus = ref([])
-const menuLoaded = ref(false)
+const sidebarWidth = ref(80)
 
+// ========== 用户信息 ==========
 const userName = computed(() => state.userInfo?.loginName || state.userInfo?.userName || '未登录')
-const permissions = computed(() => state.permissions)
+const userDept = computed(() => state.userInfo?.deptName || state.userInfo?.dept || '')
 
+// ========== 权限 ==========
+const permissions = computed(() => state.permissions || [])
 const hasPermission = (perm) => {
   if (!perm) return true
   return permissions.value.includes(perm)
 }
 
+// ========== 图标解析 ==========
 const resolveIcon = (iconName) => {
   const component = iconMap[iconName]
   return component ? markRaw(component) : markRaw(Document)
 }
 
-// ========== 递归构建菜单树（支持无限层级） ==========
-// ========== 递归构建菜单树（支持无限层级） ==========
+// ========== 递归构建菜单树 ==========
 const buildMenuTree = (list, parentId = 0) => {
   return list
     .filter(item => item.parentId === parentId && item.menuType !== 'F' && item.visible === '0')
@@ -132,9 +144,16 @@ const visibleMenus = computed(() => {
   return filterByPermission(fullMenus.value)
 })
 
+// ========== 当前激活路径 ==========
 const activeMenu = computed(() => route.path)
 
-const goHome = () => router.push('/home')
+// ========== 导航处理 ==========
+const handleMenuNavigate = (path) => {
+  if (path && path !== '#') {
+    router.push(path)
+  }
+}
+
 const goMail = () => router.push('/mail')
 
 const handleCommand = async (cmd) => {
@@ -146,20 +165,30 @@ const handleCommand = async (cmd) => {
   }
 }
 
+// ========== 响应式检测 ==========
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+// ========== 菜单数据获取 ==========
 const fetchMenus = async () => {
   try {
     const res = await getMenuList()
     fullMenus.value = buildMenuTree(res.data || [])
   } catch {
     fullMenus.value = []
-  } finally {
-    menuLoaded.value = true
   }
 }
 
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
   if (!state.userInfo) fetchUserInfo()
   fetchMenus()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 
 watch(() => state.menuVersion, () => {
@@ -168,87 +197,136 @@ watch(() => state.menuVersion, () => {
 </script>
 
 <style scoped>
-.layout {
+/* ==================== 整体布局 ==================== */
+.app-shell {
   height: 100vh;
-}
-.aside {
-  background-color: #304156;
-  overflow-y: auto;
-  transition: width 0.3s;
-}
-.logo {
-  height: 60px;
-  line-height: 60px;
-  text-align: center;
-  color: #fff;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.15);
-  user-select: none;
-  white-space: nowrap;
   overflow: hidden;
 }
-.header {
+
+/* ==================== 右侧主体区域 ==================== */
+.main-area {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: margin-left 0.3s ease;
+  margin-left: v-bind(sidebarWidth + 'px');
+}
+
+.main-area--mobile {
+  margin-left: 0 !important;
+}
+
+/* ==================== 顶部导航栏 ==================== */
+.top-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  height: 56px;
   padding: 0 20px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  z-index: 10;
 }
-.header-left {
-  display: flex;
-  align-items: center;
-}
-.collapse-btn {
-  cursor: pointer;
-}
-.collapse-btn:hover {
-  color: #409eff;
-}
-.header-right {
+
+.top-header__left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.user-name {
-  font-size: 14px;
-  color: #333;
+
+.top-header__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
-.mail-entry {
+
+/* ==================== 折叠按钮 ==================== */
+.collapse-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #595959;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.collapse-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #1890FF;
+}
+
+/* ==================== 邮件中心按钮 ==================== */
+.mail-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
-  color: #409eff;
-  background: rgba(64, 158, 255, 0.08);
-  transition: all 0.2s;
-  user-select: none;
-}
-.mail-entry:hover {
-  background: rgba(64, 158, 255, 0.16);
-  color: #337ecc;
-}
-.mail-entry-text {
+  color: #1890FF;
+  background: rgba(24, 144, 255, 0.08);
   font-size: 13px;
   font-weight: 500;
+  transition: all 0.2s;
 }
-.dropdown-trigger {
+
+.mail-btn:hover {
+  background: rgba(24, 144, 255, 0.15);
+}
+
+.mail-btn__text {
+  white-space: nowrap;
+}
+
+/* ==================== 用户下拉触发器 ==================== */
+.user-dropdown-trigger {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   cursor: pointer;
-  color: #666;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+  user-select: none;
 }
-.dropdown-trigger:hover {
-  color: #409eff;
+
+.user-dropdown-trigger:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
-.main {
+
+.user-avatar-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #595959;
+}
+
+.user-dropdown-name {
+  font-size: 13px;
+  color: #333;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==================== 主内容区 ==================== */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
   background: #f0f2f5;
   padding: 20px;
-  overflow-y: auto;
 }
 </style>
