@@ -28,6 +28,14 @@
         </div>
 
         <div class="top-header__right">
+          <!-- 动态顶部菜单按钮 -->
+          <button
+            v-for="m in headerMenus"
+            :key="m.id"
+            class="top-menu-btn"
+            @click="handleMenuNavigate(m.path || '#')"
+          >{{ m.label }}</button>
+
           <!-- 邮件中心入口 -->
           <button class="mail-btn" @click="goMail">
             <el-icon :size="18"><Message /></el-icon>
@@ -71,13 +79,14 @@ import {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
   Edit, Warning, UserFilled, ArrowDown, Message,
+  Collection, Grid, Stamp, Briefcase, DataAnalysis,
 } from '@element-plus/icons-vue'
 
 // ========== 图标映射表 ==========
 const iconMap = {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
-  Edit, Warning
+  Edit, Warning, Collection, Grid, Stamp, Briefcase, DataAnalysis,
 }
 
 const router = useRouter()
@@ -118,7 +127,8 @@ const buildMenuTree = (list, parentId = 0) => {
         icon: resolveIcon(item.icon),
         path: item.url || '',
         perm: item.perms || null,
-        menuType: item.menuType
+        menuType: item.menuType,
+        target: item.target || ''
       }
       const children = buildMenuTree(list, item.menuId)
       if (children.length) menu.children = children
@@ -126,10 +136,11 @@ const buildMenuTree = (list, parentId = 0) => {
     })
 }
 
-// ========== 递归过滤权限 ==========
+// ========== 递归过滤权限（排除顶部按钮菜单） ==========
 const visibleMenus = computed(() => {
   const filterByPermission = (menus) => {
     return menus
+      .filter(menu => menu.target !== 'header')
       .map(menu => {
         if (menu.perm && !hasPermission(menu.perm)) return null
         if (menu.children) {
@@ -145,6 +156,11 @@ const visibleMenus = computed(() => {
 })
 
 // ========== 当前激活路径 ==========
+// ========== 顶部按钮：target='header' 的一级菜单 ==========
+const headerMenus = computed(() => {
+  return fullMenus.value.filter(m => m.target === 'header' && m.menuType !== 'F')
+})
+
 const activeMenu = computed(() => route.path)
 
 // ========== 导航处理 ==========
@@ -260,6 +276,23 @@ watch(() => state.menuVersion, () => {
 .collapse-btn:hover {
   background: rgba(0, 0, 0, 0.04);
   color: #1890FF;
+}
+
+/* ==================== 顶部动态菜单按钮 ==================== */
+.top-menu-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #fff;
+  background: #409EFF;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.top-menu-btn:hover {
+  background: #337ecc;
 }
 
 /* ==================== 邮件中心按钮 ==================== */

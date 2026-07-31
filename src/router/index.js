@@ -116,6 +116,11 @@ const routes = [
         meta: { permission: 'system:mailTemplate:list' }
       },
       {
+        path: 'performance',
+        name: 'Performance',
+        component: () => import('../views/Performance.vue')
+      },
+      {
         path: 'mail',
         name: 'Mail',
         component: () => import('../views/mail/Mail.vue')

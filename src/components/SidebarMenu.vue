@@ -64,7 +64,7 @@
     >
       <!-- 右面板标题 -->
       <div class="panel-right__header">
-        <span class="panel-right__title">知识产权管理系统</span>
+        <span class="panel-right__title">知识产权<br>管理系统</span>
       </div>
 
       <!-- 分割线 -->
@@ -141,8 +141,8 @@ const expandedL2Ids = ref(new Set())
 const sidebarRef = ref(null)
 
 // ========== 面板宽度计算 ==========
-const PANEL_WIDTH = 160
-const PANEL_LEFT_WIDTH = 72
+const PANEL_WIDTH = 120
+const PANEL_LEFT_WIDTH = 60
 const PANEL_COLLAPSED = 56
 
 const panelLeftWidth = computed(() => {
@@ -470,9 +470,9 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 60px;
-  height: 60px;
-  margin: 5px auto;
+  width: 48px;
+  height: 48px;
+  margin: 4px auto;
   border-radius: 8px;
   cursor: pointer;
   user-select: none;
@@ -503,25 +503,25 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 14px;
   line-height: 1;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
 }
 
 .l1-item__label {
-  font-size: 11px;
+  font-size: 10px;
   text-align: center;
   line-height: 1.2;
-  max-width: 64px;
+  max-width: 42px;
   word-break: keep-all;
 }
 
 /* 折叠态 */
 .sidebar--collapsed .l1-item {
-  width: 44px;
-  height: 44px;
-  margin: 4px auto;
+  width: 40px;
+  height: 40px;
+  margin: 3px auto;
   gap: 0;
 }
 
@@ -533,7 +533,7 @@ onUnmounted(() => {
 /*  右面板：#ACB3BB                                                   */
 /* ================================================================ */
 .panel-right {
-  width: 160px;
+  width: 120px;
   height: 100%;
   background: #FFFFFF;
   display: flex;
@@ -545,17 +545,17 @@ onUnmounted(() => {
 .panel-right__header {
   display: flex;
   align-items: center;
+  justify-content: center;
   min-height: 60px;
-  padding: 20px 24px;
+  padding: 20px 12px;
 }
 
 .panel-right__title {
   font-size: 13px;
   font-weight: 600;
   color: #1a1a1a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .panel-right__divider {
@@ -597,8 +597,8 @@ onUnmounted(() => {
 .l2-item {
   display: flex;
   align-items: center;
-  height: 40px;
-  padding: 0 24px 0 32px;
+  min-height: 32px;
+  padding: 2px 16px;
   cursor: pointer;
   user-select: none;
   color: rgba(0, 0, 0, 0.7);
@@ -643,9 +643,9 @@ onUnmounted(() => {
 
 .l2-item__label {
   flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-all;
+  line-height: 1.2;
+  font-size: 12px;
 }
 
 .l2-item__arrow {
@@ -670,8 +670,8 @@ onUnmounted(() => {
 .l3-item {
   display: flex;
   align-items: center;
-  height: 36px;
-  padding: 0 24px 0 44px;
+  min-height: 28px;
+  padding: 1px 16px 1px 28px;
   cursor: pointer;
   user-select: none;
   color: rgba(0, 0, 0, 0.6);
@@ -716,9 +716,9 @@ onUnmounted(() => {
 
 .l3-item__label {
   flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-all;
+  line-height: 1.2;
+  font-size: 11px;
 }
 
 /* ================================================================ */
