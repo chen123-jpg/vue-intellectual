@@ -7,6 +7,7 @@
         <el-input
           v-if="field.type === 'input'"
           v-model="localQuery[field.key]"
+          :size="size"
           :placeholder="field.placeholder || (field.matchType === 'fuzzy' ? '支持拼音首字母、模糊搜索' : '精确搜索')"
           :style="{ width: (field.width || 180) + 'px' }"
           clearable
@@ -17,6 +18,7 @@
         <el-select
           v-else-if="field.type === 'select'"
           v-model="localQuery[field.key]"
+          :size="size"
           :placeholder="field.placeholder || '全部'"
           :style="{ width: (field.width || 160) + 'px' }"
           clearable
@@ -33,6 +35,7 @@
         <el-date-picker
           v-else-if="field.type === 'date'"
           v-model="localQuery[field.key]"
+          :size="size"
           type="date"
           :placeholder="field.placeholder || '选择日期'"
           :style="{ width: (field.width || 180) + 'px' }"
@@ -55,11 +58,11 @@
 
     <!-- 操作按钮 -->
     <el-form-item class="search-actions">
-      <el-button type="primary" :loading="loading" @click="emitSearch">
+      <el-button :size="size" type="primary" :loading="loading" @click="emitSearch">
         <el-icon v-if="!loading"><Search /></el-icon>
         查询
       </el-button>
-      <el-button @click="handleReset">
+      <el-button :size="size" @click="handleReset">
         <el-icon><Refresh /></el-icon>
         重置
       </el-button>
@@ -105,6 +108,11 @@ const props = defineProps({
   collapsedThreshold: {
     type: Number,
     default: 0
+  },
+  /** 控件尺寸 */
+  size: {
+    type: String,
+    default: 'default'
   }
 })
 

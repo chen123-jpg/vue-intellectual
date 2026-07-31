@@ -1,21 +1,14 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="专利名称">
-          <el-input v-model="query.patentName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="申请号">
-          <el-input v-model="query.applicationNo" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item label="申请人">
-          <el-input v-model="query.applicant" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="fetchData">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <SearchBar
+        v-model="query"
+        :fields="searchFields"
+        :loading="loading"
+        :collapsed-threshold="4"
+        @search="fetchData"
+        @reset="resetQuery"
+      />
 
       <div class="toolbar">
         <el-button v-if="hasPerm('patent:newApplication:add')" type="primary" @click="openAdd">新增</el-button>
@@ -110,6 +103,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import api from '../../api/ptable'
+import SearchBar from '../../components/SearchBar.vue'
 import ApplicantAgentSelect from '../../components/ApplicantAgentSelect.vue'
 import { uploadFile } from '../../api/mail'
 import { parseFileName, downloadFile, formatDate } from '../../utils/format'
@@ -125,7 +119,14 @@ const loading = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
 
-const query = reactive({ patentName: '', applicationNo: '', patentType: '', applicant: '' })
+const query = reactive({ patentName: '', applicationNo: '', applicant: '', inventor: '', sponsor: '' })
+const searchFields = [
+  { key: 'patentName', label: '专利名称', type: 'input', matchType: 'fuzzy', width: 200 },
+  { key: 'applicationNo', label: '申请号', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 180 },
+  { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
+]
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
 const form = reactive({
