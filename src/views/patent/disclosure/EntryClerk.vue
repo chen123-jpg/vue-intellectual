@@ -71,20 +71,20 @@
       />
     </el-card>
 
-    <!-- Add/Edit Dialog -->
-    <el-dialog v-model="ec.dialog.visible" :title="ec.dialog.isEdit ? '编辑交底' : '新增交底'" width="900px" destroy-on-close top="3vh">
-      <el-tabs v-model="ec.dialog.activeTab">
+    <!-- Edit Dialog -->
+    <el-dialog v-model="ec.editDialog.visible" title="编辑交底" width="900px" destroy-on-close top="3vh">
+      <el-tabs v-model="ec.editDialog.activeTab">
         <el-tab-pane label="基本信息" name="basic">
-          <el-form ref="ecFormRef" :model="ec.form" label-width="100px">
+          <el-form ref="ecFormRef" :model="ec.editForm" label-width="100px">
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="交底名称" required>
-                  <el-input v-model="ec.form.disclosureName" />
+                  <el-input v-model="ec.editForm.disclosureName" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="专利类型" required>
-                  <el-select v-model="ec.form.patentType" style="width:100%">
+                  <el-select v-model="ec.editForm.patentType" style="width:100%">
                     <el-option label="发明" value="发明" />
                     <el-option label="实用新型" value="实用新型" />
                     <el-option label="外观" value="外观" />
@@ -93,32 +93,32 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="内部编号">
-                  <el-input v-model="ec.form.internalNo" />
+                  <el-input v-model="ec.editForm.internalNo" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="专利状态">
-                  <el-input v-model="ec.form.patentStatus" placeholder="如：草稿" />
+                  <el-input v-model="ec.editForm.patentStatus" placeholder="如：草稿" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="申请人">
-                  <ApplicantAgentSelect v-model="ec.form.applicant" type="applicant" />
+                  <ApplicantAgentSelect v-model="ec.editForm.applicant" type="applicant" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="发明人">
-                  <el-input v-model="ec.form.inventor" />
+                  <el-input v-model="ec.editForm.inventor" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="联系人">
-                  <el-input v-model="ec.form.contactPerson" />
+                  <el-input v-model="ec.editForm.contactPerson" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="主办人" required>
-                  <el-select v-model="ec.form.sponsorUserId" filterable placeholder="搜索选择主办人" style="width:100%"
+                  <el-select v-model="ec.editForm.sponsorUserId" filterable placeholder="搜索选择主办人" style="width:100%"
                     :loading="ec.sponsorLoading" no-data-text="暂无启用的主办人" @change="ecOnSponsorChange">
                     <el-option v-for="u in ec.userList" :key="u.userId" :label="`${u.userName || u.loginName} (ID:${u.userId})`" :value="u.userId" />
                   </el-select>
@@ -126,37 +126,37 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="代理人">
-                  <ApplicantAgentSelect v-model="ec.form.agent" type="agent" />
+                  <ApplicantAgentSelect v-model="ec.editForm.agent" type="agent" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="交底日期">
-                  <el-date-picker v-model="ec.form.disclosureDate" type="date" style="width:100%" value-format="YYYY-MM-DD" />
+                  <el-date-picker v-model="ec.editForm.disclosureDate" type="date" style="width:100%" value-format="YYYY-MM-DD" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="要求">
-                  <el-input v-model="ec.form.requirement" />
+                  <el-input v-model="ec.editForm.requirement" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="联系邮箱">
-                  <el-input v-model="ec.form.contactEmail" />
+                  <el-input v-model="ec.editForm.contactEmail" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="联系电话">
-                  <el-input v-model="ec.form.contactPhone" />
+                  <el-input v-model="ec.editForm.contactPhone" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="联系信息">
-                  <el-input v-model="ec.form.contactInfo" />
+                  <el-input v-model="ec.editForm.contactInfo" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="编号模式">
-                  <el-select v-model="ec.form.noGenerateMode" style="width:100%">
+                  <el-select v-model="ec.editForm.noGenerateMode" style="width:100%">
                     <el-option label="自动生成" value="AUTO" />
                     <el-option label="手动输入" value="MANUAL" />
                   </el-select>
@@ -164,28 +164,24 @@
               </el-col>
               <el-col :span="24">
                 <el-form-item label="备注">
-                  <el-input v-model="ec.form.remark" type="textarea" :rows="3" />
+                  <el-input v-model="ec.editForm.remark" type="textarea" :rows="3" />
                 </el-form-item>
               </el-col>
             </el-row>
           </el-form>
         </el-tab-pane>
-
         <el-tab-pane label="附件" name="attachments">
           <DisclosureAttachmentEditor
-              :disclosure-id="ec.dialog.isEdit ? ec.form.id : null"
+              :disclosure-id="ec.editForm.id"
               v-model:document-file="ec.pendingDocument"
               v-model:other-files="ec.pendingOthers"
               @changed="ecFetchData"
             />
         </el-tab-pane>
       </el-tabs>
-
       <template #footer>
-        <el-button @click="ec.dialog.visible = false">关闭</el-button>
-        <el-button v-if="ec.dialog.activeTab === 'basic' || !ec.dialog.isEdit" type="primary" @click="ecSave" :loading="ec.saving">
-          {{ ec.dialog.isEdit ? '保存修改' : '创建交底' }}
-        </el-button>
+        <el-button @click="ec.editDialog.visible = false">关闭</el-button>
+        <el-button type="primary" @click="ecSaveEdit" :loading="ec.saving">保存修改</el-button>
       </template>
     </el-dialog>
 
@@ -240,8 +236,9 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getList, getById, getSponsorOptions, createWithAttachments, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
+import { getList, getById, getSponsorOptions, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
 import DisclosureAttachmentLinks from '../../../components/DisclosureAttachmentLinks.vue'
@@ -249,6 +246,8 @@ import FilePreviewDialog from '../../../components/FilePreviewDialog.vue'
 import SearchBar from '../../../components/SearchBar.vue'
 import { formatDate } from '../../../utils/format'
 import { statusTag, emptyForm, hasPerm, mergeDisclosureAttachments } from './shared'
+
+const router = useRouter()
 
 // ========================== Reactive State ==========================
 const ec = reactive({
@@ -264,9 +263,9 @@ const ec = reactive({
   tableData: [],
   selected: [],
   loading: false,
-  dialog: { visible: false, isEdit: false, activeTab: 'basic' },
+  editDialog: { visible: false, activeTab: 'basic' },
   preview: { visible: false, attachment: null },
-  form: emptyForm(),
+  editForm: emptyForm(),
   saving: false,
   pendingDocument: null,
   pendingOthers: [],
@@ -330,32 +329,23 @@ const ecLoadUsers = async () => {
 
 const ecOnSponsorChange = (uid) => {
   const u = ec.userList.find(u => u.userId === uid)
-  ec.form.sponsor = u ? (u.userName || u.loginName) : ''
+  ec.editForm.sponsor = u ? (u.userName || u.loginName) : ''
 }
 
 // ========================== Add / Edit ==========================
 const ecOpenAdd = () => {
-  Object.assign(ec.form, emptyForm())
-  ec.dialog.visible = true
-  ec.dialog.isEdit = false
-  ec.dialog.activeTab = 'basic'
-  ec.pendingDocument = null
-  ec.pendingOthers = []
-  ec.copySourceId = null
-  if (!ec.userList.length) ecLoadUsers()
+  router.push('/patent/disclosure/add')
 }
 
 const ecOpenEdit = async (row) => {
   try {
     const res = await getById(row.id)
     if (res.code === 200) {
-      Object.assign(ec.form, res.data)
-      ec.dialog.visible = true
-      ec.dialog.isEdit = true
-      ec.dialog.activeTab = 'basic'
+      Object.assign(ec.editForm, res.data)
+      ec.editDialog.visible = true
+      ec.editDialog.activeTab = 'basic'
       ec.pendingDocument = null
       ec.pendingOthers = []
-      ec.copySourceId = null
       if (!ec.userList.length) ecLoadUsers()
     }
   } catch {
@@ -363,44 +353,17 @@ const ecOpenEdit = async (row) => {
   }
 }
 
-// ========================== Save ==========================
-const ecSave = async () => {
-  if (!ec.form.disclosureName) {
-    ElMessage.warning('请输入交底名称')
-    return
-  }
-  if (!ec.form.patentType) {
-    ElMessage.warning('请选择专利类型')
-    return
-  }
-  if (!ec.form.sponsorUserId) {
-    ElMessage.warning('请选择主办人')
-    return
-  }
-  if (!ec.dialog.isEdit && !ec.pendingDocument) {
-    ElMessage.warning('请在附件页上传一份 Word 格式的交底书')
-    ec.dialog.activeTab = 'attachments'
-    return
-  }
+// ========================== Save Edit ==========================
+const ecSaveEdit = async () => {
+  if (!ec.editForm.disclosureName) { ElMessage.warning('请输入交底名称'); return }
+  if (!ec.editForm.patentType) { ElMessage.warning('请选择专利类型'); return }
+  if (!ec.editForm.sponsorUserId) { ElMessage.warning('请选择主办人'); return }
   ec.saving = true
   try {
-    const res = ec.dialog.isEdit
-      ? await update({ ...ec.form })
-      : await createWithAttachments(
-          { ...ec.form },
-          ec.pendingDocument,
-          ec.pendingOthers,
-          ec.copySourceId
-        )
+    const res = await update({ ...ec.editForm })
     if (res.code === 200) {
-      ElMessage.success(ec.dialog.isEdit ? '修改成功' : '交底信息和附件创建成功')
-      if (!ec.dialog.isEdit && res.data?.id) {
-        ec.form.id = res.data.id
-        ec.dialog.isEdit = true
-        ec.pendingDocument = null
-        ec.pendingOthers = []
-        ec.copySourceId = null
-      }
+      ElMessage.success('修改成功')
+      ec.editDialog.visible = false
       ecFetchData()
     }
   } finally {
@@ -467,13 +430,12 @@ const ecDoCopy = async (row) => {
     copiedForm.id = null
     copiedForm.internalNo = ''
     copiedForm.patentStatus = '草稿'
-    Object.assign(ec.form, copiedForm)
+    Object.assign(ec.editForm, copiedForm)
     ec.copySourceId = row.id
     ec.pendingDocument = null
     ec.pendingOthers = []
-    ec.dialog.isEdit = false
-    ec.dialog.activeTab = 'basic'
-    ec.dialog.visible = true
+    ec.editDialog.activeTab = 'basic'
+    ec.editDialog.visible = true
     ec.copyDialog.visible = false
     if (!ec.userList.length) ecLoadUsers()
     ElMessage.success('历史信息已回填，请确认内容并上传新的交底书')

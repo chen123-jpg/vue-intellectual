@@ -103,21 +103,21 @@
 
     <!-- 编辑弹窗 -->
     <el-dialog
-      v-model="ad.dialog.visible"
-      :title="ad.dialog.isEdit ? '编辑专利交底' : '新增专利交底'"
+      v-model="ad.editDialog.visible"
+      title="编辑专利交底"
       width="700px"
       destroy-on-close
     >
-      <el-form ref="adFormRef" :model="ad.form" label-width="100px">
+      <el-form ref="adFormRef" :model="ad.editForm" label-width="100px">
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="交底名称" required>
-              <el-input v-model="ad.form.disclosureName" />
+              <el-input v-model="ad.editForm.disclosureName" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="专利类型" required>
-              <el-select v-model="ad.form.patentType" style="width:100%">
+              <el-select v-model="ad.editForm.patentType" style="width:100%">
                 <el-option label="发明" value="发明" />
                 <el-option label="实用新型" value="实用新型" />
                 <el-option label="外观" value="外观" />
@@ -126,33 +126,33 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="内部编号">
-              <el-input v-model="ad.form.internalNo" />
+              <el-input v-model="ad.editForm.internalNo" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="专利状态">
-              <el-input v-model="ad.form.patentStatus" />
+              <el-input v-model="ad.editForm.patentStatus" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="申请人">
-              <ApplicantAgentSelect v-model="ad.form.applicant" type="applicant" />
+              <ApplicantAgentSelect v-model="ad.editForm.applicant" type="applicant" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="发明人">
-              <el-input v-model="ad.form.inventor" />
+              <el-input v-model="ad.editForm.inventor" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="联系人">
-              <el-input v-model="ad.form.contactPerson" />
+              <el-input v-model="ad.editForm.contactPerson" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="主办人" required>
               <el-select
-                v-model="ad.form.sponsorUserId"
+                v-model="ad.editForm.sponsorUserId"
                 filterable
                 :loading="ad.sponsorLoading"
                 placeholder="搜索选择主办人"
@@ -171,13 +171,13 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="代理人">
-              <ApplicantAgentSelect v-model="ad.form.agent" type="agent" />
+              <ApplicantAgentSelect v-model="ad.editForm.agent" type="agent" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="交底日期">
               <el-date-picker
-                v-model="ad.form.disclosureDate"
+                v-model="ad.editForm.disclosureDate"
                 type="date"
                 style="width:100%"
                 value-format="YYYY-MM-DD"
@@ -186,36 +186,36 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="要求">
-              <el-input v-model="ad.form.requirement" />
+              <el-input v-model="ad.editForm.requirement" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="联系邮箱">
-              <el-input v-model="ad.form.contactEmail" />
+              <el-input v-model="ad.editForm.contactEmail" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="联系电话">
-              <el-input v-model="ad.form.contactPhone" />
+              <el-input v-model="ad.editForm.contactPhone" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
             <el-form-item label="备注">
-              <el-input v-model="ad.form.remark" type="textarea" :rows="3" />
+              <el-input v-model="ad.editForm.remark" type="textarea" :rows="3" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-divider content-position="left">附件管理</el-divider>
         <DisclosureAttachmentEditor
-          :disclosure-id="ad.dialog.isEdit ? ad.form.id : null"
+          :disclosure-id="ad.editForm.id"
           v-model:document-file="ad.disclosureDocument"
           v-model:other-files="ad.otherAttachments"
           @changed="adFetchData"
         />
       </el-form>
       <template #footer>
-        <el-button @click="ad.dialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="adSave" :loading="ad.saving">保存</el-button>
+        <el-button @click="ad.editDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="adSaveEdit" :loading="ad.saving">保存修改</el-button>
       </template>
     </el-dialog>
 
@@ -225,8 +225,9 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getList, getById, getSponsorOptions, create, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
+import { getList, getById, getSponsorOptions, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import SearchBar from '../../../components/SearchBar.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
@@ -235,6 +236,7 @@ import FilePreviewDialog from '../../../components/FilePreviewDialog.vue'
 import { formatDate } from '../../../utils/format'
 import { statusTag, emptyForm, hasPerm, mergeDisclosureAttachments } from './shared'
 
+const router = useRouter()
 const ad = reactive({
   searchFields: [
     { key: 'disclosureName', label: '名称', type: 'input', matchType: 'fuzzy', width: 200 },
@@ -254,9 +256,9 @@ const ad = reactive({
   tableData: [],
   selected: [],
   loading: false,
-  dialog: { visible: false, isEdit: false },
+  editDialog: { visible: false },
   preview: { visible: false, attachment: null },
-  form: emptyForm(),
+  editForm: emptyForm(),
   disclosureDocument: null,
   otherAttachments: [],
   saving: false,
@@ -279,7 +281,7 @@ const adLoadSponsors = async () => {
 
 const adOnSponsorChange = (userId) => {
   const sponsor = ad.sponsorOptions.find(item => item.userId === userId)
-  ad.form.sponsor = sponsor ? (sponsor.userName || sponsor.loginName) : ''
+  ad.editForm.sponsor = sponsor ? (sponsor.userName || sponsor.loginName) : ''
 }
 
 const adFetchData = async () => {
@@ -309,12 +311,7 @@ const adResetQuery = () => {
 }
 
 const adOpenAdd = () => {
-  Object.assign(ad.form, emptyForm())
-  ad.disclosureDocument = null
-  ad.otherAttachments = []
-  ad.dialog.isEdit = false
-  ad.dialog.visible = true
-  if (!ad.sponsorOptions.length) adLoadSponsors()
+  router.push('/patent/disclosure/add')
 }
 
 const adOpenPreview = (attachment) => {
@@ -326,11 +323,10 @@ const adOpenEdit = async (row) => {
   try {
     const res = await getById(row.id)
     if (res.code === 200) {
-      Object.assign(ad.form, res.data)
+      Object.assign(ad.editForm, res.data)
       ad.disclosureDocument = null
       ad.otherAttachments = []
-      ad.dialog.isEdit = true
-      ad.dialog.visible = true
+      ad.editDialog.visible = true
       if (!ad.sponsorOptions.length) adLoadSponsors()
     }
   } catch {
@@ -338,31 +334,16 @@ const adOpenEdit = async (row) => {
   }
 }
 
-const adSave = async () => {
-  if (!ad.form.disclosureName) {
-    ElMessage.warning('请输入交底名称')
-    return
-  }
-  if (!ad.form.patentType) {
-    ElMessage.warning('请选择专利类型')
-    return
-  }
-  if (!ad.form.sponsorUserId) {
-    ElMessage.warning('请选择主办人')
-    return
-  }
-  if (!ad.dialog.isEdit && !ad.disclosureDocument) {
-    ElMessage.warning('请选择一份 Word 格式的交底书')
-    return
-  }
+const adSaveEdit = async () => {
+  if (!ad.editForm.disclosureName) { ElMessage.warning('请输入交底名称'); return }
+  if (!ad.editForm.patentType) { ElMessage.warning('请选择专利类型'); return }
+  if (!ad.editForm.sponsorUserId) { ElMessage.warning('请选择主办人'); return }
   ad.saving = true
   try {
-    const res = ad.dialog.isEdit
-      ? await update({ ...ad.form })
-      : await create({ ...ad.form }, ad.disclosureDocument, ad.otherAttachments)
+    const res = await update({ ...ad.editForm })
     if (res.code === 200) {
-      ElMessage.success(ad.dialog.isEdit ? '修改成功' : '新增成功')
-      ad.dialog.visible = false
+      ElMessage.success('修改成功')
+      ad.editDialog.visible = false
       adFetchData()
     }
   } finally {
