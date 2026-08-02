@@ -48,7 +48,7 @@
         <template v-if="sendMode === 'template' && selectedTemplate">
           <el-divider content-position="left">模板预览</el-divider>
           <el-form-item label="主题">
-            <el-input :model-value="selectedTemplate.subject" disabled />
+            <el-input :model-value="renderedSubject" disabled />
           </el-form-item>
           <el-form-item label="正文">
             <div class="content-preview" v-html="selectedTemplate.content"></div>
@@ -182,7 +182,7 @@
         <template v-if="sendMode === 'template' && selectedTemplate">
           <el-divider content-position="left">模板预览</el-divider>
           <el-form-item label="主题">
-            <el-input :model-value="selectedTemplate.subject" disabled />
+            <el-input :model-value="renderedSubject" disabled />
           </el-form-item>
           <el-form-item label="正文">
             <div class="content-preview" v-html="selectedTemplate.content"></div>
@@ -278,7 +278,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { sendMail, sendMailWithTemplate, getTemplateList, uploadFile } from '../api/mail'
 import { ArrowRight } from '@element-plus/icons-vue'
-import { autoFillTemplateVars, templateVarLabel } from '../utils/templateHelper'
+import { autoFillTemplateVars, templateVarLabel, renderTemplate } from '../utils/templateHelper'
 import { useUserStore } from '../stores/user'
 import FileUpload from './FileUpload.vue'
 
@@ -333,6 +333,11 @@ const sendForm = reactive({
 })
 
 const enabledTemplates = computed(() => templateList.value.filter(t => t.enabled === 1))
+
+const renderedSubject = computed(() => {
+  if (!selectedTemplate.value) return ''
+  return renderTemplate(selectedTemplate.value.subject, templateData)
+})
 
 // ==================== 监听默认值变化 ====================
 watch(() => props.defaultTo, v => { sendForm.to = v || '' })
@@ -418,6 +423,7 @@ const handleSend = async () => {
     } else {
       body.templateCode = sendForm.templateCode
       body.templateData = { ...templateData }
+      body.subject = renderedSubject.value
       res = await sendMailWithTemplate(body)
     }
 
