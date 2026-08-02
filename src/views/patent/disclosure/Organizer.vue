@@ -268,7 +268,7 @@
             <template v-if="og.emailMode === 'template' && og.emailSelectedTemplate">
               <el-divider content-position="left">模板预览</el-divider>
               <el-form-item label="主题">
-                <el-input :model-value="og.emailSelectedTemplate.subject" disabled />
+                <el-input :model-value="ogRenderedSubject" disabled />
               </el-form-item>
               <el-form-item label="正文">
                 <div class="content-preview" v-html="og.emailSelectedTemplate.content"></div>
@@ -418,7 +418,7 @@ import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import ApplicationPackageComposer from '../../../components/ApplicationPackageComposer.vue'
 import SearchBar from '../../../components/SearchBar.vue'
 import { downloadFile, formatDate, formatDateTime } from '../../../utils/format'
-import { autoFillTemplateVars, templateVarLabel } from '../../../utils/templateHelper'
+import { autoFillTemplateVars, templateVarLabel, renderTemplate } from '../../../utils/templateHelper'
 import { useUserStore } from '../../../stores/user'
 import { statusTag, fmtSize, hasPerm, userId, userName } from './shared'
 
@@ -460,6 +460,11 @@ const og = reactive({
   emailImageUploading: false,
   templateList: [],
   enabledTemplates: computed(() => og.templateList.filter((t) => t.enabled === 1))
+})
+
+const ogRenderedSubject = computed(() => {
+  if (!og.emailSelectedTemplate) return ''
+  return renderTemplate(og.emailSelectedTemplate.subject, og.emailTemplateData)
 })
 
 // ========================== Data Fetching ==========================
@@ -750,6 +755,7 @@ const ogSendEmail = async () => {
         disclosureId: og.form.id,
         to: og.emailForm.to.trim(),
         cc: og.emailForm.cc.trim() || undefined,
+        subject: ogRenderedSubject.value,
         templateCode: og.emailForm.templateCode,
         templateData: { ...og.emailTemplateData },
         attachmentUrls

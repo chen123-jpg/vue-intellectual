@@ -92,9 +92,26 @@ const VAR_LABELS = {
   changeType:       '变更类型',
   abnormalReason:   '非正常认定理由',
   appealDeadline:   '申诉截止日期',
+  userName:  '用户姓名',
+  payDate: '缴费日期',
+  ticketUrl: '票据路径',
+  qrImageUrl: '图片路径',
+  ticketCode: '取票码',
+  amount: '金额'
 }
+
+
 
 /** 获取变量中文标签，未匹配则返回原始变量名 */
 export function templateVarLabel(varName) {
   return VAR_LABELS[varName] || varName
+}
+
+/** 将模板字符串中的 ${varName} 替换为实际值 */
+export function renderTemplate(template, data) {
+  if (!template) return ''
+  return template.replace(/\$\{(\w+)\}/g, (match, name) => {
+    const val = data[name]
+    return val != null ? String(val) : match
+  })
 }
