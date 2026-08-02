@@ -135,6 +135,16 @@ const routes = [
         path: 'mail-records',
         name: 'MailRecords',
         component: () => import('../views/mail/MailRecords.vue')
+      },
+      {
+        path: 'rules',
+        name: 'ReminderRules',
+        component: () => import('../views/ReminderRules.vue')
+      },
+      {
+        path: 'notifications',
+        name: 'Notifications',
+        component: () => import('../views/Notifications.vue')
       }
     ]
   }

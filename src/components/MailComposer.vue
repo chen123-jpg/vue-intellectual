@@ -29,7 +29,7 @@
         <template v-if="sendMode === 'template' && templateVariables.length">
           <el-divider content-position="left">模板变量</el-divider>
           <template v-for="v in templateVariables" :key="v">
-            <el-form-item v-if="isImageVar(v)" :label="v">
+            <el-form-item v-if="isImageVar(v)" :label="templateVarLabel(v)">
               <template v-if="templateData[v]">
                 <div class="var-image-filled">
                   <img :src="templateData[v]" class="var-image-thumb" />
@@ -38,8 +38,8 @@
               </template>
               <span v-else class="var-image-waiting">上传图片后自动填入</span>
             </el-form-item>
-            <el-form-item v-else :label="v" required>
-              <el-input v-model="templateData[v]" :placeholder="`输入 ${v} 的值`" />
+            <el-form-item v-else :label="templateVarLabel(v)" required>
+              <el-input v-model="templateData[v]" :placeholder="`输入${templateVarLabel(v)}`" />
             </el-form-item>
           </template>
         </template>
@@ -163,7 +163,7 @@
         <template v-if="sendMode === 'template' && templateVariables.length">
           <el-divider content-position="left">模板变量</el-divider>
           <template v-for="v in templateVariables" :key="v">
-            <el-form-item v-if="isImageVar(v)" :label="v">
+            <el-form-item v-if="isImageVar(v)" :label="templateVarLabel(v)">
               <template v-if="templateData[v]">
                 <div class="var-image-filled">
                   <img :src="templateData[v]" class="var-image-thumb" />
@@ -172,8 +172,8 @@
               </template>
               <span v-else class="var-image-waiting">上传图片后自动填入</span>
             </el-form-item>
-            <el-form-item v-else :label="v" required>
-              <el-input v-model="templateData[v]" :placeholder="`输入 ${v} 的值`" />
+            <el-form-item v-else :label="templateVarLabel(v)" required>
+              <el-input v-model="templateData[v]" :placeholder="`输入${templateVarLabel(v)}`" />
             </el-form-item>
           </template>
         </template>
@@ -278,6 +278,8 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { sendMail, sendMailWithTemplate, getTemplateList, uploadFile } from '../api/mail'
 import { ArrowRight } from '@element-plus/icons-vue'
+import { autoFillTemplateVars, templateVarLabel } from '../utils/templateHelper'
+import { useUserStore } from '../stores/user'
 import FileUpload from './FileUpload.vue'
 
 // ==================== Props ====================
@@ -294,10 +296,12 @@ const props = defineProps({
   defaultText: { type: String, default: '' },
   disclosureId: { type: Number, default: null },
   disclosureAttachmentIds: { type: Array, default: () => [] },
-  modelValue: { type: Boolean, default: false }
+  modelValue: { type: Boolean, default: false },
+  contextData: { type: Object, default: () => ({}) }
 })
 
 const emit = defineEmits(['update:modelValue', 'sent', 'cancel'])
+const { state: userState } = useUserStore()
 
 // ==================== 状态 ====================
 const visible = computed({
@@ -368,7 +372,11 @@ const onTemplateSelect = (code) => {
     const subjectVars = parseVariables(tpl.subject || '')
     const contentVars = parseVariables(tpl.content || '')
     templateVariables.value = [...new Set([...subjectVars, ...contentVars])]
-    templateVariables.value.forEach(v => { templateData[v] = '' })
+    Object.keys(templateData).forEach(k => delete templateData[k])
+    Object.assign(templateData, autoFillTemplateVars(templateVariables.value, {
+      ...props.contextData,
+      user: userState.userInfo || {}
+    }))
   }
 }
 

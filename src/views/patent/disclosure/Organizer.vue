@@ -233,7 +233,7 @@
 
             <template v-if="og.emailMode === 'template' && og.emailTemplateVars.length">
               <template v-for="v in og.emailTemplateVars" :key="v">
-                <el-form-item v-if="ogIsImageVar(v)" :label="v">
+                <el-form-item v-if="ogIsImageVar(v)" :label="templateVarLabel(v)">
                   <template v-if="og.emailTemplateData[v]">
                     <div class="var-image-filled">
                       <img :src="og.emailTemplateData[v]" class="var-image-thumb" />
@@ -242,8 +242,8 @@
                   </template>
                   <span v-else class="var-image-waiting">上传图片后自动填入</span>
                 </el-form-item>
-                <el-form-item v-else :label="v" required>
-                  <el-input v-model="og.emailTemplateData[v]" :placeholder="`输入 ${v} 的值`" />
+                <el-form-item v-else :label="templateVarLabel(v)" required>
+                  <el-input v-model="og.emailTemplateData[v]" :placeholder="`输入${templateVarLabel(v)}`" />
                 </el-form-item>
               </template>
             </template>
@@ -418,7 +418,11 @@ import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import ApplicationPackageComposer from '../../../components/ApplicationPackageComposer.vue'
 import SearchBar from '../../../components/SearchBar.vue'
 import { downloadFile, formatDate, formatDateTime } from '../../../utils/format'
+import { autoFillTemplateVars, templateVarLabel } from '../../../utils/templateHelper'
+import { useUserStore } from '../../../stores/user'
 import { statusTag, fmtSize, hasPerm, userId, userName } from './shared'
+
+const { state: userState } = useUserStore()
 
 // ========================== State ==========================
 const og = reactive({
@@ -627,9 +631,10 @@ const ogOnEmailTemplateSelect = (code) => {
       ])
     ]
     og.emailTemplateVars = vars
-    vars.forEach((v) => {
-      og.emailTemplateData[v] = ''
-    })
+    Object.assign(og.emailTemplateData, autoFillTemplateVars(vars, {
+      disclosure: og.form,
+      user: userState.userInfo || {}
+    }))
   }
 }
 

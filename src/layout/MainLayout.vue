@@ -36,11 +36,17 @@
             @click="handleMenuNavigate(m.path || '#')"
           >{{ m.label }}</button>
 
+          <!-- 提醒规则 -->
+          <button class="top-menu-btn" @click="handleMenuNavigate('/rules')">提醒规则</button>
+
           <!-- 邮件中心入口 -->
           <button class="mail-btn" @click="goMail">
             <el-icon :size="18"><Message /></el-icon>
             <span class="mail-btn__text">邮件中心</span>
           </button>
+
+          <!-- 通知铃铛 -->
+          <NotificationBell />
 
           <!-- 用户信息下拉 -->
           <el-dropdown @command="handleCommand" trigger="click">
@@ -74,6 +80,8 @@ import { ref, computed, markRaw, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { getMenuList } from '../api/menu'
+import NotificationBell from '@/components/common/NotificationBell.vue'
+import { useNotificationStore } from '@/stores/notification'
 import SidebarMenu from '../components/SidebarMenu.vue'
 import {
   Setting, User, Avatar, Document, DocumentChecked,
@@ -174,6 +182,7 @@ const goMail = () => router.push('/mail')
 
 const handleCommand = async (cmd) => {
   if (cmd === 'logout') {
+    notificationStore.closeWebSocket()   // 先断开连接
     await logout()
     router.push('/login')
   } else if (cmd === 'profile') {
@@ -196,15 +205,19 @@ const fetchMenus = async () => {
   }
 }
 
+const notificationStore = useNotificationStore()
+
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
   if (!state.userInfo) fetchUserInfo()
   fetchMenus()
+  notificationStore.initWebSocket()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  notificationStore.closeWebSocket()
 })
 
 watch(() => state.menuVersion, () => {

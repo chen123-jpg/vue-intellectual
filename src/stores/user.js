@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 const state = reactive({
   userInfo: null,
   token: localStorage.getItem('token') || '',
+  userId: localStorage.getItem('userId') || '',
   permissions: JSON.parse(localStorage.getItem('permissions') || '[]'),
   email: localStorage.getItem('email') || '',
   menuVersion: 0
@@ -25,6 +26,10 @@ export function useUserStore() {
     const res = await loginApi(data)
     setToken(res.data.token)
     setPermissions(res.data.permissions)
+    if (res.data.userId) {
+      state.userId = res.data.userId
+      localStorage.setItem('userId', res.data.userId)
+    }
     if (res.data.email) {
       state.email = res.data.email
       localStorage.setItem('email', res.data.email)
@@ -43,10 +48,12 @@ export function useUserStore() {
   const logout = async () => {
     await logoutApi()
     state.token = ''
+    state.userId = ''
     state.userInfo = null
     state.permissions = []
     state.email = ''
     localStorage.removeItem('token')
+    localStorage.removeItem('userId')
     localStorage.removeItem('permissions')
     localStorage.removeItem('email')
     ElMessage.success('已安全退出')

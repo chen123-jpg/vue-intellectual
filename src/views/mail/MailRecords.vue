@@ -48,7 +48,7 @@
       <el-table-column prop="senderName" label="发送人" width="100" />
       <el-table-column prop="sentAt" label="发送时间" width="170">
         <template #default="{ row }">
-          {{ row.sentAt || row.createTime || '-' }}
+          {{ formatDateTime(row.sentAt || row.createTime) || '-' }}
         </template>
       </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
@@ -87,13 +87,13 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="发送时间" :span="2">
-          {{ sentDetail.sentAt || sentDetail.createTime || '-' }}
+          {{ formatDateTime(sentDetail.sentAt || sentDetail.createTime) || '-' }}
         </el-descriptions-item>
         <el-descriptions-item v-if="sentDetail.errorMessage" label="失败原因" :span="2">
           <span style="color:#f56c6c">{{ sentDetail.errorMessage }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="邮件正文" :span="2">
-          <div class="content-preview" v-html="sentDetail.content || '无'"></div>
+          <div class="content-preview" v-html="sentDetail.content || sentDetail.body || sentDetail.text || '无'"></div>
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
@@ -104,6 +104,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getSendLogs, getSendLogById, removeSendLog, batchRemoveSendLog, resendMail } from '../../api/mailRecord'
+import { useUserStore } from '@/stores/user.js'
+import { formatDateTime } from '@/utils/format.js'
+
+const { state } = useUserStore()
 
 // ==================== 状态映射 ====================
 const statusType = (s) => ({ 0: 'info', 1: 'success', 2: 'danger' }[s] || 'info')
@@ -124,6 +128,7 @@ const fetchSentLogs = async () => {
   sentLoading.value = true
   try {
     const params = {
+      userId: state.userId,
       pageNum: sentPage.pageNum,
       pageSize: sentPage.pageSize,
       ...sentQuery
@@ -138,6 +143,7 @@ const fetchSentLogs = async () => {
       sentTableData.value = res.data.records || []
       sentPage.total = res.data.total || 0
     }
+
   } finally { sentLoading.value = false }
 }
 
@@ -152,7 +158,8 @@ const viewSentDetail = async (row) => {
   try {
     const res = await getSendLogById(row.id)
     if (res.code === 200) {
-      sentDetail.value = res.data
+      const data = res.data
+      sentDetail.value = data.mailSendLog || data
       sentDetailVisible.value = true
     }
   } catch { /* handled */ }
