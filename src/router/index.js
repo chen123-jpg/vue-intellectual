@@ -122,6 +122,12 @@ const routes = [
         meta: { permission: 'system:mailTemplate:list' }
       },
       {
+        path: 'system/dictionary',
+        name: 'DataDictionary',
+        component: () => import('../views/system/DataDictionary.vue'),
+        meta: { permission: 'system:dictionary:list' }
+      },
+      {
         path: 'performance',
         name: 'Performance',
         component: () => import('../views/Performance.vue')
