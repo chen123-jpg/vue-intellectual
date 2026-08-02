@@ -106,7 +106,6 @@
       </el-form>
       <template #footer>
         <el-button @click="handleDialogCancel">取消</el-button>
-        <el-button v-if="!dialog.isEdit" @click="handleSaveDraft">暂存</el-button>
         <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
@@ -205,10 +204,6 @@ const handleDelete = async (id) => {
 
 const handleBatchDelete = async () => {
   try { await ElMessageBox.confirm(`确认删除选中的 ${selected.value.length} 条记录？`, '提示', { type: 'warning' }); const res = await moduleApi.batchRemove(selected.value.map(r => r.id)); if (res.code === 200) { ElMessage.success('批量删除成功'); fetchData() } } catch { /* */ }
-}
-
-const handleSaveDraft = () => {
-  addDraft.save({ message: '已暂存，下次可继续填写；若有本地未上传附件需重新选择' })
 }
 
 const handleDialogCancel = async () => {

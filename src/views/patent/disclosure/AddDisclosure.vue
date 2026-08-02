@@ -100,7 +100,6 @@
       <!-- 底部操作 -->
       <div class="form-footer">
         <el-button class="footer-btn" @click="goBack">取消</el-button>
-        <el-button class="footer-btn" @click="handleSaveDraft">暂存</el-button>
         <el-button v-if="activeTab === 'basic'" class="footer-btn" type="primary" @click="goNext">
           下一步
         </el-button>
@@ -273,10 +272,6 @@ const goBack = () => {
     allowRouteLeave = true
     router.push('/patent/disclosure')
   })
-}
-
-const handleSaveDraft = () => {
-  addDraft.save({ message: '已暂存，下次可继续填写；本地附件需要重新选择' })
 }
 
 const handleBeforeUnload = (event) => {

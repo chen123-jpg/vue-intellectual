@@ -55,7 +55,6 @@
     </el-form>
     <template #footer>
       <el-button @click="handleDialogCancel">取消</el-button>
-      <el-button v-if="!isEdit" @click="handleSaveDraft">暂存</el-button>
       <el-button type="primary" @click="submitForm" :loading="loading">确定</el-button>
     </template>
   </el-dialog>
@@ -173,10 +172,6 @@ async function submitForm() {
   } finally {
     loading.value = false
   }
-}
-
-const handleSaveDraft = () => {
-  addDraft.save()
 }
 
 const handleDialogCancel = async () => {
