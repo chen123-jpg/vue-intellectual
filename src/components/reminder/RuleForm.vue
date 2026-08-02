@@ -1,5 +1,11 @@
 <template>
-  <el-dialog v-model="visible" :title="isEdit ? '编辑规则' : '新增规则'" width="600px" @close="resetForm">
+  <el-dialog
+    v-model="visible"
+    :title="isEdit ? '编辑规则' : '新增规则'"
+    width="600px"
+    @close="resetForm"
+    :before-close="handleDialogBeforeClose"
+  >
     <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
       <el-form-item label="期限类型" prop="deadlineType">
         <el-select v-model="form.deadlineType" placeholder="请选择">
@@ -48,7 +54,8 @@
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
+      <el-button @click="handleDialogCancel">取消</el-button>
+      <el-button v-if="!isEdit" @click="handleSaveDraft">暂存</el-button>
       <el-button type="primary" @click="submitForm" :loading="loading">确定</el-button>
     </template>
   </el-dialog>
@@ -58,6 +65,7 @@
 import { ref, reactive, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { DEADLINE_TYPES, OFFSET_UNITS } from '@/utils/constants'
+import { useDialogAddDraft } from '@/composables/useFormDraft'
 import { useReminderStore } from '@/stores/reminder'
 
 const reminderStore = useReminderStore()
@@ -67,7 +75,7 @@ const loading = ref(false)
 const formRef = ref(null)
 
 // 表单数据
-const form = reactive({
+const emptyForm = () => ({
   id: null,
   deadlineType: 'PAY_FEE',
   ruleType: 'OFFSET',
@@ -76,6 +84,16 @@ const form = reactive({
   offsetUnit: 'DAY',
   percentValue: null,
   isActive: 1,
+})
+const form = reactive(emptyForm())
+const addDraft = useDialogAddDraft('reminder-rule-add', {
+  getEmptyData: emptyForm,
+  getCurrentData: () => ({ ...form }),
+  reset: () => resetForm(),
+  applyData: (data) => {
+    Object.assign(form, { ...emptyForm(), ...data })
+    nextTick(() => formRef.value?.clearValidate())
+  }
 })
 
 // 表单校验规则
@@ -111,23 +129,16 @@ function open(rule = null) {
       percentValue: rule.percentValue,
       isActive: rule.isActive,
     })
+    visible.value = true
   } else {
     isEdit.value = false
-    resetForm()
+    addDraft.open(() => { visible.value = true })
   }
-  visible.value = true
 }
 
 // 重置表单
 function resetForm() {
-  form.id = null
-  form.deadlineType = 'PAY_FEE'
-  form.ruleType = 'OFFSET'
-  form.caseId = null
-  form.offsetValue = null
-  form.offsetUnit = 'DAY'
-  form.percentValue = null
-  form.isActive = 1
+  Object.assign(form, emptyForm())
   nextTick(() => formRef.value?.clearValidate())
 }
 
@@ -153,6 +164,7 @@ async function submitForm() {
       payload.percentValue = form.percentValue
     }
     await reminderStore.addOrUpdate(payload)
+    if (!isEdit.value) addDraft.clear()
     ElMessage.success(isEdit.value ? '更新成功' : '新增成功')
     visible.value = false
     emit('saved')
@@ -161,6 +173,26 @@ async function submitForm() {
   } finally {
     loading.value = false
   }
+}
+
+const handleSaveDraft = () => {
+  addDraft.save()
+}
+
+const handleDialogCancel = async () => {
+  if (isEdit.value) {
+    visible.value = false
+    return
+  }
+  await addDraft.cancel(() => { visible.value = false })
+}
+
+const handleDialogBeforeClose = async (done) => {
+  if (isEdit.value) {
+    done()
+    return
+  }
+  await addDraft.cancel(done)
 }
 
 const emit = defineEmits(['saved'])

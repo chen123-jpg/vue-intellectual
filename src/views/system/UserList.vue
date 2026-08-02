@@ -53,7 +53,13 @@
     </el-card>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑用户' : '新增用户'" width="580px" destroy-on-close>
+    <el-dialog
+      v-model="dialog.visible"
+      :title="dialog.isEdit ? '编辑用户' : '新增用户'"
+      width="580px"
+      destroy-on-close
+      :before-close="handleDialogBeforeClose"
+    >
       <el-form ref="formRef" :model="form" label-width="100px">
         <el-form-item label="登录账号" required>
           <el-input v-model="form.loginName" placeholder="请输入登录账号" />
@@ -93,7 +99,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
+        <el-button @click="handleDialogCancel">取消</el-button>
+        <el-button v-if="!dialog.isEdit" @click="handleSaveDraft">暂存</el-button>
         <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
@@ -127,6 +134,7 @@ import { UploadFilled } from '@element-plus/icons-vue'
 import { formatDateTime } from '../../utils/format'
 import { getUserList, getById, create, update, remove, importUsers } from '../../api/user'
 import { getAll as getAllRoles } from '../../api/role'
+import { useDialogAddDraft } from '../../composables/useFormDraft'
 import { useUserStore } from '../../stores/user'
 
 const { state } = useUserStore()
@@ -144,11 +152,17 @@ const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
 const importDialog = reactive({ visible: false })
 
-const emptyForm = {
+const emptyForm = () => ({
   userId: null, loginName: '', userName: '', email: '',
   phoneNumber: '', sex: '2', status: '0', password: '', roleIds: [], remark: ''
-}
-const form = reactive({ ...emptyForm })
+})
+const form = reactive(emptyForm())
+const addDraft = useDialogAddDraft('system-user-add', {
+  getEmptyData: emptyForm,
+  getCurrentData: () => ({ ...form, roleIds: [...form.roleIds] }),
+  reset: () => Object.assign(form, emptyForm()),
+  applyData: (data) => Object.assign(form, { ...emptyForm(), ...data, roleIds: data.roleIds || [] })
+})
 
 const fetchData = async () => {
   loading.value = true
@@ -169,9 +183,8 @@ const fetchData = async () => {
 
 const openAdd = async () => {
   await ensureRoles()
-  Object.assign(form, { ...emptyForm, roleIds: [] })
   dialog.isEdit = false
-  dialog.visible = true
+  await addDraft.open(() => { dialog.visible = true })
 }
 
 const openEdit = async (row) => {
@@ -205,6 +218,7 @@ const handleSave = async () => {
     if (!payload.password) delete payload.password
     const res = dialog.isEdit ? await update(payload) : await create(payload)
     if (res.code === 200) {
+      if (!dialog.isEdit) addDraft.clear()
       ElMessage.success(dialog.isEdit ? '修改成功' : '新增成功')
       dialog.visible = false
       fetchData()
@@ -232,6 +246,26 @@ const handleBatchDelete = async () => {
 
 const openImport = () => {
   importDialog.visible = true
+}
+
+const handleSaveDraft = () => {
+  addDraft.save()
+}
+
+const handleDialogCancel = async () => {
+  if (dialog.isEdit) {
+    dialog.visible = false
+    return
+  }
+  await addDraft.cancel(() => { dialog.visible = false })
+}
+
+const handleDialogBeforeClose = async (done) => {
+  if (dialog.isEdit) {
+    done()
+    return
+  }
+  await addDraft.cancel(done)
 }
 
 const customUpload = async (options) => {

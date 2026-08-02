@@ -61,7 +61,13 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑专利交底' : '新增专利交底'" width="700px" destroy-on-close>
+    <el-dialog
+      v-model="dialog.visible"
+      :title="dialog.isEdit ? '编辑专利交底' : '新增专利交底'"
+      width="700px"
+      destroy-on-close
+      :before-close="handleDialogBeforeClose"
+    >
       <el-form ref="formRef" :model="form" label-width="100px">
         <el-row :gutter="20">
           <el-col :span="12">
@@ -109,7 +115,8 @@
         />
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
+        <el-button @click="handleDialogCancel">取消</el-button>
+        <el-button v-if="!dialog.isEdit" @click="handleSaveDraft">暂存</el-button>
         <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
@@ -122,6 +129,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/ttable'
 import ApplicantAgentSelect from '../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../components/DisclosureAttachmentEditor.vue'
+import { useDialogAddDraft } from '../../composables/useFormDraft'
 import { useUserStore } from '../../stores/user'
 
 const { state } = useUserStore()
@@ -145,10 +153,37 @@ const query = reactive({
 })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
-const form = reactive({
+const emptyForm = () => ({
   id: null, internalNo: '', patentStatus: '', disclosureName: '', patentType: '',
   applicant: '', inventor: '', contactPerson: '', sponsor: '', agent: '',
-  disclosureDate: '', requirement: '', remark: ''
+  disclosureDate: '', requirement: '', remark: '',
+  _hasLocalDocument: false, _otherAttachmentCount: 0
+})
+const form = reactive(emptyForm())
+const addDraft = useDialogAddDraft('patent-disclosure-add', {
+  getEmptyData: emptyForm,
+  getCurrentData: () => ({
+    ...form,
+    _hasLocalDocument: !!disclosureDocument.value,
+    _otherAttachmentCount: otherAttachments.value.length
+  }),
+  reset: () => {
+    Object.assign(form, emptyForm())
+    disclosureDocument.value = null
+    otherAttachments.value = []
+  },
+  applyData: (data) => {
+    const { _hasLocalDocument, _otherAttachmentCount, ...draftForm } = data
+    Object.assign(form, { ...emptyForm(), ...draftForm })
+    disclosureDocument.value = null
+    otherAttachments.value = []
+  },
+  onRestored: (data) => {
+    if (data._hasLocalDocument || data._otherAttachmentCount) {
+      ElMessage.warning('暂存只恢复了表单内容，本地附件需要重新选择')
+    }
+  },
+  closeSavedMessage: '已暂存，下次可继续填写；本地附件需要重新选择'
 })
 
 const fetchData = async () => {
@@ -172,11 +207,8 @@ const resetQuery = () => {
 }
 
 const openAdd = () => {
-  Object.keys(form).forEach(k => form[k] = k === 'id' ? null : '')
-  disclosureDocument.value = null
-  otherAttachments.value = []
   dialog.isEdit = false
-  dialog.visible = true
+  addDraft.open(() => { dialog.visible = true })
 }
 
 const openEdit = async (row) => {
@@ -199,10 +231,12 @@ const handleSave = async () => {
   }
   saving.value = true
   try {
+    const { _hasLocalDocument, _otherAttachmentCount, ...payload } = form
     const res = dialog.isEdit
-      ? await update({ ...form })
-      : await create({ ...form }, disclosureDocument.value, otherAttachments.value)
+      ? await update(payload)
+      : await create(payload, disclosureDocument.value, otherAttachments.value)
     if (res.code === 200) {
+      if (!dialog.isEdit) addDraft.clear()
       ElMessage.success(dialog.isEdit ? '修改成功' : '新增成功')
       dialog.visible = false
       fetchData()
@@ -224,6 +258,26 @@ const handleBatchDelete = async () => {
     const res = await batchRemove(selected.value.map(r => r.id))
     if (res.code === 200) { ElMessage.success('批量删除成功'); fetchData() }
   } catch { /* cancelled */ }
+}
+
+const handleSaveDraft = () => {
+  addDraft.save({ message: '已暂存，下次可继续填写；本地附件需要重新选择' })
+}
+
+const handleDialogCancel = async () => {
+  if (dialog.isEdit) {
+    dialog.visible = false
+    return
+  }
+  await addDraft.cancel(() => { dialog.visible = false })
+}
+
+const handleDialogBeforeClose = async (done) => {
+  if (dialog.isEdit) {
+    done()
+    return
+  }
+  await addDraft.cancel(done)
 }
 
 const onSelectionChange = (sel) => { selected.value = sel }

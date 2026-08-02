@@ -44,7 +44,13 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑中间著变' : '新增中间著变'" width="700px" destroy-on-close>
+    <el-dialog
+      v-model="dialog.visible"
+      :title="dialog.isEdit ? '编辑中间著变' : '新增中间著变'"
+      width="700px"
+      destroy-on-close
+      :before-close="handleDialogBeforeClose"
+    >
       <el-form :model="form" label-width="100px">
         <el-row :gutter="20">
           <el-col :span="12"><el-form-item label="内部编号"><el-input v-model="form.internalNo" /></el-form-item></el-col>
@@ -59,7 +65,8 @@
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
+        <el-button @click="handleDialogCancel">取消</el-button>
+        <el-button v-if="!dialog.isEdit" @click="handleSaveDraft">暂存</el-button>
         <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
@@ -71,6 +78,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../../api/ptable'
 import ApplicantAgentSelect from '../../components/ApplicantAgentSelect.vue'
+import { useDialogAddDraft } from '../../composables/useFormDraft'
 import { useUserStore } from '../../stores/user'
 
 const moduleApi = api['intermediate-change']
@@ -85,9 +93,16 @@ const saving = ref(false)
 const query = reactive({ patentName: '', applicationNo: '', businessType: '', status: '', applicant: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
-const form = reactive({
+const emptyForm = () => ({
   id: null, internalNo: '', businessType: '', applicationNo: '', patentName: '',
   applicant: '', inventor: '', status: '', feeAmount: '', paymentStatus: ''
+})
+const form = reactive(emptyForm())
+const addDraft = useDialogAddDraft('patent-intermediate-change-add', {
+  getEmptyData: emptyForm,
+  getCurrentData: () => ({ ...form }),
+  reset: () => Object.assign(form, emptyForm()),
+  applyData: (data) => Object.assign(form, { ...emptyForm(), ...data })
 })
 
 const fetchData = async () => {
@@ -101,7 +116,7 @@ const fetchData = async () => {
 }
 
 const resetQuery = () => { Object.keys(query).forEach(k => query[k] = ''); page.pageNum = 1; fetchData() }
-const openAdd = () => { Object.keys(form).forEach(k => form[k] = k === 'id' ? null : ''); dialog.isEdit = false; dialog.visible = true }
+const openAdd = () => { dialog.isEdit = false; addDraft.open(() => { dialog.visible = true }) }
 const openEdit = async (row) => {
   try { const res = await moduleApi.getById(row.id); if (res.code === 200) { Object.assign(form, res.data); dialog.isEdit = true; dialog.visible = true } } catch { /* */ }
 }
@@ -110,7 +125,12 @@ const handleSave = async () => {
   saving.value = true
   try {
     const res = dialog.isEdit ? await moduleApi.update({ ...form }) : await moduleApi.create({ ...form })
-    if (res.code === 200) { ElMessage.success(dialog.isEdit ? '修改成功' : '新增成功'); dialog.visible = false; fetchData() }
+    if (res.code === 200) {
+      if (!dialog.isEdit) addDraft.clear()
+      ElMessage.success(dialog.isEdit ? '修改成功' : '新增成功')
+      dialog.visible = false
+      fetchData()
+    }
   } finally { saving.value = false }
 }
 
@@ -120,6 +140,26 @@ const handleDelete = async (id) => {
 
 const handleBatchDelete = async () => {
   try { await ElMessageBox.confirm(`确认删除选中的 ${selected.value.length} 条记录？`, '提示', { type: 'warning' }); const res = await moduleApi.batchRemove(selected.value.map(r => r.id)); if (res.code === 200) { ElMessage.success('批量删除成功'); fetchData() } } catch { /* */ }
+}
+
+const handleSaveDraft = () => {
+  addDraft.save()
+}
+
+const handleDialogCancel = async () => {
+  if (dialog.isEdit) {
+    dialog.visible = false
+    return
+  }
+  await addDraft.cancel(() => { dialog.visible = false })
+}
+
+const handleDialogBeforeClose = async (done) => {
+  if (dialog.isEdit) {
+    done()
+    return
+  }
+  await addDraft.cancel(done)
 }
 
 const onSelectionChange = (sel) => { selected.value = sel }

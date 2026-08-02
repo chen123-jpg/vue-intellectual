@@ -60,7 +60,13 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑邮件模板' : '新增邮件模板'" width="700px" destroy-on-close>
+    <el-dialog
+      v-model="dialog.visible"
+      :title="dialog.isEdit ? '编辑邮件模板' : '新增邮件模板'"
+      width="700px"
+      destroy-on-close
+      :before-close="handleDialogBeforeClose"
+    >
       <el-form ref="formRef" :model="form" label-width="120px">
         <el-row :gutter="20">
           <el-col :span="12">
@@ -88,7 +94,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
+        <el-button @click="handleDialogCancel">取消</el-button>
+        <el-button v-if="!dialog.isEdit" @click="handleSaveDraft">暂存</el-button>
         <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
@@ -99,6 +106,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/mailTemplate'
+import { useDialogAddDraft } from '../../composables/useFormDraft'
 import { useUserStore } from '../../stores/user'
 
 const { state } = useUserStore()
@@ -112,9 +120,16 @@ const saving = ref(false)
 const query = reactive({ templateCode: '', templateName: '', enabled: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
-const form = reactive({
+const emptyForm = () => ({
   id: null, templateCode: '', templateName: '', subject: '',
   content: '', defaultAttachTypes: '', enabled: 1
+})
+const form = reactive(emptyForm())
+const addDraft = useDialogAddDraft('system-mail-template-add', {
+  getEmptyData: emptyForm,
+  getCurrentData: () => ({ ...form }),
+  reset: () => Object.assign(form, emptyForm()),
+  applyData: (data) => Object.assign(form, { ...emptyForm(), ...data })
 })
 
 const fetchData = async () => {
@@ -137,12 +152,8 @@ const resetQuery = () => {
 }
 
 const openAdd = () => {
-  Object.assign(form, {
-    id: null, templateCode: '', templateName: '', subject: '',
-    content: '', defaultAttachTypes: '', enabled: 1
-  })
   dialog.isEdit = false
-  dialog.visible = true
+  addDraft.open(() => { dialog.visible = true })
 }
 
 const openEdit = async (row) => {
@@ -161,6 +172,7 @@ const handleSave = async () => {
   try {
     const res = dialog.isEdit ? await update({ ...form }) : await create({ ...form })
     if (res.code === 200) {
+      if (!dialog.isEdit) addDraft.clear()
       ElMessage.success(dialog.isEdit ? '修改成功' : '新增成功')
       dialog.visible = false
       fetchData()
@@ -182,6 +194,26 @@ const handleBatchDelete = async () => {
     const res = await batchRemove(selected.value.map(r => r.id))
     if (res.code === 200) { ElMessage.success('批量删除成功'); fetchData() }
   } catch { /* cancelled */ }
+}
+
+const handleSaveDraft = () => {
+  addDraft.save()
+}
+
+const handleDialogCancel = async () => {
+  if (dialog.isEdit) {
+    dialog.visible = false
+    return
+  }
+  await addDraft.cancel(() => { dialog.visible = false })
+}
+
+const handleDialogBeforeClose = async (done) => {
+  if (dialog.isEdit) {
+    done()
+    return
+  }
+  await addDraft.cancel(done)
 }
 
 const onSelectionChange = (sel) => { selected.value = sel }

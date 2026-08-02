@@ -51,7 +51,13 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑用户角色关联' : '新增用户角色关联'" width="450px" destroy-on-close>
+    <el-dialog
+      v-model="dialog.visible"
+      :title="dialog.isEdit ? '编辑用户角色关联' : '新增用户角色关联'"
+      width="450px"
+      destroy-on-close
+      :before-close="handleDialogBeforeClose"
+    >
       <el-form ref="formRef" :model="form" label-width="100px">
         <el-form-item label="用户" required>
           <el-select v-model="form.userId" placeholder="请选择用户" filterable style="width:100%">
@@ -65,7 +71,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
+        <el-button @click="handleDialogCancel">取消</el-button>
+        <el-button v-if="!dialog.isEdit" @click="handleSaveDraft">暂存</el-button>
         <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
@@ -76,6 +83,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, create, remove, batchRemove } from '../../api/userRole'
+import { useDialogAddDraft } from '../../composables/useFormDraft'
 import { getUserList } from '../../api/user'
 import { getAll as getRoleAll } from '../../api/role'
 import { useUserStore } from '../../stores/user'
@@ -93,8 +101,18 @@ const roleOptions = ref([])
 const query = reactive({ userId: '', roleId: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
-const form = reactive({ userId: null, roleId: null })
+const emptyForm = () => ({ userId: null, roleId: null })
+const form = reactive(emptyForm())
 const editOriginRoleId = ref(null)
+const addDraft = useDialogAddDraft('system-user-role-add', {
+  getEmptyData: emptyForm,
+  getCurrentData: () => ({ ...form }),
+  reset: () => {
+    Object.assign(form, emptyForm())
+    editOriginRoleId.value = null
+  },
+  applyData: (data) => Object.assign(form, { ...emptyForm(), ...data })
+})
 
 const loginNameMap = computed(() => {
   const map = {}
@@ -141,11 +159,8 @@ const resetQuery = () => {
 }
 
 const openAdd = () => {
-  form.userId = null
-  form.roleId = null
-  editOriginRoleId.value = null
   dialog.isEdit = false
-  dialog.visible = true
+  addDraft.open(() => { dialog.visible = true })
 }
 
 const openEdit = (row) => {
@@ -164,6 +179,7 @@ const handleSave = async () => {
     }
     const res = await create({ userId: form.userId, roleId: form.roleId })
     if (res.code === 200) {
+      if (!dialog.isEdit) addDraft.clear()
       ElMessage.success(dialog.isEdit ? '编辑成功' : '新增成功')
       dialog.visible = false
       fetchData()
@@ -185,6 +201,26 @@ const handleBatchDelete = async () => {
     const res = await batchRemove(selected.value.map(r => r.roleId))
     if (res.code === 200) { ElMessage.success('批量删除成功'); fetchData() }
   } catch { /* cancelled */ }
+}
+
+const handleSaveDraft = () => {
+  addDraft.save()
+}
+
+const handleDialogCancel = async () => {
+  if (dialog.isEdit) {
+    dialog.visible = false
+    return
+  }
+  await addDraft.cancel(() => { dialog.visible = false })
+}
+
+const handleDialogBeforeClose = async (done) => {
+  if (dialog.isEdit) {
+    done()
+    return
+  }
+  await addDraft.cancel(done)
 }
 
 const onSelectionChange = (sel) => { selected.value = sel }

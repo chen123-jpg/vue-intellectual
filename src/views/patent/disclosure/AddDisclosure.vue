@@ -100,6 +100,7 @@
       <!-- 底部操作 -->
       <div class="form-footer">
         <el-button class="footer-btn" @click="goBack">取消</el-button>
+        <el-button class="footer-btn" @click="handleSaveDraft">暂存</el-button>
         <el-button v-if="activeTab === 'basic'" class="footer-btn" type="primary" @click="goNext">
           下一步
         </el-button>
@@ -112,13 +113,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { DocumentAdd, ArrowLeft, Plus, Delete } from '@element-plus/icons-vue'
 import { getSponsorOptions, createWithAttachments } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
+import { useDialogAddDraft } from '../../../composables/useFormDraft'
 import { emptyForm } from './shared'
 
 const router = useRouter()
@@ -130,6 +132,7 @@ const pendingDocument = ref(null)
 const pendingOthers = ref([])
 const userList = ref([])
 const sponsorLoading = ref(false)
+let allowRouteLeave = false
 
 // 审查选项
 const preExam = ref(false)
@@ -137,6 +140,57 @@ const excellentExam = ref(false)
 
 // 申请人列表
 const applicants = ref([{ name: '', email: '', phone: '' }])
+
+const emptyDraftData = () => ({
+  form: emptyForm(),
+  applicants: [{ name: '', email: '', phone: '' }],
+  preExam: false,
+  excellentExam: false,
+  activeTab: 'basic',
+  hasPendingDocument: false,
+  pendingOtherCount: 0
+})
+
+const resetAddForm = () => {
+  Object.assign(form, emptyForm())
+  applicants.value = [{ name: '', email: '', phone: '' }]
+  preExam.value = false
+  excellentExam.value = false
+  activeTab.value = 'basic'
+  pendingDocument.value = null
+  pendingOthers.value = []
+}
+
+const addDraft = useDialogAddDraft('patent-disclosure-page-add', {
+  getEmptyData: emptyDraftData,
+  getCurrentData: () => ({
+    form: { ...form },
+    applicants: applicants.value.map(item => ({ ...item })),
+    preExam: preExam.value,
+    excellentExam: excellentExam.value,
+    activeTab: activeTab.value,
+    hasPendingDocument: !!pendingDocument.value,
+    pendingOtherCount: pendingOthers.value.length
+  }),
+  reset: resetAddForm,
+  applyData: (data) => {
+    Object.assign(form, emptyForm(), data.form || {})
+    applicants.value = Array.isArray(data.applicants) && data.applicants.length
+      ? data.applicants.map(item => ({ ...item }))
+      : [{ name: '', email: '', phone: '' }]
+    preExam.value = !!data.preExam
+    excellentExam.value = !!data.excellentExam
+    activeTab.value = data.activeTab || 'basic'
+    pendingDocument.value = null
+    pendingOthers.value = []
+  },
+  onRestored: (data) => {
+    if (data.hasPendingDocument || data.pendingOtherCount) {
+      ElMessage.warning('暂存只恢复了表单内容，本地附件需要重新选择')
+    }
+  },
+  closeSavedMessage: '已暂存，下次可继续填写；本地附件需要重新选择'
+})
 
 const addApplicant = () => {
   applicants.value.push({ name: '', email: '', phone: '' })
@@ -195,6 +249,8 @@ const handleSave = async () => {
     }
     const res = await createWithAttachments(submitData, pendingDocument.value, pendingOthers.value, null)
     if (res.code === 200) {
+      addDraft.clear()
+      allowRouteLeave = true
       ElMessage.success('交底创建成功')
       router.push('/patent/disclosure')
     }
@@ -213,10 +269,38 @@ const goNext = () => {
 }
 
 const goBack = () => {
-  router.push('/patent/disclosure')
+  addDraft.cancel(() => {
+    allowRouteLeave = true
+    router.push('/patent/disclosure')
+  })
 }
 
-onMounted(() => loadUsers())
+const handleSaveDraft = () => {
+  addDraft.save({ message: '已暂存，下次可继续填写；本地附件需要重新选择' })
+}
+
+const handleBeforeUnload = (event) => {
+  if (!addDraft.isDirty()) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+onBeforeRouteLeave(async () => {
+  if (allowRouteLeave || !addDraft.isDirty()) return true
+  let canLeave = false
+  await addDraft.cancel(() => { canLeave = true })
+  return canLeave
+})
+
+onMounted(() => {
+  loadUsers()
+  addDraft.open(() => {})
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
 </script>
 
 <style scoped>

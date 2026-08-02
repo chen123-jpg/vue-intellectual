@@ -56,7 +56,13 @@
       />
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑角色' : '新增角色'" width="580px" destroy-on-close>
+    <el-dialog
+      v-model="dialog.visible"
+      :title="dialog.isEdit ? '编辑角色' : '新增角色'"
+      width="580px"
+      destroy-on-close
+      :before-close="handleDialogBeforeClose"
+    >
       <el-form ref="formRef" :model="form" label-width="100px">
         <el-form-item label="角色名称" required>
           <el-input v-model="form.roleName" placeholder="请输入角色名称" />
@@ -86,7 +92,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
+        <el-button @click="handleDialogCancel">取消</el-button>
+        <el-button v-if="!dialog.isEdit" @click="handleSaveDraft">暂存</el-button>
         <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
@@ -97,6 +104,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/role'
+import { useDialogAddDraft } from '../../composables/useFormDraft'
 import { useUserStore } from '../../stores/user'
 import { useSearch } from '../../composables/useSearch'
 import SearchBar from '../../components/SearchBar.vue'
@@ -123,9 +131,16 @@ const tableData = ref([])
 const selected = ref([])
 const saving = ref(false)
 const dialog = reactive({ visible: false, isEdit: false })
-const form = reactive({
+const emptyForm = () => ({
   roleId: null, roleName: '', roleKey: '', roleSort: 0,
   dataScope: '1', status: '0', remark: ''
+})
+const form = reactive(emptyForm())
+const addDraft = useDialogAddDraft('system-role-add', {
+  getEmptyData: emptyForm,
+  getCurrentData: () => ({ ...form }),
+  reset: () => Object.assign(form, emptyForm()),
+  applyData: (data) => Object.assign(form, { ...emptyForm(), ...data })
 })
 
 const fetchData = async () => {
@@ -147,9 +162,8 @@ const fetchData = async () => {
 }
 
 const openAdd = () => {
-  Object.assign(form, { roleId: null, roleName: '', roleKey: '', roleSort: 0, dataScope: '1', status: '0', remark: '' })
   dialog.isEdit = false
-  dialog.visible = true
+  addDraft.open(() => { dialog.visible = true })
 }
 
 const openEdit = async (row) => {
@@ -168,6 +182,7 @@ const handleSave = async () => {
   try {
     const res = dialog.isEdit ? await update({ ...form }) : await create({ ...form })
     if (res.code === 200) {
+      if (!dialog.isEdit) addDraft.clear()
       ElMessage.success(dialog.isEdit ? '修改成功' : '新增成功')
       dialog.visible = false
       fetchData()
@@ -197,6 +212,26 @@ const resetQuery = () => {
 }
 
 const onSelectionChange = (sel) => { selected.value = sel }
+
+const handleSaveDraft = () => {
+  addDraft.save()
+}
+
+const handleDialogCancel = async () => {
+  if (dialog.isEdit) {
+    dialog.visible = false
+    return
+  }
+  await addDraft.cancel(() => { dialog.visible = false })
+}
+
+const handleDialogBeforeClose = async (done) => {
+  if (dialog.isEdit) {
+    done()
+    return
+  }
+  await addDraft.cancel(done)
+}
 
 onMounted(() => fetchData())
 </script>
