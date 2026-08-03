@@ -1,7 +1,6 @@
 import { useNotificationStore } from '@/stores/notification'
 import { useUserStore } from '@/stores/user'
 import { ElNotification } from 'element-plus'
-import { BASE_URL } from './request'
 
 let ws = null
 let reconnectTimer = null
@@ -17,8 +16,8 @@ const MAX_RECONNECT_DELAY = 60000
 const HEARTBEAT_INTERVAL = 10000
 
 function getWsUrl() {
-  const u = new URL(BASE_URL)
-  return `ws://${u.hostname}:5051/ws`
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/ws`
 }
 
 function getReconnectDelay() {

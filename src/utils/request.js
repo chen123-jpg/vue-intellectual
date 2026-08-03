@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
-const BASE_URL = window.location.origin
+// 开发环境走 Vite 代理，部署环境走当前站点同源入口。
+const BASE_URL = import.meta.env.DEV ? '' : window.location.origin
 
 const service = axios.create({
     baseURL: BASE_URL,
