@@ -26,13 +26,16 @@ export function parseFileName(path) {
 }
 
 export function isFilePath(value) {
-  return value && typeof value === 'string' && value.startsWith('/files/')
+  return value && typeof value === 'string' && (value.startsWith('/files/') || value.startsWith('/api/files/'))
 }
 
 export async function fetchFileBlob(path) {
   if (!path) return
   const token = localStorage.getItem('token')
-  const requestUrl = /^https?:\/\//i.test(path) ? path : `${BASE_URL}${path}`
+  const normalizedPath = typeof path === 'string' && path.startsWith('/files/')
+    ? `/api${path}`
+    : path
+  const requestUrl = /^https?:\/\//i.test(normalizedPath) ? normalizedPath : `${BASE_URL}${normalizedPath}`
   const res = await fetch(requestUrl, {
     headers: token ? { Authorization: `Bearer ${token}` } : {}
   })

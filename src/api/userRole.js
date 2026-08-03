@@ -1,6 +1,6 @@
 import request from '../utils/request'
 
-const BASE = '/sys-user-role'
+const BASE = '/api/sys-user-role'
 
 export function getList(params) {
   return request.get(`${BASE}/list`, { params })

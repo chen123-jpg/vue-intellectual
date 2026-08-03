@@ -10,13 +10,19 @@ export function register(data) {
 
 export function getCheckCode(oldCheckCodeKey) {
   return request.get('/api/acount/checkCode', {
-    params: { oldCheckCodeKey: oldCheckCodeKey || null }
+    params: {
+      oldCheckCodeKey: oldCheckCodeKey || null,
+      t: Date.now()
+    }
   })
 }
 
 export function getSmsCode(mobile) {
   return request.get('/api/acount/getSmsCode', {
-    params: { mobile: mobile }
+    params: {
+      mobile: mobile,
+      t: Date.now()
+    }
   })
 }
 

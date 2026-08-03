@@ -1,6 +1,6 @@
 import request from '../utils/request'
 
-const BASE = '/sys-menu'
+const BASE = '/api/sys-menu'
 
 export function getMenuList() {
   return request.get(`${BASE}/all`)

@@ -127,7 +127,7 @@ export function getTemplateList() {
 export function uploadFile(file) {
   const fd = new FormData()
   fd.append('file', file)
-  return request.post('/upload', fd, {
+  return request.post('/api/upload', fd, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
