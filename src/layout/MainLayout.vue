@@ -88,6 +88,9 @@ import {
   FolderOpened, DocumentAdd, CirclePlus, Link,
   Edit, Warning, UserFilled, ArrowDown, Message,
   Collection, Grid, Stamp, Briefcase, DataAnalysis,
+  OfficeBuilding, Notebook, DocumentCopy, AlarmClock,
+  Folder, TrendCharts, Lock, Money, Ticket,
+  Menu,
 } from '@element-plus/icons-vue'
 
 // ========== 图标映射表 ==========
@@ -95,6 +98,9 @@ const iconMap = {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
   Edit, Warning, Collection, Grid, Stamp, Briefcase, DataAnalysis,
+  OfficeBuilding, Notebook, DocumentCopy, AlarmClock,
+  Folder, TrendCharts, Lock, Money, Ticket,
+  Menu,
 }
 
 const router = useRouter()
