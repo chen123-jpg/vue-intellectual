@@ -44,6 +44,27 @@
             <!-- ========== 人员信息 ========== -->
             <h4 class="sec-head">人员信息</h4>
 
+            <!-- 主办人（必填） -->
+            <div class="sub-block">
+              <span class="sub-label">主办人 <el-tag size="small" type="danger">必填</el-tag></span>
+              <el-select
+                v-model="form.sponsorUserId"
+                filterable
+                :loading="sponsorLoading"
+                placeholder="搜索选择主办人"
+                no-data-text="暂无启用的主办人"
+                style="width:100%"
+                @change="onSponsorChange"
+              >
+                <el-option
+                  v-for="u in userList"
+                  :key="u.userId"
+                  :label="`${u.userName || u.loginName} (ID:${u.userId})`"
+                  :value="u.userId"
+                />
+              </el-select>
+            </div>
+
             <!-- 申请人（选填） -->
             <div class="sub-block">
               <span class="sub-label">申请人 <el-tag size="small" type="info">选填</el-tag></span>
@@ -117,7 +138,6 @@ import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { DocumentAdd, ArrowLeft, Plus, Delete } from '@element-plus/icons-vue'
 import { getSponsorOptions, createWithAttachments } from '../../../api/disclosureWorkflow'
-import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
 import { useDialogAddDraft } from '../../../composables/useFormDraft'
 import { emptyForm } from './shared'
@@ -201,10 +221,7 @@ const removeApplicant = (idx) => {
 
 // 日期变化时自动生成临时编号
 const onDateChange = (val) => {
-  if (val && !form.tempNo) {
-    const d = val.replace(/-/g, '')
-    form.tempNo = 'P' + d
-  }
+  form.tempNo = val ? `P${val.replace(/-/g, '')}` : ''
 }
 
 const onSponsorChange = (uid) => {
@@ -227,6 +244,10 @@ const loadUsers = async () => {
 }
 
 const handleSave = async () => {
+  if (!validateBasicForm()) {
+    activeTab.value = 'basic'
+    return
+  }
   if (!pendingDocument.value) {
     ElMessage.warning('请在附件页上传一份 Word 格式的交底书')
     activeTab.value = 'attachments'
@@ -246,6 +267,8 @@ const handleSave = async () => {
         excellentExam.value ? '优审' : ''
       ].filter(Boolean).join('，') || undefined
     }
+    delete submitData.patentType
+    delete submitData.agent
     const res = await createWithAttachments(submitData, pendingDocument.value, pendingOthers.value, null)
     if (res.code === 200) {
       addDraft.clear()
@@ -258,12 +281,18 @@ const handleSave = async () => {
   }
 }
 
-const goNext = () => {
+const validateBasicForm = () => {
   if (!form.disclosureName) { ElMessage.warning('请输入交底名称'); return }
   if (!form.disclosureDate) { ElMessage.warning('请选择日期'); return }
+  if (!form.sponsorUserId) { ElMessage.warning('请选择主办人'); return }
   if (!form.contactPerson) { ElMessage.warning('请输入联系人姓名'); return }
   if (!form.contactEmail) { ElMessage.warning('请输入联系人邮箱'); return }
   if (!form.contactPhone) { ElMessage.warning('请输入联系人电话'); return }
+  return true
+}
+
+const goNext = () => {
+  if (!validateBasicForm()) return
   activeTab.value = 'attachments'
 }
 

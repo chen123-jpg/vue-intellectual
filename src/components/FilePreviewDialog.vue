@@ -79,17 +79,14 @@
 
 <script setup>
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
-// TODO: @vue-office 包未安装，暂时注释
-// import '@vue-office/docx/lib/index.css'
-// import '@vue-office/excel/lib/index.css'
+import '@vue-office/docx/lib/index.css'
+import '@vue-office/excel/lib/index.css'
 import { convertLegacyWordToPdf, downloadFile, fetchFileBlob } from '../utils/format'
 
-// const VueOfficeDocx = defineAsyncComponent(() => import('@vue-office/docx'))
-// const VueOfficeExcel = defineAsyncComponent(() => import('@vue-office/excel'))
-// const VueOfficePptx = defineAsyncComponent(() => import('@vue-office/pptx'))
-const VueOfficeDocx = () => null
-const VueOfficeExcel = () => null
-const VueOfficePptx = () => null
+// 按需异步加载 Office 预览组件，避免首屏打包体积过大
+const VueOfficeDocx = defineAsyncComponent(() => import('@vue-office/docx'))
+const VueOfficeExcel = defineAsyncComponent(() => import('@vue-office/excel'))
+const VueOfficePptx = defineAsyncComponent(() => import('@vue-office/pptx'))
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

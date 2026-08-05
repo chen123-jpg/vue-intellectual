@@ -126,7 +126,7 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="交底日期">
+                <el-form-item label="交底日期" required>
                   <el-date-picker
                     v-model="og.form.disclosureDate"
                     type="date"
@@ -532,6 +532,10 @@ const ogOpenProcess = async (row) => {
 
 // ========================== Basic Info ==========================
 const ogSaveBasic = async () => {
+  if (!og.form.disclosureDate) {
+    ElMessage.warning('请选择交底日期')
+    return
+  }
   og.saving = true
   try {
     const { sponsor, sponsorUserId, ...editableForm } = og.form

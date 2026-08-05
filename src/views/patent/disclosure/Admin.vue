@@ -131,7 +131,15 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="专利状态">
-              <el-input v-model="ad.editForm.patentStatus" />
+              <el-select v-model="ad.editForm.patentStatus" style="width:100%">
+                <el-option label="草稿" value="草稿" />
+                <el-option label="受理" value="受理" />
+                <el-option label="审核中" value="审核中" />
+                <el-option label="定稿" value="定稿" />
+                <el-option label="驳回" value="驳回" />
+                <el-option label="定稿待报" value="定稿待报" disabled />
+                <el-option label="已申报" value="已申报" disabled />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -175,7 +183,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="交底日期">
+            <el-form-item label="交底日期" required>
               <el-date-picker
                 v-model="ad.editForm.disclosureDate"
                 type="date"
@@ -217,7 +225,7 @@
         <el-button @click="ad.editDialog.visible = false">取消</el-button>
         <el-button type="primary" @click="adSaveEdit" :loading="ad.saving">保存修改</el-button>
       </template>
-    </el-dialog>
+        </el-dialog>
 
     <FilePreviewDialog v-model="ad.preview.visible" :attachment="ad.preview.attachment" />
   </div>
@@ -337,6 +345,7 @@ const adOpenEdit = async (row) => {
 const adSaveEdit = async () => {
   if (!ad.editForm.disclosureName) { ElMessage.warning('请输入交底名称'); return }
   if (!ad.editForm.patentType) { ElMessage.warning('请选择专利类型'); return }
+  if (!ad.editForm.disclosureDate) { ElMessage.warning('请选择交底日期'); return }
   if (!ad.editForm.sponsorUserId) { ElMessage.warning('请选择主办人'); return }
   ad.saving = true
   try {
