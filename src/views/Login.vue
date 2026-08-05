@@ -152,6 +152,12 @@ const sendSmsCode = async () => {
   try {
     const res = await getSmsCode(phone)
     isSending.value = true
+    
+    // 直接弹窗显示验证码（为了绕过阿里云短信资质审核）
+    if (res.data && res.data.code) {
+      ElMessage.success(`【测试环境】您的验证码是：${res.data.code}`);
+    }
+    
     //60秒倒计时
     remainTime.value = 60
     const timer = setInterval(() => {
