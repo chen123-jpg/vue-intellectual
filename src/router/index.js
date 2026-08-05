@@ -151,6 +151,31 @@ const routes = [
         path: 'notifications',
         name: 'Notifications',
         component: () => import('../views/Notifications.vue')
+      },
+      {
+        path: 'system/dict/position',
+        name: 'PositionDictionary',
+        component: () => import('../views/system/PositionDictionary.vue')
+      },
+      {
+        path: 'system/dict/employee',
+        name: 'EmployeeDictionary',
+        component: () => import('../views/system/EmployeeDictionary.vue')
+      },
+      {
+        path: 'permission/data/org',
+        name: 'OrganizationDictionary',
+        component: () => import('../views/system/OrganizationDictionary.vue')
+      },
+      {
+        path: 'permission/data/customer',
+        name: 'CustomerDictionary',
+        component: () => import('../views/system/CustomerDictionary.vue')
+      },
+      {
+        path: 'permission/data/config',
+        name: 'ScopeDictionary',
+        component: () => import('../views/system/ScopeDictionary.vue')
       }
     ]
   }
