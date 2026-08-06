@@ -319,7 +319,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   min-height: 32px;
-  padding: 2px 16px;
+  padding: 2px 16px 2px 10px;
   cursor: pointer;
   user-select: none;
   color: rgba(0, 0, 0, 0.7);
@@ -328,6 +328,7 @@ onUnmounted(() => {
   transition: all 0.2s ease;
   gap: 8px;
   position: relative;
+  border-radius: 6px;
 }
 
 .l2-item:hover {
@@ -392,7 +393,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   min-height: 30px;
-  padding: 2px 16px 2px 28px;
+  padding: 2px 16px 2px 22px;
   cursor: pointer;
   user-select: none;
   color: rgba(0, 0, 0, 0.6);
@@ -401,6 +402,7 @@ onUnmounted(() => {
   transition: all 0.2s ease;
   gap: 8px;
   position: relative;
+  border-radius: 6px;
 }
 
 .l3-item:hover {

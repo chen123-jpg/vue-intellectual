@@ -440,14 +440,9 @@ watch(() => state.menuVersion, () => {
   border-bottom: none;
 }
 
-.tab-item:hover {
-  color: #333;
-  background: #e8e8e8;
-}
-
 .tab-item--active {
-  color: #304156;
-  background: #f0f2f5;
+  color: #1890FF;
+  background: #e6f7ff;
   font-weight: 600;
 }
 
@@ -468,11 +463,6 @@ watch(() => state.menuVersion, () => {
   align-items: center;
   justify-content: center;
   transition: all 0.15s;
-}
-
-.tab-item__close:hover {
-  color: #fff;
-  background: #999;
 }
 
 /* ==================== 主内容区 ==================== */
