@@ -8,7 +8,7 @@
   >
     <template #reference>
       <el-badge :value="notificationStore.totalUnread" :hidden="notificationStore.totalUnread === 0">
-        <el-icon size="22" style="cursor:pointer;color:#606266;"><Bell /></el-icon>
+        <el-icon size="22" style="cursor:pointer;color:#fff;"><Bell /></el-icon>
       </el-badge>
     </template>
     <div class="notification-popover">

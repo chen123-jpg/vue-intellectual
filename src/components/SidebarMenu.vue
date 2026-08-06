@@ -28,93 +28,55 @@
     ]"
     :style="{ width: sidebarWidth + 'px' }"
   >
-    <!-- ========== 左面板：一级菜单 (#304156) ========== -->
-    <div class="panel-left" :style="{ width: panelLeftWidth + 'px' }">
-      <!-- 用户信息区域（留空） -->
-      <div class="panel-left__user"></div>
-
-      <!-- 分割线 -->
-      <div class="panel-left__divider"></div>
-
-      <!-- 一级菜单列表 -->
-      <div class="panel-left__menu-scroll">
-        <div
-          v-for="item in menus"
-          :key="item.id"
-          :class="[
-            'l1-item',
-            { 'l1-item--active': isL1Active(item) },
-            { 'l1-item--selected': selectedL1?.id === item.id }
-          ]"
-          @click="handleL1Click(item)"
-        >
-          <span class="l1-item__icon">
-            <component :is="item.icon" />
-          </span>
-          <span v-show="!isCollapse || isMobile" class="l1-item__label">{{ item.label }}</span>
-        </div>
-      </div>
-
+    <!-- 标题 -->
+    <div class="sidebar__header">
+      <span class="sidebar__title">知识产权<br>管理系统</span>
     </div>
 
-    <!-- ========== 右面板：二/三级菜单 (#ACB3BB) ========== -->
-    <div
-      v-if="showRightPanel && (!isCollapse || isMobile)"
-      class="panel-right"
-    >
-      <!-- 右面板标题 -->
-      <div class="panel-right__header">
-        <span class="panel-right__title">知识产权<br>管理系统</span>
-      </div>
+    <!-- 分割线 -->
+    <div class="sidebar__divider"></div>
 
-      <!-- 分割线 -->
-      <div class="panel-right__divider"></div>
-
-      <!-- 二/三级菜单列表 -->
-      <div class="panel-right__menu-scroll">
-        <template v-for="l2 in selectedL1?.children || []" :key="l2.id">
-          <!-- 二级菜单项 -->
-          <div
-            :class="[
-              'l2-item',
-              { 'l2-item--active': isL2Active(l2) },
-              { 'l2-item--expanded': expandedL2Ids.has(l2.id) }
-            ]"
-            @click="handleL2Click(l2)"
-          >
-            <span class="l2-item__dot"></span>
-            <span class="l2-item__label">{{ l2.label }}</span>
-            <span v-if="hasChildren(l2)" class="l2-item__arrow">
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                <path d="M4 2L8 6L4 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </span>
-          </div>
-
-          <!-- 三级菜单项 -->
-          <div
-            v-if="hasChildren(l2) && expandedL2Ids.has(l2.id)"
-            class="l3-list"
-          >
-            <div
-              v-for="l3 in l2.children"
-              :key="l3.id"
-              :class="['l3-item', { 'l3-item--active': isL3Active(l3) }]"
-              @click="handleL3Click(l3)"
-            >
-              <span class="l3-item__dot"></span>
-              <span class="l3-item__label">{{ l3.label }}</span>
-            </div>
-          </div>
-        </template>
-
-        <!-- 空状态：未选中或选中项无子菜单 -->
-        <div v-if="!selectedL1" class="panel-right__empty">
-          请选择左侧菜单
+    <!-- 二/三级菜单列表 -->
+    <div class="sidebar__menu-scroll">
+      <template v-for="l2 in menus" :key="l2.id">
+        <!-- 二级菜单项 -->
+        <div
+          :class="[
+            'l2-item',
+            { 'l2-item--active': isL2Active(l2) },
+            { 'l2-item--expanded': expandedL2Ids.has(l2.id) }
+          ]"
+          @click="handleL2Click(l2)"
+        >
+          <span class="l2-item__dot"></span>
+          <span class="l2-item__label">{{ l2.label }}</span>
+          <span v-if="hasChildren(l2)" class="l2-item__arrow">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+              <path d="M4 2L8 6L4 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
         </div>
-        <div v-else-if="!selectedL1.children?.length" class="panel-right__empty">
-          暂无子菜单
+
+        <!-- 三级菜单项 -->
+        <div
+          v-if="hasChildren(l2) && expandedL2Ids.has(l2.id)"
+          class="l3-list"
+        >
+          <div
+            v-for="l3 in l2.children"
+            :key="l3.id"
+            :class="['l3-item', { 'l3-item--active': isL3Active(l3) }]"
+            @click="handleL3Click(l3)"
+          >
+            <span class="l3-item__dot"></span>
+            <span class="l3-item__label">{{ l3.label }}</span>
+          </div>
         </div>
+      </template>
+
+      <!-- 空状态 -->
+      <div v-if="!menus.length" class="sidebar__empty">
+        请选择顶部菜单
       </div>
     </div>
   </aside>
@@ -136,56 +98,21 @@ const emit = defineEmits(['navigate', 'toggle-collapse', 'width-change'])
 // ========== 响应式状态 ==========
 const isMobile = ref(false)
 const drawerOpen = ref(false)
-const selectedL1 = ref(null)
 const expandedL2Ids = ref(new Set())
 const sidebarRef = ref(null)
 
 // ========== 面板宽度计算 ==========
 const PANEL_WIDTH = 120
-const PANEL_LEFT_WIDTH = 60
 const PANEL_COLLAPSED = 56
 
-const panelLeftWidth = computed(() => {
-  if (isMobile.value) return PANEL_WIDTH
-  return props.isCollapse ? PANEL_COLLAPSED : PANEL_LEFT_WIDTH
-})
-
 const sidebarWidth = computed(() => {
-  if (isMobile.value) return PANEL_WIDTH // 移动端由 CSS width:80% 控制，这里做 fallback
-  let w = panelLeftWidth.value
-  if (showRightPanel.value && !props.isCollapse) w += PANEL_WIDTH
-  return w
-})
-
-const showRightPanel = computed(() => {
-  return !props.isCollapse || isMobile.value
+  if (isMobile.value) return PANEL_WIDTH
+  return props.isCollapse ? PANEL_COLLAPSED : PANEL_WIDTH
 })
 
 // ========== 工具方法 ==========
 const hasChildren = (item) => item?.children && item.children.length > 0
 
-const findMenuInTree = (items, predicate) => {
-  for (const item of items) {
-    if (predicate(item)) return item
-    if (item.children) {
-      const found = findMenuInTree(item.children, predicate)
-      if (found) return found
-    }
-  }
-  return null
-}
-
-// ========== L1 激活判断：当前路径是否属于该 L1 子树 ==========
-const isL1Active = (l1) => {
-  if (!props.activePath) return false
-  if (l1.path && props.activePath === l1.path) return true
-  if (l1.children) {
-    return !!findMenuInTree(l1.children, c => c.path && props.activePath === c.path)
-  }
-  return false
-}
-
-// ========== L2 激活判断 ==========
 const isL2Active = (l2) => {
   if (!props.activePath) return false
   if (l2.path && props.activePath === l2.path) return true
@@ -201,25 +128,6 @@ const isL3Active = (l3) => {
 }
 
 // ========== 点击处理 ==========
-const handleL1Click = (item) => {
-  if (hasChildren(item)) {
-    // 有子菜单：切换选中（右面板切换内容）
-    if (selectedL1.value?.id === item.id) {
-      // 再次点击同一项：取消选中，右面板留空
-      selectedL1.value = null
-      expandedL2Ids.value = new Set()
-    } else {
-      selectedL1.value = item
-      expandedL2Ids.value = new Set()
-    }
-  } else {
-    // 无子菜单：直接导航，右面板留空
-    selectedL1.value = null
-    expandedL2Ids.value = new Set()
-    navigateTo(item)
-  }
-}
-
 const handleL2Click = (item) => {
   if (hasChildren(item)) {
     // 有三级：展开/折叠
@@ -251,30 +159,16 @@ const navigateTo = (item) => {
 const syncActiveState = () => {
   if (!props.activePath || !props.menus.length) return
 
-  for (const l1 of props.menus) {
-    if (l1.path === props.activePath) {
-      // 命中 L1 叶子节点
-      selectedL1.value = null
+  for (const l2 of props.menus) {
+    if (l2.path === props.activePath) {
       expandedL2Ids.value = new Set()
       return
     }
-    if (l1.children) {
-      for (const l2 of l1.children) {
-        if (l2.path === props.activePath) {
-          // 命中 L2 节点
-          selectedL1.value = l1
-          expandedL2Ids.value = new Set()
+    if (l2.children) {
+      for (const l3 of l2.children) {
+        if (l3.path === props.activePath) {
+          expandedL2Ids.value = new Set([l2.id])
           return
-        }
-        if (l2.children) {
-          for (const l3 of l2.children) {
-            if (l3.path === props.activePath) {
-              // 命中 L3 节点
-              selectedL1.value = l1
-              expandedL2Ids.value = new Set([l2.id])
-              return
-            }
-          }
         }
       }
     }
@@ -338,14 +232,17 @@ onUnmounted(() => {
   to { opacity: 1; }
 }
 
-/* ==================== 侧边栏主体 ==================== */
+/* ================================================================ */
+/*  侧边栏（单面板白色背景）                                          */
+/* ================================================================ */
 .sidebar {
   position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  background: #FFFFFF;
   z-index: 999;
   transition: width 0.3s ease;
   overflow: hidden;
@@ -363,186 +260,8 @@ onUnmounted(() => {
   transform: translateX(0);
 }
 
-/* ================================================================ */
-/*  左面板：#304156                                                   */
-/* ================================================================ */
-.panel-left {
-  display: flex;
-  flex-direction: column;
-  background: #304156;
-  height: 100%;
-  flex-shrink: 0;
-  overflow: hidden;
-  transition: width 0.3s ease;
-}
-
-/* 用户信息 */
-.panel-left__user {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 24px;
-  min-height: 60px;
-}
-
-.sidebar--collapsed .panel-left__user {
-  justify-content: center;
-  padding: 20px 0;
-}
-
-.panel-left__user-text {
-  overflow: hidden;
-  min-width: 0;
-}
-
-.panel-left__user-name {
-  font-size: 13px;
-  color: #fff;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.panel-left__user-dept {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* 分割线 */
-.panel-left__divider {
-  height: 1px;
-  margin: 0 24px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.sidebar--collapsed .panel-left__divider {
-  margin: 0 12px;
-}
-
-/* 一级菜单滚动区 */
-.panel-left__menu-scroll {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 8px 0;
-}
-
-.panel-left__menu-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.panel-left__menu-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.panel-left__menu-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
-}
-
-/* 底部折叠按钮 */
-.panel-left__collapse {
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.45);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  transition: color 0.2s;
-  flex-shrink: 0;
-}
-
-.panel-left__collapse:hover {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-/* ================================================================ */
-/*  一级菜单项（正方形卡片）                                           */
-/* ================================================================ */
-.l1-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  margin: 4px auto;
-  border-radius: 8px;
-  cursor: pointer;
-  user-select: none;
-  color: rgba(255, 255, 255, 0.85);
-  transition: all 0.2s ease;
-  position: relative;
-  gap: 6px;
-  background: #435B77;
-}
-
-.l1-item:hover {
-  background: #4E6A8A;
-  color: #fff;
-}
-
-.l1-item--active {
-  color: #fff;
-  background: #435B77;
-}
-
-.l1-item--selected {
-  color: #fff;
-  background: #435B77;
-  border-left: 2px solid #409EFF;
-}
-
-.l1-item__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-  width: 14px;
-  height: 14px;
-}
-
-.l1-item__label {
-  font-size: 10px;
-  text-align: center;
-  line-height: 1.2;
-  max-width: 42px;
-  word-break: keep-all;
-}
-
-/* 折叠态 */
-.sidebar--collapsed .l1-item {
-  width: 40px;
-  height: 40px;
-  margin: 3px auto;
-  gap: 0;
-}
-
-.sidebar--collapsed .l1-item__label {
-  display: none;
-}
-
-/* ================================================================ */
-/*  右面板：#ACB3BB                                                   */
-/* ================================================================ */
-.panel-right {
-  width: 120px;
-  height: 100%;
-  background: #FFFFFF;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.panel-right__header {
+/* 标题 */
+.sidebar__header {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -550,41 +269,43 @@ onUnmounted(() => {
   padding: 20px 12px;
 }
 
-.panel-right__title {
-  font-size: 13px;
-  font-weight: 600;
+.sidebar__title {
+  font-size: 16px;
+  font-weight: 700;
   color: #1a1a1a;
   text-align: center;
   line-height: 1.4;
 }
 
-.panel-right__divider {
+/* 分割线 */
+.sidebar__divider {
   height: 1px;
   margin: 0 24px;
   background: rgba(0, 0, 0, 0.08);
 }
 
-.panel-right__menu-scroll {
+/* 菜单滚动区 */
+.sidebar__menu-scroll {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px 0;
 }
 
-.panel-right__menu-scroll::-webkit-scrollbar {
+.sidebar__menu-scroll::-webkit-scrollbar {
   width: 4px;
 }
 
-.panel-right__menu-scroll::-webkit-scrollbar-track {
+.sidebar__menu-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.panel-right__menu-scroll::-webkit-scrollbar-thumb {
+.sidebar__menu-scroll::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.12);
   border-radius: 2px;
 }
 
-.panel-right__empty {
+.sidebar__empty {
   padding: 40px 24px;
   text-align: center;
   color: rgba(0, 0, 0, 0.35);
@@ -603,6 +324,7 @@ onUnmounted(() => {
   user-select: none;
   color: rgba(0, 0, 0, 0.7);
   font-size: 13px;
+  font-weight: 600;
   transition: all 0.2s ease;
   gap: 8px;
   position: relative;
@@ -616,7 +338,6 @@ onUnmounted(() => {
 .l2-item--active {
   background: rgba(0, 0, 0, 0.09);
   color: #1a1a1a;
-  font-weight: 500;
 }
 
 .l2-item--active::before {
@@ -670,12 +391,13 @@ onUnmounted(() => {
 .l3-item {
   display: flex;
   align-items: center;
-  min-height: 28px;
-  padding: 1px 16px 1px 28px;
+  min-height: 30px;
+  padding: 2px 16px 2px 28px;
   cursor: pointer;
   user-select: none;
   color: rgba(0, 0, 0, 0.6);
   font-size: 12px;
+  font-weight: 600;
   transition: all 0.2s ease;
   gap: 8px;
   position: relative;
@@ -689,7 +411,6 @@ onUnmounted(() => {
 .l3-item--active {
   background: rgba(0, 0, 0, 0.08);
   color: #1a1a1a;
-  font-weight: 500;
 }
 
 .l3-item--active::before {
@@ -719,13 +440,5 @@ onUnmounted(() => {
   word-break: break-all;
   line-height: 1.2;
   font-size: 11px;
-}
-
-/* ================================================================ */
-/*  移动端：右面板在抽屉内也需要显示                                    */
-/* ================================================================ */
-.sidebar--drawer .panel-right {
-  width: 50%;
-  min-width: 120px;
 }
 </style>

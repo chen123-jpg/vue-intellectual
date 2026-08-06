@@ -176,6 +176,11 @@ const routes = [
         path: 'permission/data/config',
         name: 'ScopeDictionary',
         component: () => import('../views/system/ScopeDictionary.vue')
+      },
+      {
+        path: ':pathMatch(.*)*',
+        name: 'Placeholder',
+        component: () => import('../views/Placeholder.vue')
       }
     ]
   }

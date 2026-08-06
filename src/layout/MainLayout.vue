@@ -17,34 +17,16 @@
       <!-- 顶部导航栏 -->
       <header class="top-header">
         <div class="top-header__left">
-          <!-- 桌面端折叠按钮 -->
-          <button v-if="!isMobile" class="collapse-btn" @click="isCollapse = !isCollapse">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="15" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        <div class="top-header__right">
-          <!-- 动态顶部菜单按钮 -->
+          <!-- 一级菜单按钮 -->
           <button
             v-for="m in headerMenus"
             :key="m.id"
-            class="top-menu-btn"
-            @click="handleMenuNavigate(m.path || '#')"
+            :class="['top-l1-btn', { 'top-l1-btn--active': activeL1?.id === m.id }]"
+            @click="handleL1Click(m)"
           >{{ m.label }}</button>
+        </div>
 
-          <!-- 提醒规则 -->
-          <button class="top-menu-btn" @click="handleMenuNavigate('/rules')">提醒规则</button>
-
-          <!-- 邮件中心入口 -->
-          <button class="mail-btn" @click="goMail">
-            <el-icon :size="18"><Message /></el-icon>
-            <span class="mail-btn__text">邮件中心</span>
-          </button>
-
+        <div class="top-header__right">
           <!-- 通知铃铛 -->
           <NotificationBell />
 
@@ -60,12 +42,27 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="profile">个人信息</el-dropdown-item>
+                <el-dropdown-item command="reminder">提醒规则</el-dropdown-item>
+                <el-dropdown-item command="mailCenter">邮件中心</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
       </header>
+
+      <!-- 标签栏 -->
+      <div class="tab-bar" v-if="tabs.length">
+        <div
+          v-for="tab in tabs"
+          :key="tab.path"
+          :class="['tab-item', { 'tab-item--active': route.path === tab.path }]"
+          @click="switchTab(tab)"
+        >
+          <span class="tab-item__label">{{ tab.label }}</span>
+          <span class="tab-item__close" @click.stop="closeTab(tab)">×</span>
+        </div>
+      </div>
 
       <!-- 主内容区 -->
       <main class="main-content">
@@ -86,7 +83,7 @@ import SidebarMenu from '../components/SidebarMenu.vue'
 import {
   Setting, User, Avatar, Document, DocumentChecked,
   FolderOpened, DocumentAdd, CirclePlus, Link,
-  Edit, Warning, UserFilled, ArrowDown, Message,
+  Edit, Warning, UserFilled, ArrowDown,
   Collection, Grid, Stamp, Briefcase, DataAnalysis,
   OfficeBuilding, Notebook, DocumentCopy, AlarmClock,
   Folder, TrendCharts, Lock, Money, Ticket,
@@ -132,7 +129,7 @@ const resolveIcon = (iconName) => {
 // ========== 递归构建菜单树 ==========
 const buildMenuTree = (list, parentId = 0) => {
   return list
-    .filter(item => item.parentId === parentId && item.menuType !== 'F' && item.visible === '0')
+    .filter(item => (item.parentId || 0) === parentId && item.menuType !== 'F' && item.visible === '0')
     .sort((a, b) => (a.orderNum || 0) - (b.orderNum || 0))
     .map(item => {
       const menu = {
@@ -150,11 +147,12 @@ const buildMenuTree = (list, parentId = 0) => {
     })
 }
 
-// ========== 递归过滤权限（排除顶部按钮菜单） ==========
+// ========== 侧边栏菜单：当前选中 L1 的子菜单 ==========
 const visibleMenus = computed(() => {
+  if (!activeL1.value) return []
+  const children = activeL1.value.children || []
   const filterByPermission = (menus) => {
     return menus
-      .filter(menu => menu.target !== 'header')
       .map(menu => {
         if (menu.perm && !hasPermission(menu.perm)) return null
         if (menu.children) {
@@ -166,25 +164,94 @@ const visibleMenus = computed(() => {
       })
       .filter(Boolean)
   }
-  return filterByPermission(fullMenus.value)
+  return filterByPermission(children)
 })
 
 // ========== 当前激活路径 ==========
-// ========== 顶部按钮：target='header' 的一级菜单 ==========
+// ========== 一级菜单（全部 L1，从侧边栏移到顶部） ==========
+const activeL1 = ref(null)
 const headerMenus = computed(() => {
-  return fullMenus.value.filter(m => m.target === 'header' && m.menuType !== 'F')
+  return fullMenus.value.filter(m => m.menuType !== 'F' && !m.perm)
 })
 
 const activeMenu = computed(() => route.path)
 
+// ========== 根据当前路径同步 activeL1 ==========
+const syncActiveL1 = () => {
+  const path = route.path
+  if (!path || !fullMenus.value.length) return
+  for (const l1 of fullMenus.value) {
+    if (l1.menuType === 'F' || l1.perm) continue
+    if (l1.path === path) { activeL1.value = l1; return }
+    if (l1.children) {
+      for (const l2 of l1.children) {
+        if (l2.path === path) { activeL1.value = l1; return }
+        if (l2.children) {
+          if (l2.children.some(l3 => l3.path === path)) { activeL1.value = l1; return }
+        }
+      }
+    }
+  }
+}
+
+watch(() => route.path, syncActiveL1)
+watch(fullMenus, () => { syncActiveL1() })
+
+// ========== 标签页管理 ==========
+const tabs = ref([])
+
+const findMenuLabel = (path) => {
+  const find = (items) => {
+    for (const item of items) {
+      if (item.path === path) return item.label
+      if (item.children) {
+        const found = find(item.children)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  return find(fullMenus.value) || path
+}
+
+const addTab = (path) => {
+  if (!path || path === '#') return
+  if (!tabs.value.find(t => t.path === path)) {
+    tabs.value.push({ path, label: findMenuLabel(path) })
+  }
+}
+
+const switchTab = (tab) => {
+  router.push(tab.path)
+}
+
+const closeTab = (tab) => {
+  const idx = tabs.value.findIndex(t => t.path === tab.path)
+  if (idx === -1) return
+  tabs.value.splice(idx, 1)
+  // 如果关闭的是当前页，切换到相邻标签
+  if (route.path === tab.path && tabs.value.length) {
+    const next = tabs.value[Math.min(idx, tabs.value.length - 1)]
+    router.push(next.path)
+  }
+}
+
 // ========== 导航处理 ==========
 const handleMenuNavigate = (path) => {
   if (path && path !== '#') {
+    addTab(path)
     router.push(path)
   }
 }
 
-const goMail = () => router.push('/mail')
+// ========== 一级菜单点击 ==========
+const handleL1Click = (item) => {
+  if (activeL1.value?.id === item.id) {
+    activeL1.value = null
+  } else {
+    activeL1.value = item
+  }
+}
 
 const handleCommand = async (cmd) => {
   if (cmd === 'logout') {
@@ -193,6 +260,10 @@ const handleCommand = async (cmd) => {
     router.push('/login')
   } else if (cmd === 'profile') {
     router.push('/profile')
+  } else if (cmd === 'reminder') {
+    router.push('/rules')
+  } else if (cmd === 'mailCenter') {
+    router.push('/mail')
   }
 }
 
@@ -206,6 +277,7 @@ const fetchMenus = async () => {
   try {
     const res = await getMenuList()
     fullMenus.value = buildMenuTree(res.data || [])
+    console.log('菜单树加载完成:', fullMenus.value.length, '个一级菜单', fullMenus.value)
   } catch {
     fullMenus.value = []
   }
@@ -257,10 +329,10 @@ watch(() => state.menuVersion, () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
+  height: 44px;
   padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
+  background: #304156;
+  border-radius: 0 0 8px 8px;
   flex-shrink: 0;
   z-index: 10;
 }
@@ -277,65 +349,24 @@ watch(() => state.menuVersion, () => {
   gap: 16px;
 }
 
-/* ==================== 折叠按钮 ==================== */
-.collapse-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* ==================== 顶部一级菜单按钮 ==================== */
+.top-l1-btn {
+  padding: 5px 16px;
   border: none;
+  border-radius: 0;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
   background: transparent;
-  color: #595959;
-  cursor: pointer;
-  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
   transition: all 0.2s;
-}
-
-.collapse-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
-  color: #1890FF;
-}
-
-/* ==================== 顶部动态菜单按钮 ==================== */
-.top-menu-btn {
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #fff;
-  background: #409EFF;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.top-menu-btn:hover {
-  background: #337ecc;
-}
-
-/* ==================== 邮件中心按钮 ==================== */
-.mail-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #1890FF;
-  background: rgba(24, 144, 255, 0.08);
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.mail-btn:hover {
-  background: rgba(24, 144, 255, 0.15);
-}
-
-.mail-btn__text {
   white-space: nowrap;
+}
+
+.top-l1-btn--active {
+  border-radius: 20px;
+  background: #fff;
+  color: #304156;
 }
 
 /* ==================== 用户下拉触发器 ==================== */
@@ -348,30 +379,100 @@ watch(() => state.menuVersion, () => {
   border-radius: 6px;
   transition: background 0.2s;
   user-select: none;
+  color: #fff;
 }
 
 .user-dropdown-trigger:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .user-avatar-sm {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #f0f2f5;
+  background: rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #595959;
+  color: #fff;
 }
 
 .user-dropdown-name {
   font-size: 13px;
-  color: #333;
+  color: #fff;
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ==================== 标签栏 ==================== */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 8px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  overflow-x: auto;
+  gap: 4px;
+}
+
+.tab-bar::-webkit-scrollbar {
+  height: 2px;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #666;
+  background: #f5f5f5;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  border-bottom: none;
+}
+
+.tab-item:hover {
+  color: #333;
+  background: #e8e8e8;
+}
+
+.tab-item--active {
+  color: #304156;
+  background: #f0f2f5;
+  font-weight: 600;
+}
+
+.tab-item__label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-item__close {
+  font-size: 14px;
+  line-height: 1;
+  color: #999;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.tab-item__close:hover {
+  color: #fff;
+  background: #999;
 }
 
 /* ==================== 主内容区 ==================== */
