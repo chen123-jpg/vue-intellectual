@@ -4,7 +4,6 @@
     <header class="top-header">
       <!-- 左侧：系统名（宽度和侧边栏对齐，文字和二级菜单对齐） -->
       <div class="top-header__brand">
-        <span class="brand-dot"></span>
         <span class="brand-text">知识产权<br>管理系统</span>
       </div>
 
@@ -16,9 +15,6 @@
           :class="['top-l1-btn', { 'top-l1-btn--active': activeL1?.id === m.id }]"
           @click="handleL1Click(m)"
         >
-          <span class="l1-btn-icon">
-            <component :is="m.icon" />
-          </span>
           <span class="l1-btn-label">{{ m.label }}</span>
         </button>
       </nav>
@@ -352,6 +348,7 @@ watch(() => state.menuVersion, () => {
   padding: 0 16px 0 0;
   background: linear-gradient(135deg, #0a1628 0%, #132036 40%, #1a2f4a 100%);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 0 0 8px 8px;
   flex-shrink: 0;
   z-index: 1000;
   position: relative;
@@ -381,7 +378,7 @@ watch(() => state.menuVersion, () => {
 }
 
 .brand-text {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   color: #fff;
   letter-spacing: 1.5px;
@@ -395,7 +392,7 @@ watch(() => state.menuVersion, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
   overflow: visible;
@@ -413,6 +410,7 @@ watch(() => state.menuVersion, () => {
 .top-l1-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   margin: 3px 0;
   padding: 8px 18px;
@@ -424,6 +422,7 @@ watch(() => state.menuVersion, () => {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.5px;
+  line-height: 1;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   flex-shrink: 0;
@@ -432,27 +431,18 @@ watch(() => state.menuVersion, () => {
 .l1-btn-icon {
   display: flex;
   align-items: center;
+  justify-content: center;
   font-size: 20px;
+  line-height: 1;
   opacity: 0.75;
   transition: all 0.25s;
 }
 
-.top-l1-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.top-l1-btn:hover .l1-btn-icon {
-  opacity: 1;
-  color: #64b5f6;
-}
 
 .top-l1-btn--active {
-  color: #fff;
-  background: linear-gradient(135deg, rgba(25, 118, 210, 0.5) 0%, rgba(30, 136, 229, 0.35) 100%);
-  box-shadow:
-    0 0 20px rgba(30, 136, 229, 0.35),
-    inset 0 0 0 1px rgba(100, 181, 246, 0.4);
+  color: #0a1628;
+  background: #fff;
+  border-radius: 20px;
   position: relative;
 }
 
@@ -467,14 +457,13 @@ watch(() => state.menuVersion, () => {
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 6px solid rgba(30, 136, 229, 0.6);
+  border-top: 6px solid #fff;
   z-index: 1001;
 }
 
 .top-l1-btn--active .l1-btn-icon {
   opacity: 1;
-  color: #64b5f6;
-  filter: drop-shadow(0 0 4px rgba(100, 181, 246, 0.6));
+  color: #0a1628;
 }
 
 .l1-btn-label {
