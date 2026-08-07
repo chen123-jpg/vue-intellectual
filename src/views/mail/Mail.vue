@@ -223,7 +223,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Message } from '@element-plus/icons-vue'
 import { getSendLogs, getSendLogById, removeSendLog, batchRemoveSendLog, resendMail } from '../../api/mailRecord'
@@ -400,7 +400,14 @@ const handleTplBatchDelete = async () => {
 const onTplSelectionChange = (sel) => { tplSelected.value = sel }
 
 // ==================== Init ====================
-onMounted(() => fetchSentLogs())
+onMounted(() => {
+  fetchSentLogs()
+  fetchTplData()
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'templates' && !tplTableData.value.length) fetchTplData()
+})
 </script>
 
 <style scoped>
