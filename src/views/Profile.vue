@@ -65,6 +65,7 @@
               <div style="font-size: 12px; color: #909399; margin-top: 4px;">
                 {{ state.authCode ? '如需更新授权码，请输入新的授权码' : '请输入邮箱的SMTP授权码' }}
               </div>
+              <AuthCodeGuide />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="handleSaveAuthCode" :loading="authLoading">
@@ -88,6 +89,7 @@
 </template>
 
 <script setup>
+import AuthCodeGuide from '../components/AuthCodeGuide.vue'
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
