@@ -249,16 +249,23 @@ const ad = reactive({
   searchFields: [
     { key: 'disclosureName', label: '名称', type: 'input', matchType: 'fuzzy', width: 200 },
     { key: 'internalNo', label: '内部编号', type: 'input', matchType: 'fuzzy', width: 160 },
-    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 180 },
-    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 180 },
-    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 }
+    { key: 'tempNo', label: '临时编号', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'patentType', label: '专利类型', type: 'select', options: [{label:'发明',value:'发明'},{label:'实用新型',value:'实用新型'},{label:'外观',value:'外观'}], width: 120 },
+    { key: 'patentStatus', label: '状态', type: 'select', options: [{label:'草稿',value:'草稿'},{label:'受理',value:'受理'},{label:'审核中',value:'审核中'},{label:'定稿',value:'定稿'},{label:'驳回',value:'驳回'}], width: 120 },
+    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'agent', label: '代理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'contactPerson', label: '联系人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'manager', label: '管理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'syncedToPatent', label: '同步状态', type: 'select', options: [{label:'已同步',value:1},{label:'未同步',value:0}], width: 120 },
+    { key: 'disclosureDateRange', label: '交底日期', type: 'daterange', width: 260 },
+    { key: 'createTimeRange', label: '创建时间', type: 'daterange', width: 260 }
   ],
   query: {
-    disclosureName: '',
-    internalNo: '',
-    applicant: '',
-    inventor: '',
-    sponsor: ''
+    disclosureName: '', internalNo: '', tempNo: '', patentType: '', patentStatus: '',
+    applicant: '', inventor: '', agent: '', sponsor: '', contactPerson: '', manager: '',
+    syncedToPatent: '', disclosureDateRange: null, createTimeRange: null 
   },
   page: { pageNum: 1, pageSize: 10, total: 0 },
   tableData: [],
@@ -296,15 +303,20 @@ const adFetchData = async () => {
   ad.loading = true
   try {
     const params = { pageNum: ad.page.pageNum, pageSize: ad.page.pageSize }
-    const keyword = ad.query.internalNo
     Object.keys(ad.query).forEach(k => {
-      if (ad.query[k] && k !== 'internalNo') params[k] = ad.query[k]
+      if (k === 'disclosureDateRange' && ad.query[k] && ad.query[k].length === 2) {
+        params.disclosureDateStart = ad.query[k][0]
+        params.disclosureDateEnd = ad.query[k][1]
+      } else if (k === 'createTimeRange' && ad.query[k] && ad.query[k].length === 2) {
+        params.createTimeStart = ad.query[k][0] + ' 00:00:00'
+        params.createTimeEnd = ad.query[k][1] + ' 23:59:59'
+      } else if (ad.query[k] !== '' && ad.query[k] !== null) {
+        params[k] = ad.query[k]
+      }
     })
     const res = await getList(params)
     if (res.code === 200) {
-      let records = res.data.records || []
-      if (keyword) records = records.filter(r => r.internalNo && r.internalNo.includes(keyword))
-      ad.tableData = records
+      ad.tableData = res.data.records || []
       ad.page.total = res.data.total || 0
     }
   } finally {
@@ -313,7 +325,10 @@ const adFetchData = async () => {
 }
 
 const adResetQuery = () => {
-  Object.keys(ad.query).forEach(k => (ad.query[k] = ''))
+  Object.keys(ad.query).forEach(k => {
+    if (k.endsWith('Range')) ad.query[k] = null
+    else ad.query[k] = ''
+  })
   ad.page.pageNum = 1
   adFetchData()
 }

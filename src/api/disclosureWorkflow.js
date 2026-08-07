@@ -50,7 +50,8 @@ export function batchRemove(ids) {
 
 // ==================== Advanced Search ====================
 export function search(params, body) {
-  return request.post(`${BASE}/search`, body, { params })
+  // 统一合并到 GET /list，将 body 的查询条件转为 params
+  return request.get(`${BASE}/list`, { params: { ...params, ...body } })
 }
 
 // ==================== Copy ====================

@@ -262,11 +262,24 @@ const ec = reactive({
   searchFields: [
     { key: 'disclosureName', label: '名称', type: 'input', matchType: 'fuzzy', width: 200 },
     { key: 'internalNo', label: '内部编号', type: 'input', matchType: 'fuzzy', width: 160 },
-    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 180 },
-    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 180 },
-    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 }
+    { key: 'tempNo', label: '临时编号', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'patentType', label: '专利类型', type: 'select', options: [{label:'发明',value:'发明'},{label:'实用新型',value:'实用新型'},{label:'外观',value:'外观'}], width: 120 },
+    { key: 'patentStatus', label: '状态', type: 'select', options: [{label:'草稿',value:'草稿'},{label:'受理',value:'受理'},{label:'审核中',value:'审核中'},{label:'定稿',value:'定稿'},{label:'驳回',value:'驳回'}], width: 120 },
+    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'agent', label: '代理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'contactPerson', label: '联系人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'manager', label: '管理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'syncedToPatent', label: '同步状态', type: 'select', options: [{label:'已同步',value:1},{label:'未同步',value:0}], width: 120 },
+    { key: 'disclosureDateRange', label: '交底日期', type: 'daterange', width: 260 },
+    { key: 'createTimeRange', label: '创建时间', type: 'daterange', width: 260 }
   ],
-  query: { disclosureName: '', internalNo: '', applicant: '', inventor: '', sponsor: '' },
+  query: { 
+    disclosureName: '', internalNo: '', tempNo: '', patentType: '', patentStatus: '',
+    applicant: '', inventor: '', agent: '', sponsor: '', contactPerson: '', manager: '',
+    syncedToPatent: '', disclosureDateRange: null, createTimeRange: null 
+  },
   page: { pageNum: 1, pageSize: 10, total: 0 },
   tableData: [],
   selected: [],
@@ -294,13 +307,20 @@ const ecFetchData = async () => {
   ec.loading = true
   try {
     const params = { pageNum: ec.page.pageNum, pageSize: ec.page.pageSize }
-    const keyword = ec.query.internalNo
-    Object.keys(ec.query).forEach(k => { if (ec.query[k] && k !== 'internalNo') params[k] = ec.query[k] })
+    Object.keys(ec.query).forEach(k => {
+      if (k === 'disclosureDateRange' && ec.query[k] && ec.query[k].length === 2) {
+        params.disclosureDateStart = ec.query[k][0]
+        params.disclosureDateEnd = ec.query[k][1]
+      } else if (k === 'createTimeRange' && ec.query[k] && ec.query[k].length === 2) {
+        params.createTimeStart = ec.query[k][0] + ' 00:00:00'
+        params.createTimeEnd = ec.query[k][1] + ' 23:59:59'
+      } else if (ec.query[k] !== '' && ec.query[k] !== null && ec.query[k] !== undefined) {
+        params[k] = ec.query[k]
+      }
+    })
     const res = await getList(params)
     if (res.code === 200) {
-      let records = res.data.records || []
-      if (keyword) records = records.filter(r => r.internalNo && r.internalNo.includes(keyword))
-      ec.tableData = records
+      ec.tableData = res.data.records || []
       ec.page.total = res.data.total || 0
     }
   } finally {
@@ -314,7 +334,10 @@ const ecOpenPreview = (attachment) => {
 }
 
 const ecResetQuery = () => {
-  Object.keys(ec.query).forEach(k => ec.query[k] = '')
+  Object.keys(ec.query).forEach(k => {
+    if (k.endsWith('Range')) ec.query[k] = null
+    else ec.query[k] = ''
+  })
   ec.page.pageNum = 1
   ecFetchData()
 }

@@ -138,11 +138,23 @@ const po = reactive({
   searchFields: [
     { key: 'disclosureName', label: '名称', type: 'input', matchType: 'fuzzy', width: 200 },
     { key: 'internalNo', label: '内部编号', type: 'input', matchType: 'fuzzy', width: 160 },
-    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 180 },
-    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 180 },
-    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 }
+    { key: 'tempNo', label: '临时编号', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'patentType', label: '专利类型', type: 'select', options: [{label:'发明',value:'发明'},{label:'实用新型',value:'实用新型'},{label:'外观',value:'外观'}], width: 120 },
+    { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'agent', label: '代理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'contactPerson', label: '联系人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'manager', label: '管理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'syncedToPatent', label: '同步状态', type: 'select', options: [{label:'已同步',value:1},{label:'未同步',value:0}], width: 120 },
+    { key: 'disclosureDateRange', label: '交底日期', type: 'daterange', width: 260 },
+    { key: 'createTimeRange', label: '创建时间', type: 'daterange', width: 260 }
   ],
-  query: { disclosureName: '', internalNo: '', applicant: '', inventor: '', sponsor: '' },
+  query: { 
+    disclosureName: '', internalNo: '', tempNo: '', patentType: '', 
+    applicant: '', inventor: '', agent: '', sponsor: '', contactPerson: '', manager: '',
+    syncedToPatent: '', disclosureDateRange: null, createTimeRange: null 
+  },
   page: { pageNum: 1, pageSize: 10, total: 0 },
   tableData: [],
   loading: false,
@@ -158,16 +170,20 @@ const poFetchData = async () => {
   po.loading = true
   try {
     const params = { pageNum: po.page.pageNum, pageSize: po.page.pageSize, patentStatus: '定稿' }
-    const keyword = po.query.internalNo
     Object.keys(po.query).forEach(k => {
-      const v = po.query[k]
-      if (v !== '' && v !== null && v !== undefined && k !== 'internalNo') params[k] = v
+      if (k === 'disclosureDateRange' && po.query[k] && po.query[k].length === 2) {
+        params.disclosureDateStart = po.query[k][0]
+        params.disclosureDateEnd = po.query[k][1]
+      } else if (k === 'createTimeRange' && po.query[k] && po.query[k].length === 2) {
+        params.createTimeStart = po.query[k][0] + ' 00:00:00'
+        params.createTimeEnd = po.query[k][1] + ' 23:59:59'
+      } else if (po.query[k] !== '' && po.query[k] !== null && po.query[k] !== undefined) {
+        params[k] = po.query[k]
+      }
     })
     const res = await getList(params)
     if (res.code === 200) {
-      let records = res.data.records || []
-      if (keyword) records = records.filter(r => r.internalNo && r.internalNo.includes(keyword))
-      po.tableData = records
+      po.tableData = res.data.records || []
       po.page.total = res.data.total || 0
     }
   } finally {
@@ -176,7 +192,10 @@ const poFetchData = async () => {
 }
 
 const poResetQuery = () => {
-  Object.keys(po.query).forEach(k => (po.query[k] = ''))
+  Object.keys(po.query).forEach(k => {
+    if (k.endsWith('Range')) po.query[k] = null
+    else po.query[k] = ''
+  })
   po.page.pageNum = 1
   poFetchData()
 }

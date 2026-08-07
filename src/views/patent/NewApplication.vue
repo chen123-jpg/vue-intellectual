@@ -126,13 +126,28 @@ const loading = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
 
-const query = reactive({ patentName: '', applicationNo: '', applicant: '', inventor: '', sponsor: '' })
+const query = reactive({ 
+  patentName: '', applicationNo: '', applicant: '', inventor: '', sponsor: '',
+  internalNo: '', agent: '', notification: '', preExamMark: '', patentType: '',
+  dasCode: '', applicationDateRange: null, issueDateRange: null, 
+  paymentDeadlineRange: null, createTimeRange: null
+})
 const searchFields = [
   { key: 'patentName', label: '专利名称', type: 'input', matchType: 'fuzzy', width: 200 },
   { key: 'applicationNo', label: '申请号', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'internalNo', label: '内部编号', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'patentType', label: '专利类型', type: 'select', options: [{label:'发明',value:'发明'},{label:'实用新型',value:'实用新型'},{label:'外观',value:'外观'}], width: 120 },
   { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 180 },
   { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
   { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'agent', label: '代理人', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'notification', label: '通知书', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'preExamMark', label: '预审标', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'dasCode', label: 'DAS码', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'applicationDateRange', label: '申请日', type: 'daterange', width: 260 },
+  { key: 'issueDateRange', label: '发文日', type: 'daterange', width: 260 },
+  { key: 'paymentDeadlineRange', label: '缴费止期', type: 'daterange', width: 260 },
+  { key: 'createTimeRange', label: '创建时间', type: 'daterange', width: 260 }
 ]
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
@@ -177,8 +192,24 @@ const handleUpload = async (option) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const params = { pageNum: page.pageNum, pageSize: page.pageSize, ...query }
-    Object.keys(params).forEach(k => { if (!params[k]) delete params[k] })
+    const params = { pageNum: page.pageNum, pageSize: page.pageSize }
+    Object.keys(query).forEach(k => {
+      if (k === 'applicationDateRange' && query[k] && query[k].length === 2) {
+        params.applicationDateStart = query[k][0]
+        params.applicationDateEnd = query[k][1]
+      } else if (k === 'issueDateRange' && query[k] && query[k].length === 2) {
+        params.issueDateStart = query[k][0]
+        params.issueDateEnd = query[k][1]
+      } else if (k === 'paymentDeadlineRange' && query[k] && query[k].length === 2) {
+        params.paymentDeadlineStart = query[k][0]
+        params.paymentDeadlineEnd = query[k][1]
+      } else if (k === 'createTimeRange' && query[k] && query[k].length === 2) {
+        params.createTimeStart = query[k][0] + ' 00:00:00'
+        params.createTimeEnd = query[k][1] + ' 23:59:59'
+      } else if (query[k] !== '' && query[k] !== null && query[k] !== undefined) {
+        params[k] = query[k]
+      }
+    })
     const res = await moduleApi.getList(params)
     if (res.code === 200) {
       tableData.value = res.data.records || []
@@ -187,7 +218,14 @@ const fetchData = async () => {
   } finally { loading.value = false }
 }
 
-const resetQuery = () => { Object.keys(query).forEach(k => query[k] = ''); page.pageNum = 1; fetchData() }
+const resetQuery = () => { 
+  Object.keys(query).forEach(k => {
+    if (k.endsWith('Range')) query[k] = null
+    else query[k] = ''
+  })
+  page.pageNum = 1
+  fetchData() 
+}
 
 const openAdd = () => {
   dialog.isEdit = false
