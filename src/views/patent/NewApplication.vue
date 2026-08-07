@@ -25,6 +25,8 @@
         <el-table-column prop="inventor" label="发明人" width="120" />
         <el-table-column prop="sponsor" label="主办人" width="100" />
         <el-table-column prop="agent" label="代理人" width="100" />
+        <el-table-column prop="mentor" label="指导人" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="businessPersonnel" label="业务人员" min-width="180" show-overflow-tooltip />
         <el-table-column prop="applicationDate" label="申请日" width="110" :formatter="(_,__,v) => formatDate(v)" />
         <el-table-column label="通知书" width="160">
           <template #default="{ row }">
@@ -69,6 +71,8 @@
           <el-col :span="12"><el-form-item label="发明人"><el-input v-model="form.inventor" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="主办人"><el-input v-model="form.sponsor" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="代理人"><ApplicantAgentSelect v-model="form.agent" type="agent" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="指导人"><el-input v-model.trim="form.mentor" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="业务人员"><el-input v-model.trim="form.businessPersonnel" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="专利类型"><el-select v-model="form.patentType" style="width:100%"><el-option label="发明" value="发明" /><el-option label="实用新型" value="实用新型" /><el-option label="外观" value="外观" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="申请日"><el-date-picker v-model="form.applicationDate" type="date" style="width:100%" value-format="YYYY-MM-DD" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="发文日"><el-date-picker v-model="form.issueDate" type="date" style="width:100%" value-format="YYYY-MM-DD" /></el-form-item></el-col>
@@ -128,7 +132,7 @@ const uploading = ref(false)
 
 const query = reactive({ 
   patentName: '', applicationNo: '', applicant: '', inventor: '', sponsor: '',
-  internalNo: '', agent: '', notification: '', preExamMark: '', patentType: '',
+  internalNo: '', agent: '', mentor: '', businessPersonnel: '', notification: '', preExamMark: '', patentType: '',
   dasCode: '', applicationDateRange: null, issueDateRange: null, 
   paymentDeadlineRange: null, createTimeRange: null
 })
@@ -141,6 +145,8 @@ const searchFields = [
   { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
   { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
   { key: 'agent', label: '代理人', type: 'input', matchType: 'fuzzy', width: 160 },
+  { key: 'mentor', label: '指导人', type: 'input', matchType: 'fuzzy', width: 180 },
+  { key: 'businessPersonnel', label: '业务人员', type: 'input', matchType: 'fuzzy', width: 180 },
   { key: 'notification', label: '通知书', type: 'input', matchType: 'fuzzy', width: 160 },
   { key: 'preExamMark', label: '预审标', type: 'input', matchType: 'fuzzy', width: 160 },
   { key: 'dasCode', label: 'DAS码', type: 'input', matchType: 'fuzzy', width: 160 },
@@ -153,7 +159,7 @@ const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
 const emptyForm = () => ({
   id: null, internalNo: '', patentName: '', applicationNo: '', applicant: '',
-  inventor: '', sponsor: '', agent: '', applicationDate: '', patentType: '',
+  inventor: '', sponsor: '', agent: '', mentor: '', businessPersonnel: '', applicationDate: '', patentType: '',
   feeAmount: '', paymentDate: '', paymentDeadline: '', dasCode: '',
   notification: '', issueDate: ''
 })

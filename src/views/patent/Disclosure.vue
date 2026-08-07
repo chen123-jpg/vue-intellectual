@@ -17,6 +17,12 @@
         <el-form-item label="发明人">
           <el-input v-model="query.inventor" placeholder="模糊搜索" clearable />
         </el-form-item>
+        <el-form-item label="指导人">
+          <el-input v-model="query.mentor" placeholder="模糊搜索" clearable />
+        </el-form-item>
+        <el-form-item label="业务人员">
+          <el-input v-model="query.businessPersonnel" placeholder="模糊搜索" clearable />
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="fetchData">查询</el-button>
           <el-button @click="resetQuery">重置</el-button>
@@ -41,6 +47,8 @@
         <el-table-column prop="inventor" label="发明人" width="100" />
         <el-table-column prop="sponsor" label="主办人" width="100" />
         <el-table-column prop="agent" label="代理人" width="100" />
+        <el-table-column prop="mentor" label="指导人" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="businessPersonnel" label="业务人员" min-width="180" show-overflow-tooltip />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button v-if="hasPerm('patent:disclosure:edit')" size="small" type="primary" @click="openEdit(row)">编辑</el-button>
@@ -98,6 +106,12 @@
             <el-form-item label="代理人"><ApplicantAgentSelect v-model="form.agent" type="agent" /></el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="指导人"><el-input v-model.trim="form.mentor" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="业务人员"><el-input v-model.trim="form.businessPersonnel" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="交底日期"><el-date-picker v-model="form.disclosureDate" type="date" style="width:100%" value-format="YYYY-MM-DD" /></el-form-item>
           </el-col>
           <el-col :span="12">
@@ -148,13 +162,15 @@ const query = reactive({
   internalNo: '',
   applicant: '',
   sponsor: '',
-  inventor: ''   // 新增发明人搜索字段
+  inventor: '',
+  mentor: '',
+  businessPersonnel: ''
 })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
 const emptyForm = () => ({
   id: null, internalNo: '', patentStatus: '', disclosureName: '', patentType: '',
-  applicant: '', inventor: '', contactPerson: '', sponsor: '', agent: '',
+  applicant: '', inventor: '', contactPerson: '', sponsor: '', agent: '', mentor: '', businessPersonnel: '',
   disclosureDate: '', requirement: '', remark: '',
   _hasLocalDocument: false, _otherAttachmentCount: 0
 })

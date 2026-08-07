@@ -52,6 +52,8 @@
         <el-table-column prop="inventor" label="发明人" width="120" />
         <el-table-column prop="sponsor" label="主办人" width="100" />
         <el-table-column prop="agent" label="代理人" width="130" />
+        <el-table-column prop="mentor" label="指导人" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="businessPersonnel" label="业务人员" min-width="180" show-overflow-tooltip />
         <el-table-column prop="contactPerson" label="联系人" width="100" />
         <el-table-column prop="disclosureDate" label="交底日期" width="110" :formatter="(_,__,v)=>formatDate(v)" />
         <el-table-column label="操作" width="160" fixed="right">
@@ -135,6 +137,16 @@
               <el-col :span="12">
                 <el-form-item label="代理人">
                   <ApplicantAgentSelect v-model="ec.editForm.agent" type="agent" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="指导人">
+                  <el-input v-model.trim="ec.editForm.mentor" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="业务人员">
+                  <el-input v-model.trim="ec.editForm.businessPersonnel" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -268,6 +280,8 @@ const ec = reactive({
     { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'agent', label: '代理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'mentor', label: '指导人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'businessPersonnel', label: '业务人员', type: 'input', matchType: 'fuzzy', width: 180 },
     { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'contactPerson', label: '联系人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'manager', label: '管理人', type: 'input', matchType: 'fuzzy', width: 160 },
@@ -277,7 +291,7 @@ const ec = reactive({
   ],
   query: { 
     disclosureName: '', internalNo: '', tempNo: '', patentType: '', patentStatus: '',
-    applicant: '', inventor: '', agent: '', sponsor: '', contactPerson: '', manager: '',
+    applicant: '', inventor: '', agent: '', mentor: '', businessPersonnel: '', sponsor: '', contactPerson: '', manager: '',
     syncedToPatent: '', disclosureDateRange: null, createTimeRange: null 
   },
   page: { pageNum: 1, pageSize: 10, total: 0 },

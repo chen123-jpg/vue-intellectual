@@ -44,6 +44,8 @@
         <el-table-column prop="inventor" label="发明人" width="120" />
         <el-table-column prop="sponsor" label="主办人" width="100" />
         <el-table-column prop="agent" label="代理人" width="130" />
+        <el-table-column prop="mentor" label="指导人" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="businessPersonnel" label="业务人员" min-width="180" show-overflow-tooltip />
         <el-table-column label="同步" width="70">
           <template #default="{ row }">
             <el-tag :type="row.syncedToPatent===1?'success':'info'" size="small">{{ row.syncedToPatent===1?'已同步':'未' }}</el-tag>
@@ -183,6 +185,16 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="指导人">
+              <el-input v-model.trim="ad.editForm.mentor" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="业务人员">
+              <el-input v-model.trim="ad.editForm.businessPersonnel" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="交底日期" required>
               <el-date-picker
                 v-model="ad.editForm.disclosureDate"
@@ -255,6 +267,8 @@ const ad = reactive({
     { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'agent', label: '代理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'mentor', label: '指导人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'businessPersonnel', label: '业务人员', type: 'input', matchType: 'fuzzy', width: 180 },
     { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'contactPerson', label: '联系人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'manager', label: '管理人', type: 'input', matchType: 'fuzzy', width: 160 },
@@ -264,7 +278,7 @@ const ad = reactive({
   ],
   query: {
     disclosureName: '', internalNo: '', tempNo: '', patentType: '', patentStatus: '',
-    applicant: '', inventor: '', agent: '', sponsor: '', contactPerson: '', manager: '',
+    applicant: '', inventor: '', agent: '', mentor: '', businessPersonnel: '', sponsor: '', contactPerson: '', manager: '',
     syncedToPatent: '', disclosureDateRange: null, createTimeRange: null 
   },
   page: { pageNum: 1, pageSize: 10, total: 0 },

@@ -1322,7 +1322,7 @@ GET /api/ttable/list
     "records": [
       {
         "id": 1,
-        "tempNo": "T250101",
+        "tempNo": "P20260701",
         "internalNo": "P2025101",
         "patentStatus": "受理",
         "requirement": "一周内提交",
@@ -1479,7 +1479,7 @@ POST /api/ttable/add
 | otherAttachments | file[] | 否 | 其他附件，可上传一份或多份 |
 | sourceId | long | 否 | 复制的历史交底 ID，仅用于记录 `copyFromId` |
 
-`request` 仅允许提交 `PatentDisclosureDTO` 中定义的业务字段；其中的 `id` 会在新增时忽略，录入人使用当前认证用户。
+`request` 中的 `disclosureName`、`disclosureDate` 和 `sponsorUserId` 必填。可选的 `mentor`、`businessPersonnel` 多人信息按“姓名 邮箱 电话; 姓名 邮箱 电话”拼接。新增业务不接收专利类型，客户端即使提交 `patentType` 也会被后端忽略；`id` 同样会在新增时忽略，录入人使用当前认证用户。临时编号不接受客户端赋值，由后端按交底日期生成，格式为 `PyyyyMMdd`。
 
 系统将主记录、附件元数据、缴费记录和开票记录放在同一数据库事务中写入。附件文件上传失败或数据库事务回滚时，会清理本次已上传的文件，避免孤儿文件。缴费和开票记录的初始状态均为 `PENDING`、来源均为 `DISCLOSURE_SYNC`。
 
@@ -1496,8 +1496,8 @@ PUT /api/ttable
 > `projectInitiator`（立项专员）拥有该权限，但后端仍按 `entryUserId` 校验数据范围，只允许编辑本人录入的交底；管理员可编辑全部可见交底。
 > `organizer`（主办人）只能编辑分配给自己的交底，且请求中的 `sponsorUserId` 和 `sponsor` 会被后端忽略，不能借此将交底改派给自己或其他人。
 
-**请求体** (JSON) — `PatentDisclosureDTO` 对象，`id`、`disclosureName`、`patentType` 必填。
-请求体中的服务端维护字段会被忽略。
+**请求体** (JSON) — `PatentDisclosureUpdateDTO` 对象，`id`、`disclosureName`、`patentType`、`disclosureDate` 必填。
+请求体中的服务端维护字段会被忽略；修改交底日期时，后端会重新生成临时编号并同步更新关联缴费、开票记录。
 
 ### 10.8 删除
 

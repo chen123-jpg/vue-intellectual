@@ -41,6 +41,7 @@ export const mergeDisclosureAttachments = (records = [], grouped = {}) =>
 export const emptyForm = () => ({
   id: null, tempNo: '', internalNo: '', patentStatus: '草稿', disclosureName: '', patentType: '',
   applicant: '', inventor: '', contactPerson: '', sponsor: '', sponsorUserId: null, agent: '',
+  mentor: '', businessPersonnel: '',
   disclosureDate: '', requirement: '', remark: '',
   contactEmail: '', contactPhone: '', contactInfo: '', noGenerateMode: 'AUTO'
 })

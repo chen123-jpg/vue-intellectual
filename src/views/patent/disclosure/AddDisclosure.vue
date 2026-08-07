@@ -103,6 +103,50 @@
               </el-row>
             </div>
 
+            <!-- 指导人（选填） -->
+            <div class="sub-block">
+              <span class="sub-label">指导人 <el-tag size="small" type="info">选填</el-tag></span>
+              <div v-for="(mentor, idx) in mentors" :key="idx" class="person-row">
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <el-input v-model="mentor.name" placeholder="姓名" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="mentor.email" placeholder="邮箱" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="mentor.phone" placeholder="电话" />
+                  </el-col>
+                </el-row>
+                <el-button v-if="mentors.length > 1" class="person-del" type="danger" :icon="Delete" circle size="small" @click="removeMentor(idx)" />
+              </div>
+              <el-button type="primary" text size="small" @click="addMentor">
+                <el-icon><Plus /></el-icon> 添加指导人
+              </el-button>
+            </div>
+
+            <!-- 业务人员（选填） -->
+            <div class="sub-block">
+              <span class="sub-label">业务人员 <el-tag size="small" type="info">选填</el-tag></span>
+              <div v-for="(person, idx) in businessPersonnelList" :key="idx" class="person-row">
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <el-input v-model="person.name" placeholder="姓名" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="person.email" placeholder="邮箱" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="person.phone" placeholder="电话" />
+                  </el-col>
+                </el-row>
+                <el-button v-if="businessPersonnelList.length > 1" class="person-del" type="danger" :icon="Delete" circle size="small" @click="removeBusinessPersonnel(idx)" />
+              </div>
+              <el-button type="primary" text size="small" @click="addBusinessPersonnel">
+                <el-icon><Plus /></el-icon> 添加业务人员
+              </el-button>
+            </div>
+
             <!-- ========== 客户要求 ========== -->
             <h4 class="sec-head">客户要求</h4>
             <el-input v-model="form.requirement" type="textarea" :rows="3" placeholder="客户的特殊要求" />
@@ -160,9 +204,15 @@ const excellentExam = ref(false)
 // 申请人列表
 const applicants = ref([{ name: '', email: '', phone: '' }])
 
+// 指导人和业务人员均支持多人录入。
+const mentors = ref([{ name: '', email: '', phone: '' }])
+const businessPersonnelList = ref([{ name: '', email: '', phone: '' }])
+
 const emptyDraftData = () => ({
   form: emptyForm(),
   applicants: [{ name: '', email: '', phone: '' }],
+  mentors: [{ name: '', email: '', phone: '' }],
+  businessPersonnelList: [{ name: '', email: '', phone: '' }],
   preExam: false,
   excellentExam: false,
   activeTab: 'basic',
@@ -173,6 +223,8 @@ const emptyDraftData = () => ({
 const resetAddForm = () => {
   Object.assign(form, emptyForm())
   applicants.value = [{ name: '', email: '', phone: '' }]
+  mentors.value = [{ name: '', email: '', phone: '' }]
+  businessPersonnelList.value = [{ name: '', email: '', phone: '' }]
   preExam.value = false
   excellentExam.value = false
   activeTab.value = 'basic'
@@ -185,6 +237,8 @@ const addDraft = useDialogAddDraft('patent-disclosure-page-add', {
   getCurrentData: () => ({
     form: { ...form },
     applicants: applicants.value.map(item => ({ ...item })),
+    mentors: mentors.value.map(item => ({ ...item })),
+    businessPersonnelList: businessPersonnelList.value.map(item => ({ ...item })),
     preExam: preExam.value,
     excellentExam: excellentExam.value,
     activeTab: activeTab.value,
@@ -196,6 +250,12 @@ const addDraft = useDialogAddDraft('patent-disclosure-page-add', {
     Object.assign(form, emptyForm(), data.form || {})
     applicants.value = Array.isArray(data.applicants) && data.applicants.length
       ? data.applicants.map(item => ({ ...item }))
+      : [{ name: '', email: '', phone: '' }]
+    mentors.value = Array.isArray(data.mentors) && data.mentors.length
+      ? data.mentors.map(item => ({ ...item }))
+      : [{ name: '', email: '', phone: '' }]
+    businessPersonnelList.value = Array.isArray(data.businessPersonnelList) && data.businessPersonnelList.length
+      ? data.businessPersonnelList.map(item => ({ ...item }))
       : [{ name: '', email: '', phone: '' }]
     preExam.value = !!data.preExam
     excellentExam.value = !!data.excellentExam
@@ -218,6 +278,28 @@ const addApplicant = () => {
 const removeApplicant = (idx) => {
   applicants.value.splice(idx, 1)
 }
+
+const addMentor = () => {
+  mentors.value.push({ name: '', email: '', phone: '' })
+}
+
+const removeMentor = (idx) => {
+  mentors.value.splice(idx, 1)
+}
+
+const addBusinessPersonnel = () => {
+  businessPersonnelList.value.push({ name: '', email: '', phone: '' })
+}
+
+const removeBusinessPersonnel = (idx) => {
+  businessPersonnelList.value.splice(idx, 1)
+}
+
+/** 将多人表单转换为后端保存的分号分隔文本。 */
+const peopleToText = (people) => people
+  .filter(person => person.name || person.email || person.phone)
+  .map(person => [person.name, person.email, person.phone].filter(Boolean).join(' '))
+  .join('; ')
 
 // 日期变化时自动生成临时编号
 const onDateChange = (val) => {
@@ -258,9 +340,13 @@ const handleSave = async () => {
     // 组装申请人：过滤空行，拼接为字符串
     const validApps = applicants.value.filter(a => a.name || a.email || a.phone)
     const applicantStr = validApps.map(a => [a.name, a.email, a.phone].filter(Boolean).join(' ')).join('; ')
+    const mentor = peopleToText(mentors.value)
+    const businessPersonnel = peopleToText(businessPersonnelList.value)
     const submitData = {
       ...form,
       applicant: applicantStr || form.applicant,
+      mentor: mentor || undefined,
+      businessPersonnel: businessPersonnel || undefined,
       requirement: [
         form.requirement || '',
         preExam.value ? '预审' : '',
