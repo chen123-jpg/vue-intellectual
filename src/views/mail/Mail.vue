@@ -88,7 +88,7 @@
       </div>
 
       <!-- 详情弹窗 -->
-      <el-dialog v-model="sentDetailVisible" title="发送邮件详情" width="700px" destroy-on-close>
+      <el-dialog v-model="sentDetailVisible" title="发送邮件详情" width="750px" destroy-on-close>
         <el-descriptions v-if="sentDetail" :column="2" border>
           <el-descriptions-item label="收件人" :span="2">{{ sentDetail.toEmails }}</el-descriptions-item>
           <el-descriptions-item label="抄送" :span="2">{{ sentDetail.ccEmails || '无' }}</el-descriptions-item>
@@ -105,10 +105,14 @@
           <el-descriptions-item v-if="sentDetail.errorMessage" label="失败原因" :span="2">
             <span style="color:#f56c6c">{{ sentDetail.errorMessage }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="邮件正文" :span="2">
-            <div class="content-preview" v-html="sentDetail.content || sentDetail.body || sentDetail.text || '无'"></div>
+          <el-descriptions-item label="模板编码" v-if="sentDetail.templateCode">
+            {{ sentDetail.templateCode }}
           </el-descriptions-item>
         </el-descriptions>
+        <div v-if="sentDetail" style="margin-top: 16px">
+          <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #303133">邮件正文预览</h4>
+          <div class="content-preview" v-html="sentDetail.content || sentDetail.body || sentDetail.text || '无'"></div>
+        </div>
       </el-dialog>
     </el-card>
   </div>
@@ -253,12 +257,14 @@ onMounted(() => fetchSentLogs())
 .pagination { margin: 0; }
 .content-preview {
   background: #f5f7fa;
-  padding: 12px;
+  padding: 16px;
   border-radius: 4px;
-  max-height: 260px;
+  min-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.8;
   width: 100%;
+  border: 1px solid #e4e7ed;
 }
 </style>

@@ -266,12 +266,12 @@
             </template>
 
             <template v-if="og.emailMode === 'template' && og.emailSelectedTemplate">
-              <el-divider content-position="left">模板预览</el-divider>
+              <el-divider content-position="left">邮件预览</el-divider>
               <el-form-item label="主题">
                 <el-input :model-value="ogRenderedSubject" disabled />
               </el-form-item>
               <el-form-item label="正文">
-                <div class="content-preview" v-html="og.emailSelectedTemplate.content"></div>
+                <div class="content-preview" v-html="ogRenderedContent"></div>
               </el-form-item>
             </template>
 
@@ -480,6 +480,11 @@ const ogRenderedSubject = computed(() => {
   return renderTemplate(og.emailSelectedTemplate.subject, og.emailTemplateData)
 })
 
+const ogRenderedContent = computed(() => {
+  if (!og.emailSelectedTemplate) return ''
+  return renderTemplate(og.emailSelectedTemplate.content, og.emailTemplateData)
+})
+
 // ========================== Data Fetching ==========================
 const ogFetchData = async () => {
   og.loading = true
@@ -536,9 +541,10 @@ const ogOpenProcess = async (row) => {
       og.fees = []
       og.invoices = []
       og.emailMode = 'normal'
+      const userEmail = userState.userInfo?.email || userState.email || ''
       og.emailForm = {
         to: r.data.contactEmail || '',
-        cc: '',
+        cc: userEmail,
         subject: `关于专利交底"${r.data.disclosureName}"的通知`,
         text: '',
         templateCode: ''
@@ -890,11 +896,14 @@ onMounted(() => {
 
 .content-preview {
   background: #f5f7fa;
-  padding: 12px;
+  padding: 16px;
   border-radius: 4px;
-  max-height: 200px;
+  min-height: 150px;
+  max-height: 360px;
   overflow-y: auto;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.8;
+  border: 1px solid #e4e7ed;
 }
 .image-upload-area { display: flex; align-items: center; gap: 12px; }
 .image-preview-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }

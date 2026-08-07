@@ -44,14 +44,14 @@
           </template>
         </template>
 
-        <!-- 模板预览 -->
+        <!-- 邮件预览 -->
         <template v-if="sendMode === 'template' && selectedTemplate">
-          <el-divider content-position="left">模板预览</el-divider>
+          <el-divider content-position="left">邮件预览</el-divider>
           <el-form-item label="主题">
             <el-input :model-value="renderedSubject" disabled />
           </el-form-item>
           <el-form-item label="正文">
-            <div class="content-preview" v-html="selectedTemplate.content"></div>
+            <div class="content-preview" v-html="renderedContent"></div>
           </el-form-item>
         </template>
 
@@ -178,14 +178,14 @@
           </template>
         </template>
 
-        <!-- 模板预览 -->
+        <!-- 邮件预览 -->
         <template v-if="sendMode === 'template' && selectedTemplate">
-          <el-divider content-position="left">模板预览</el-divider>
+          <el-divider content-position="left">邮件预览</el-divider>
           <el-form-item label="主题">
             <el-input :model-value="renderedSubject" disabled />
           </el-form-item>
           <el-form-item label="正文">
-            <div class="content-preview" v-html="selectedTemplate.content"></div>
+            <div class="content-preview" v-html="renderedContent"></div>
           </el-form-item>
         </template>
 
@@ -339,9 +339,22 @@ const renderedSubject = computed(() => {
   return renderTemplate(selectedTemplate.value.subject, templateData)
 })
 
+const renderedContent = computed(() => {
+  if (!selectedTemplate.value) return ''
+  return renderTemplate(selectedTemplate.value.content, templateData)
+})
+
+const buildDefaultCc = (extraCc) => {
+  const userEmail = userState.userInfo?.email || userState.email || ''
+  const parts = [userEmail]
+  if (extraCc) parts.push(extraCc)
+  // TODO: 后续接入指导人邮箱
+  return [...new Set(parts.filter(Boolean))].join(', ')
+}
+
 // ==================== 监听默认值变化 ====================
 watch(() => props.defaultTo, v => { sendForm.to = v || '' })
-watch(() => props.defaultCc, v => { sendForm.cc = v || '' })
+watch(() => props.defaultCc, v => { sendForm.cc = buildDefaultCc(v) })
 watch(() => props.defaultSubject, v => { sendForm.subject = v || '' })
 watch(() => props.defaultText, v => { sendForm.text = v || '' })
 
@@ -349,7 +362,7 @@ watch(() => props.defaultText, v => { sendForm.text = v || '' })
 watch(visible, (val) => {
   if (val) {
     sendForm.to = props.defaultTo || ''
-    sendForm.cc = props.defaultCc || ''
+    sendForm.cc = buildDefaultCc(props.defaultCc)
     sendForm.bcc = ''
     sendForm.subject = props.defaultSubject || ''
     sendForm.text = props.defaultText || ''
@@ -454,7 +467,7 @@ const onClosed = () => {
 const resetForm = () => {
   sendMode.value = 'normal'
   sendForm.to = props.defaultTo || ''
-  sendForm.cc = props.defaultCc || ''
+  sendForm.cc = buildDefaultCc(props.defaultCc)
   sendForm.bcc = ''
   sendForm.subject = props.defaultSubject || ''
   sendForm.text = props.defaultText || ''
@@ -540,7 +553,7 @@ defineExpose({ open, close, resetForm })
 onMounted(() => {
   if (props.mode === 'inline') loadTemplates()
   sendForm.to = props.defaultTo || ''
-  sendForm.cc = props.defaultCc || ''
+  sendForm.cc = buildDefaultCc(props.defaultCc)
   sendForm.subject = props.defaultSubject || ''
   sendForm.text = props.defaultText || ''
 })
@@ -551,12 +564,14 @@ onMounted(() => {
 .composer-form .el-form-item { margin-bottom: 18px; }
 .content-preview {
   background: #f5f7fa;
-  padding: 12px;
+  padding: 16px;
   border-radius: 4px;
-  max-height: 200px;
+  min-height: 150px;
+  max-height: 360px;
   overflow-y: auto;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.8;
+  border: 1px solid #e4e7ed;
 }
 .card-title { font-size: 15px; font-weight: 600; }
 
