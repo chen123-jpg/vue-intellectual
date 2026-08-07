@@ -21,8 +21,8 @@
         <div class="table-section__bar">
           <span class="table-section__count">共 <strong>{{ ec.page.total }}</strong> 条</span>
           <el-button size="small" @click="ecFetchData" :icon="Refresh">刷新</el-button>
-          <el-button v-if="hasPerm('patent:disclosure:add')" type="primary" size="small" @click="ecOpenAdd">新增交底</el-button>
-          <el-button v-if="hasPerm('patent:disclosure:copy') || hasPerm('patent:disclosure:add')" type="success" size="small" @click="ecOpenCopy">复制历史交底</el-button>
+          <el-button v-if="hasPerm('patent:disclosure:add') || hasPerm('patent:disclosure:copy')" type="primary" size="small" @click="ecOpenAdd">新增交底</el-button>
+
           <el-button v-if="hasPerm('patent:disclosure:delete')" type="danger" size="small" :disabled="!ec.selected.length" @click="ecBatchDelete">批量删除</el-button>
         </div>
 
@@ -214,50 +214,6 @@
       </template>
     </el-dialog>
 
-    <!-- Copy Dialog -->
-    <el-dialog v-model="ec.copyDialog.visible" title="复制历史交底" width="850px" destroy-on-close>
-      <el-form :inline="true" :model="ec.copyQuery" class="search-form">
-        <el-form-item label="交底名称">
-          <el-input v-model="ec.copyQuery.disclosureName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="内部编号">
-          <el-input v-model="ec.copyQuery.internalNo" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item label="专利类型">
-          <el-select v-model="ec.copyQuery.patentType" placeholder="全部" clearable>
-            <el-option label="发明" value="发明" />
-            <el-option label="实用新型" value="实用新型" />
-            <el-option label="外观" value="外观" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="ecCopySearch">查询</el-button>
-          <el-button @click="ec.copyQuery.disclosureName='';ec.copyQuery.internalNo='';ec.copyQuery.patentType='';ecCopySearch()">重置</el-button>
-        </el-form-item>
-      </el-form>
-      <el-table :data="ec.copyList" v-loading="ec.copyLoading" border stripe max-height="350" @row-dblclick="ecDoCopy">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="internalNo" label="内部编号" width="120" />
-        <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="patentType" label="类型" width="90" />
-        <el-table-column prop="patentStatus" label="状态" width="100" />
-        <el-table-column prop="applicant" label="申请人" width="130" />
-        <el-table-column label="操作" width="80">
-          <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="ecDoCopy(row)">复制</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination
-        v-model:current-page="ec.copyPage.pageNum" v-model:page-size="ec.copyPage.pageSize"
-        :total="ec.copyPage.total" :page-sizes="[10, 20]"
-        layout="total, sizes, prev, pager, next" @size-change="ecCopySearch" @current-change="ecCopySearch"
-        class="pagination"
-      />
-      <template #footer>
-        <el-button @click="ec.copyDialog.visible = false">取消</el-button>
-      </template>
-    </el-dialog>
 
     <FilePreviewDialog v-model="ec.preview.visible" :attachment="ec.preview.attachment" />
   </div>
@@ -268,7 +224,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh } from '@element-plus/icons-vue'
-import { getList, getById, getSponsorOptions, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
+import { getList, getById, getSponsorOptions, update, createWithAttachments, remove, batchRemove } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
 import DisclosureAttachmentLinks from '../../../components/DisclosureAttachmentLinks.vue'
@@ -313,12 +269,6 @@ const ec = reactive({
   saving: false,
   pendingDocument: null,
   pendingOthers: [],
-  copySourceId: null,
-  copyDialog: { visible: false },
-  copyQuery: { disclosureName: '', internalNo: '', patentType: '' },
-  copyPage: { pageNum: 1, pageSize: 10, total: 0 },
-  copyList: [],
-  copyLoading: false,
   userList: [],
   sponsorLoading: false
 })
@@ -415,9 +365,14 @@ const ecSaveEdit = async () => {
   if (!ec.editForm.sponsorUserId) { ElMessage.warning('请选择主办人'); return }
   ec.saving = true
   try {
-    const res = await update({ ...ec.editForm })
+    let res
+    if (ec.editForm.id) {
+      res = await update({ ...ec.editForm })
+    } else {
+      res = await createWithAttachments({ ...ec.editForm }, ec.pendingDocument || new Blob(), ec.pendingOthers || [])
+    }
     if (res.code === 200) {
-      ElMessage.success('修改成功')
+      ElMessage.success(ec.editForm.id ? '修改成功' : '新增成功')
       ec.editDialog.visible = false
       ecFetchData()
     }
@@ -449,51 +404,6 @@ const ecBatchDelete = async () => {
       ec.selected = []
       ecFetchData()
     }
-  } catch {
-    // user cancelled
-  }
-}
-
-// ========================== Copy ==========================
-const ecOpenCopy = () => {
-  ec.copyDialog.visible = true
-  ecCopySearch()
-}
-
-const ecCopySearch = async () => {
-  ec.copyLoading = true
-  try {
-    const params = { pageNum: ec.copyPage.pageNum, pageSize: ec.copyPage.pageSize }
-    Object.keys(ec.copyQuery).forEach(k => { if (ec.copyQuery[k]) params[k] = ec.copyQuery[k] })
-    const r = await getList(params)
-    if (r.code === 200) {
-      ec.copyList = r.data.records || []
-      ec.copyPage.total = r.data.total || 0
-    }
-  } finally {
-    ec.copyLoading = false
-  }
-}
-
-const ecDoCopy = async (row) => {
-  try {
-    await ElMessageBox.confirm(`确认复制"${row.disclosureName}"的交底信息？`, '确认复制', { type: 'info' })
-    const copiedForm = emptyForm()
-    Object.keys(copiedForm).forEach(key => {
-      if (row[key] !== undefined && row[key] !== null) copiedForm[key] = row[key]
-    })
-    copiedForm.id = null
-    copiedForm.internalNo = ''
-    copiedForm.patentStatus = '草稿'
-    Object.assign(ec.editForm, copiedForm)
-    ec.copySourceId = row.id
-    ec.pendingDocument = null
-    ec.pendingOthers = []
-    ec.editDialog.activeTab = 'basic'
-    ec.editDialog.visible = true
-    ec.copyDialog.visible = false
-    if (!ec.userList.length) ecLoadUsers()
-    ElMessage.success('历史信息已回填，请确认内容并上传新的交底书')
   } catch {
     // user cancelled
   }

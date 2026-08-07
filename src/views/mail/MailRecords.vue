@@ -1,36 +1,43 @@
 <template>
   <div class="mail-records-page">
     <!-- 搜索栏 -->
-    <el-form :inline="true" :model="sentQuery" class="search-form">
-      <el-form-item label="收件人">
-        <el-input v-model="sentQuery.toEmails" placeholder="模糊搜索" clearable style="width:180px" />
-      </el-form-item>
-      <el-form-item label="主题">
-        <el-input v-model="sentQuery.subject" placeholder="模糊搜索" clearable style="width:180px" />
-      </el-form-item>
-      <el-form-item label="状态">
-        <el-select v-model="sentQuery.sendStatus" placeholder="全部" clearable style="width:130px">
-          <el-option label="待发送" :value="0" />
-          <el-option label="发送成功" :value="1" />
-          <el-option label="发送失败" :value="2" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="时间">
-        <el-date-picker
-          v-model="sentDateRange"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          value-format="YYYY-MM-DD"
-          style="width:260px"
-        />
-      </el-form-item>
-      <el-form-item>
+    <div class="filter-box">
+      <div class="filter-box__title"><span>筛选条件</span></div>
+      <div class="filter-grid">
+        <div class="filter-cell">
+          <label class="filter-cell__label">收件人</label>
+          <el-input v-model="sentQuery.toEmails" placeholder="模糊搜索" clearable style="width:180px" />
+        </div>
+        <div class="filter-cell">
+          <label class="filter-cell__label">主题</label>
+          <el-input v-model="sentQuery.subject" placeholder="模糊搜索" clearable style="width:180px" />
+        </div>
+        <div class="filter-cell">
+          <label class="filter-cell__label">状态</label>
+          <el-select v-model="sentQuery.sendStatus" placeholder="全部" clearable style="width:130px">
+            <el-option label="待发送" :value="0" />
+            <el-option label="发送成功" :value="1" />
+            <el-option label="发送失败" :value="2" />
+          </el-select>
+        </div>
+        <div class="filter-cell">
+          <label class="filter-cell__label">时间</label>
+          <el-date-picker
+            v-model="sentDateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width:260px"
+          />
+        </div>
+      </div>
+      <div class="filter-actions">
         <el-button type="primary" @click="fetchSentLogs">查询</el-button>
         <el-button @click="resetSentQuery">重置</el-button>
-      </el-form-item>
-    </el-form>
+      </div>
+    </div>
 
     <!-- 表格 -->
     <el-table :data="sentTableData" v-loading="sentLoading" border stripe @selection-change="onSentSelectionChange">

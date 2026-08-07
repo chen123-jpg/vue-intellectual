@@ -6,6 +6,7 @@
         :fields="searchFields"
         :loading="loading"
         :collapsed-threshold="4"
+        boxed
         @search="fetchData"
         @reset="resetQuery"
       />

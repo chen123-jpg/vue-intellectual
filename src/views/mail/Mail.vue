@@ -15,36 +15,43 @@
       <el-tabs v-model="activeTab">
         <!-- ==================== Tab: 发送记录 ==================== -->
         <el-tab-pane label="发送记录" name="records">
-          <el-form :inline="true" :model="sentQuery" class="search-form">
-            <el-form-item label="收件人">
-              <el-input v-model="sentQuery.toEmails" placeholder="模糊搜索" clearable style="width:180px" />
-            </el-form-item>
-            <el-form-item label="主题">
-              <el-input v-model="sentQuery.subject" placeholder="模糊搜索" clearable style="width:180px" />
-            </el-form-item>
-            <el-form-item label="状态">
-              <el-select v-model="sentQuery.sendStatus" placeholder="全部" clearable style="width:130px">
-                <el-option label="待发送" :value="0" />
-                <el-option label="发送成功" :value="1" />
-                <el-option label="发送失败" :value="2" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="时间">
-              <el-date-picker
-                v-model="sentDateRange"
-                type="daterange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                value-format="YYYY-MM-DD"
-                style="width:260px"
-              />
-            </el-form-item>
-            <el-form-item>
+          <div class="filter-box">
+            <div class="filter-box__title"><span>筛选条件</span></div>
+            <div class="filter-grid">
+              <div class="filter-cell">
+                <label class="filter-cell__label">收件人</label>
+                <el-input v-model="sentQuery.toEmails" placeholder="模糊搜索" clearable style="width:180px" />
+              </div>
+              <div class="filter-cell">
+                <label class="filter-cell__label">主题</label>
+                <el-input v-model="sentQuery.subject" placeholder="模糊搜索" clearable style="width:180px" />
+              </div>
+              <div class="filter-cell">
+                <label class="filter-cell__label">状态</label>
+                <el-select v-model="sentQuery.sendStatus" placeholder="全部" clearable style="width:130px">
+                  <el-option label="待发送" :value="0" />
+                  <el-option label="发送成功" :value="1" />
+                  <el-option label="发送失败" :value="2" />
+                </el-select>
+              </div>
+              <div class="filter-cell">
+                <label class="filter-cell__label">时间</label>
+                <el-date-picker
+                  v-model="sentDateRange"
+                  type="daterange"
+                  range-separator="至"
+                  start-placeholder="开始日期"
+                  end-placeholder="结束日期"
+                  value-format="YYYY-MM-DD"
+                  style="width:260px"
+                />
+              </div>
+            </div>
+            <div class="filter-actions">
               <el-button type="primary" @click="fetchSentLogs">查询</el-button>
               <el-button @click="resetSentQuery">重置</el-button>
-            </el-form-item>
-          </el-form>
+            </div>
+          </div>
 
           <el-table :data="sentTableData" v-loading="sentLoading" border stripe @selection-change="onSentSelectionChange">
             <el-table-column type="selection" width="45" />
@@ -118,24 +125,30 @@
 
         <!-- ==================== Tab: 模板管理 ==================== -->
         <el-tab-pane label="模板管理" name="templates">
-          <el-form :inline="true" :model="tplQuery" class="search-form">
-            <el-form-item label="模板编码">
-              <el-input v-model="tplQuery.templateCode" placeholder="模糊搜索" clearable style="width:160px" />
-            </el-form-item>
-            <el-form-item label="模板名称">
-              <el-input v-model="tplQuery.templateName" placeholder="模糊搜索" clearable style="width:160px" />
-            </el-form-item>
-            <el-form-item label="启用状态">
-              <el-select v-model="tplQuery.enabled" placeholder="全部" clearable style="width:110px">
-                <el-option label="禁用" :value="0" />
-                <el-option label="启用" :value="1" />
-              </el-select>
-            </el-form-item>
-            <el-form-item>
+          <div class="filter-box">
+            <div class="filter-box__title"><span>筛选条件</span></div>
+            <div class="filter-grid">
+              <div class="filter-cell">
+                <label class="filter-cell__label">模板编码</label>
+                <el-input v-model="tplQuery.templateCode" placeholder="模糊搜索" clearable style="width:160px" />
+              </div>
+              <div class="filter-cell">
+                <label class="filter-cell__label">模板名称</label>
+                <el-input v-model="tplQuery.templateName" placeholder="模糊搜索" clearable style="width:160px" />
+              </div>
+              <div class="filter-cell">
+                <label class="filter-cell__label">启用状态</label>
+                <el-select v-model="tplQuery.enabled" placeholder="全部" clearable style="width:110px">
+                  <el-option label="禁用" :value="0" />
+                  <el-option label="启用" :value="1" />
+                </el-select>
+              </div>
+            </div>
+            <div class="filter-actions">
               <el-button type="primary" @click="fetchTplData">查询</el-button>
               <el-button @click="resetTplQuery">重置</el-button>
-            </el-form-item>
-          </el-form>
+            </div>
+          </div>
 
           <div class="toolbar-row" style="margin-bottom: 12px">
             <div class="toolbar-left">
@@ -159,10 +172,11 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column label="操作" width="240" fixed="right">
               <template #default="{ row }">
-                <el-button v-if="hasPerm('system:mailTemplate:edit')" size="small" type="primary" @click="openTplEdit(row)">编辑</el-button>
-                <el-button v-if="hasPerm('system:mailTemplate:delete')" size="small" type="danger" @click="handleTplDelete(row.id)">删除</el-button>
+                <el-button size="small" type="success" link @click="openTplPreview(row)">预览</el-button>
+                <el-button v-if="hasPerm('system:mailTemplate:edit')" size="small" type="primary" link @click="openTplEdit(row)">编辑</el-button>
+                <el-button v-if="hasPerm('system:mailTemplate:delete')" size="small" type="danger" link @click="handleTplDelete(row.id)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -218,18 +232,35 @@
           <el-button type="primary" @click="handleTplSave" :loading="tplSaving">保存</el-button>
         </template>
       </el-dialog>
+
+      <!-- 模板预览弹窗 -->
+      <el-dialog v-model="tplPreviewVisible" title="模板预览" width="800px" destroy-on-close>
+        <el-descriptions :column="2" border size="small" style="margin-bottom:16px">
+          <el-descriptions-item label="模板编码">{{ tplPreviewData.templateCode }}</el-descriptions-item>
+          <el-descriptions-item label="模板名称">{{ tplPreviewData.templateName }}</el-descriptions-item>
+          <el-descriptions-item label="主题预览" :span="2">
+            <div style="font-weight:600;color:#303133">{{ tplRenderedSubject || '-' }}</div>
+          </el-descriptions-item>
+        </el-descriptions>
+        <div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#606266">正文预览</div>
+        <div class="preview-content" v-html="tplRenderedContent || '<span style=color:#909399>暂无正文</span>'" />
+        <template #footer>
+          <el-button @click="tplPreviewVisible = false">关闭</el-button>
+        </template>
+      </el-dialog>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Message } from '@element-plus/icons-vue'
 import { getSendLogs, getSendLogById, removeSendLog, batchRemoveSendLog, resendMail } from '../../api/mailRecord'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/mailTemplate'
 import { useUserStore } from '../../stores/user'
 import { formatDateTime } from '../../utils/format'
+import { renderTemplate } from '../../utils/templateHelper'
 
 const { state } = useUserStore()
 const hasPerm = (perm) => state.permissions.includes(perm)
@@ -332,6 +363,27 @@ const emptyTplForm = () => ({
   content: '', defaultAttachTypes: '', enabled: 1
 })
 const tplForm = reactive(emptyTplForm())
+
+const tplPreviewVisible = ref(false)
+const tplPreviewData = reactive({ templateCode: '', templateName: '', subject: '', content: '' })
+const tplRenderedSubject = computed(() => {
+  if (!tplPreviewData.subject) return ''
+  return renderTemplate(tplPreviewData.subject, {})
+})
+const tplRenderedContent = computed(() => {
+  if (!tplPreviewData.content) return ''
+  return renderTemplate(tplPreviewData.content, {})
+})
+
+const openTplPreview = (row) => {
+  Object.assign(tplPreviewData, {
+    templateCode: row.templateCode || '',
+    templateName: row.templateName || '',
+    subject: row.subject || '',
+    content: row.content || ''
+  })
+  tplPreviewVisible.value = true
+}
 
 const fetchTplData = async () => {
   tplLoading.value = true
@@ -466,5 +518,15 @@ watch(activeTab, (tab) => {
   line-height: 1.8;
   width: 100%;
   border: 1px solid #e4e7ed;
+}
+.preview-content {
+  min-height: 200px;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 16px;
+  background: #fafbfc;
+  line-height: 1.7;
 }
 </style>

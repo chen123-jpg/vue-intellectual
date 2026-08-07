@@ -15,6 +15,9 @@
         <h2 class="page-header__title">{{ isEdit ? '编辑交底' : '新增交底' }}</h2>
         <p class="page-header__subtitle">{{ isEdit ? '修改交底信息并保存' : '填写交底基本信息并上传附件' }}</p>
       </div>
+      <el-button v-if="!isEdit" type="primary" plain size="small" @click="openHistoryDialog" style="margin-left:auto">
+        <el-icon><Clock /></el-icon> 从历史交底选择
+      </el-button>
     </div>
 
     <!-- 表单 -->
@@ -173,6 +176,44 @@
         </el-button>
       </div>
     </el-card>
+
+    <!-- 历史交底选择对话框 -->
+    <el-dialog v-model="historyDialog.visible" title="选择历史交底" width="850px" destroy-on-close>
+      <SearchBar
+        v-model="historyDialog.query"
+        :fields="historySearchFields"
+        :loading="historyDialog.loading"
+        boxed
+        @search="historySearch"
+        @reset="historyReset"
+      />
+      <el-table :data="historyDialog.list" v-loading="historyDialog.loading" border stripe max-height="350" @row-dblclick="applyHistory">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="internalNo" label="内部编号" width="120" />
+        <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="patentType" label="类型" width="90" />
+        <el-table-column prop="patentStatus" label="状态" width="100" />
+        <el-table-column prop="applicant" label="申请人" width="130" />
+        <el-table-column label="操作" width="80">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" link @click="applyHistory(row)">选择</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        v-model:current-page="historyDialog.page.pageNum"
+        v-model:page-size="historyDialog.page.pageSize"
+        :total="historyDialog.page.total"
+        :page-sizes="[10, 20]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="historySearch"
+        @current-change="historySearch"
+        class="pagination"
+      />
+      <template #footer>
+        <el-button @click="historyDialog.visible = false">取消</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -180,9 +221,10 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { DocumentAdd, ArrowLeft, Plus, Delete } from '@element-plus/icons-vue'
-import { getSponsorOptions, createWithAttachments, getById, update } from '../../../api/disclosureWorkflow'
+import { DocumentAdd, ArrowLeft, Plus, Delete, Clock } from '@element-plus/icons-vue'
+import { getSponsorOptions, createWithAttachments, getById, update, getList } from '../../../api/disclosureWorkflow'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
+import SearchBar from '../../../components/SearchBar.vue'
 import { useDialogAddDraft } from '../../../composables/useFormDraft'
 import { emptyForm } from './shared'
 
@@ -198,6 +240,77 @@ const pendingOthers = ref([])
 const userList = ref([])
 const sponsorLoading = ref(false)
 let allowRouteLeave = false
+
+// 历史交底选择
+const historySearchFields = [
+  { key: 'disclosureName', label: '交底名称', type: 'input', matchType: 'fuzzy', width: 180 },
+  { key: 'internalNo', label: '内部编号', type: 'input', width: 160 },
+  { key: 'patentType', label: '专利类型', type: 'select', options: [{ label: '发明', value: '发明' }, { label: '实用新型', value: '实用新型' }, { label: '外观', value: '外观' }], width: 120 }
+]
+const historyDialog = reactive({
+  visible: false,
+  query: { disclosureName: '', internalNo: '', patentType: '' },
+  page: { pageNum: 1, pageSize: 10, total: 0 },
+  list: [],
+  loading: false
+})
+
+const openHistoryDialog = () => {
+  historyDialog.visible = true
+  historySearch()
+}
+
+const historySearch = async () => {
+  historyDialog.loading = true
+  try {
+    const params = { pageNum: historyDialog.page.pageNum, pageSize: historyDialog.page.pageSize }
+    Object.keys(historyDialog.query).forEach(k => { if (historyDialog.query[k]) params[k] = historyDialog.query[k] })
+    const r = await getList(params)
+    if (r.code === 200) {
+      historyDialog.list = r.data.records || []
+      historyDialog.page.total = r.data.total || 0
+    }
+  } finally { historyDialog.loading = false }
+}
+
+const historyReset = () => {
+  Object.keys(historyDialog.query).forEach(k => historyDialog.query[k] = '')
+  historyDialog.page.pageNum = 1
+  historySearch()
+}
+
+const applyHistory = (row) => {
+  Object.assign(form, emptyForm(), {
+    disclosureName: row.disclosureName || '',
+    patentType: row.patentType || '',
+    internalNo: '',
+    patentStatus: '草稿',
+    applicant: row.applicant || '',
+    inventor: row.inventor || '',
+    contactPerson: row.contactPerson || '',
+    contactEmail: row.contactEmail || '',
+    contactPhone: row.contactPhone || '',
+    contactInfo: row.contactInfo || '',
+    agent: row.agent || '',
+    mentor: row.mentor || '',
+    businessPersonnel: row.businessPersonnel || '',
+    requirement: row.requirement || '',
+    remark: row.remark || '',
+    sponsorUserId: row.sponsorUserId || null,
+    sponsor: row.sponsor || '',
+    disclosureDate: row.disclosureDate || '',
+    noGenerateMode: 'AUTO'
+  })
+  applicants.value = parsePeopleText(row.applicant)
+  mentors.value = parsePeopleText(row.mentor)
+  businessPersonnelList.value = parsePeopleText(row.businessPersonnel)
+  if (row.requirement) {
+    preExam.value = row.requirement.includes('预审')
+    excellentExam.value = row.requirement.includes('优审')
+  }
+  historyDialog.visible = false
+  ElMessage.success('历史交底信息已回填，请确认内容并继续填写')
+}
 
 // 审查选项
 const preExam = ref(false)
@@ -454,11 +567,25 @@ onBeforeRouteLeave(async () => {
   return canLeave
 })
 
+const loadFromSource = async (sourceId) => {
+  try {
+    const r = await getById(sourceId)
+    if (r.code === 200 && r.data) {
+      applyHistory(r.data)
+    }
+  } catch {
+    ElMessage.error('加载历史交底数据失败')
+  }
+}
+
 onMounted(async () => {
   if (isEdit.value) {
     await loadEditData(route.query.id)
   } else {
     addDraft.open(() => {})
+    if (route.query.sourceId) {
+      await loadFromSource(route.query.sourceId)
+    }
   }
   loadUsers()
   window.addEventListener('beforeunload', handleBeforeUnload)

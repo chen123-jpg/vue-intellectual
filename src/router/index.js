@@ -42,7 +42,7 @@ const routes = [
         path: 'patent/disclosure/add',
         name: 'DisclosureAdd',
         component: () => import('../views/patent/disclosure/AddDisclosure.vue'),
-        meta: { permission: 'patent:disclosure:add' }
+        meta: { permission: ['patent:disclosure:add', 'patent:disclosure:copy'] }
       },
       {
         path: 'patent/new-application',
@@ -202,7 +202,8 @@ router.beforeEach((to, from, next) => {
   if (to.meta.permission) {
     const permStr = localStorage.getItem('permissions')
     const permissionList = permStr ? JSON.parse(permStr) : []
-    if (!permissionList.includes(to.meta.permission)) {
+    const required = Array.isArray(to.meta.permission) ? to.meta.permission : [to.meta.permission]
+    if (!required.some(p => permissionList.includes(p))) {
       next('/home')
       return
     }
