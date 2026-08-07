@@ -1,28 +1,38 @@
 <template>
   <div class="page">
     <el-card>
-      <!-- 搜索 -->
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="代码">
-          <el-input v-model="query.code" placeholder="通知书代码" clearable style="width:140px" />
-        </el-form-item>
-        <el-form-item label="名称">
-          <el-input v-model="query.name" placeholder="全称/简称" clearable style="width:200px" />
-        </el-form-item>
-        <el-form-item label="业务大类">
-          <el-input v-model="query.category" placeholder="业务大类" clearable style="width:140px" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="doSearch">查询</el-button>
-          <el-button @click="resetSearch">重置</el-button>
-        </el-form-item>
-      </el-form>
-
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <el-button type="primary" @click="openAdd">新增条目</el-button>
-        <el-button type="danger" :disabled="!selected.length" @click="handleBatchDelete">批量删除</el-button>
+      <!-- 筛选面板 -->
+      <div class="filter-box">
+        <div class="filter-box__title">
+          <el-icon :size="15"><Search /></el-icon>
+          <span>筛选条件</span>
+        </div>
+        <div class="filter-grid">
+          <div class="filter-cell" v-for="f in filterFields" :key="f.key" :style="{ gridColumn: f.span ? `span ${f.span}` : '' }">
+            <label class="filter-cell__label">{{ f.label }}</label>
+            <el-input v-if="f.type === 'input'" v-model="query[f.key]" clearable :placeholder="f.placeholder" @keyup.enter="doFilter" @clear="doFilter" />
+            <el-select v-else-if="f.type === 'select'" v-model="query[f.key]" clearable placeholder="全部" @change="doFilter">
+              <el-option v-for="o in f.options" :key="o" :label="o" :value="o" />
+            </el-select>
+          </div>
+        </div>
+        <div class="filter-actions">
+          <el-button type="primary" @click="doFilter">查询</el-button>
+          <el-button @click="resetFilter">重置</el-button>
+        </div>
       </div>
+
+      <!-- 表格区域 -->
+      <div class="table-section">
+        <div class="table-section__bar">
+          <span class="table-section__count">
+            共 <strong>{{ tableData.length }}</strong> 条
+            <template v-if="isFiltered">，筛选结果 <strong>{{ filteredData.length }}</strong> 条</template>
+          </span>
+          <el-button size="small" @click="doRefresh" :icon="Refresh">刷新</el-button>
+          <el-button type="primary" size="small" @click="openAdd">新增条目</el-button>
+          <el-button type="danger" size="small" :disabled="!selected.length" @click="handleBatchDelete">批量删除</el-button>
+        </div>
 
       <!-- 表格 -->
       <el-table :data="filteredData" v-loading="loading" border stripe @selection-change="onSelectionChange">
@@ -56,13 +66,14 @@
         <el-table-column prop="predecessor" label="前置关联代码" width="140">
           <template #default="{ row }">{{ row.predecessor || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row, $index }">
-            <el-button size="small" type="primary" @click="openEdit($index)">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteRow($index)">删除</el-button>
+            <el-button size="small" type="primary" link @click="openEdit($index)">编辑</el-button>
+            <el-button size="small" type="danger" link @click="deleteRow($index)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </el-card>
 
     <!-- 新增/编辑对话框 -->
@@ -130,6 +141,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh } from '@element-plus/icons-vue'
 import { noticeData as staticData } from '../../data/noticeDictionary'
 
 const STORAGE_KEY = 'patent_notice_dictionary'
@@ -140,22 +152,53 @@ const loading = ref(false)
 const saving = ref(false)
 const tableData = ref([])
 const selected = ref([])
-const query = reactive({ code: '', name: '', category: '' })
+const filterFields = [
+  { key: 'code', label: '通知书代码', type: 'input', placeholder: '如 001' },
+  { key: 'source', label: '通知来源', type: 'select', options: ['中国专利', 'PCT专利', '他国专利'] },
+  { key: 'fullName', label: '全称', type: 'input', placeholder: '全称关键词' },
+  { key: 'shortName', label: '简称', type: 'input', placeholder: '简称关键词' },
+  { key: 'category', label: '业务大类', type: 'input', placeholder: '业务大类' },
+  { key: 'extendable', label: '可延期', type: 'select', options: ['是', '否'] },
+  { key: 'formNo', label: '表格编号', type: 'input', placeholder: '表格编号' },
+  { key: 'riskLevel', label: '风险等级', type: 'select', options: ['低', '中', '高'] },
+  { key: 'predecessor', label: '前置代码', type: 'input', placeholder: '前置关联代码' },
+  { key: 'remark', label: '备注', type: 'input', placeholder: '备注信息' }
+]
+
+const query = reactive({
+  code: '', source: '', fullName: '', shortName: '', category: '',
+  extendable: '', formNo: '', riskLevel: '', predecessor: '', remark: ''
+})
 const dialog = reactive({ visible: false, isEdit: false, index: -1 })
 
+// 逐字段 AND 过滤
 const filteredData = computed(() => {
   let rows = tableData.value
-  if (query.code) rows = rows.filter(r => r.code && r.code.includes(query.code))
-  if (query.name) rows = rows.filter(r =>
-    (r.fullName && r.fullName.includes(query.name)) ||
-    (r.shortName && r.shortName.includes(query.name))
-  )
-  if (query.category) rows = rows.filter(r => r.category && r.category.includes(query.category))
+  if (query.code) rows = rows.filter(r => r.code && r.code.toLowerCase().includes(query.code.toLowerCase()))
+  if (query.source) rows = rows.filter(r => r.source === query.source)
+  if (query.fullName) rows = rows.filter(r => r.fullName && r.fullName.toLowerCase().includes(query.fullName.toLowerCase()))
+  if (query.shortName) rows = rows.filter(r => r.shortName && r.shortName.toLowerCase().includes(query.shortName.toLowerCase()))
+  if (query.category) rows = rows.filter(r => r.category && r.category.toLowerCase().includes(query.category.toLowerCase()))
+  if (query.extendable) rows = rows.filter(r => r.extendable === query.extendable)
+  if (query.formNo) rows = rows.filter(r => r.formNo && r.formNo.toLowerCase().includes(query.formNo.toLowerCase()))
+  if (query.riskLevel) rows = rows.filter(r => r.riskLevel === query.riskLevel)
+  if (query.predecessor) rows = rows.filter(r => r.predecessor && r.predecessor.toLowerCase().includes(query.predecessor.toLowerCase()))
+  if (query.remark) rows = rows.filter(r => r.remark && r.remark.toLowerCase().includes(query.remark.toLowerCase()))
   return rows
 })
 
-const doSearch = () => {}
-const resetSearch = () => { query.code = ''; query.name = ''; query.category = '' }
+const doFilter = () => {}
+const resetFilter = () => {
+  Object.keys(query).forEach(k => query[k] = '')
+}
+const doRefresh = () => {
+  loadData()
+  resetFilter()
+}
+
+const isFiltered = computed(() => {
+  return Object.values(query).some(v => v !== '' && v != null)
+})
 
 const emptyForm = () => ({
   source: '中国专利', code: '', fullName: '', shortName: '', category: '',
@@ -240,7 +283,75 @@ onMounted(() => loadData())
 </script>
 
 <style scoped>
-.page { max-width: 1600px; }
-.search-form { margin-bottom: 4px; }
-.toolbar { margin-bottom: 12px; display: flex; gap: 10px; }
+.page { max-width: 1800px; }
+
+.filter-box {
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #f0f4fa 0%, #f7f9fc 50%, #fafbfd 100%);
+  border: 1px solid #d4dde8;
+  border-left: 4px solid #1e88e5;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(10,22,40,0.04);
+  padding: 0;
+  overflow: hidden;
+}
+.filter-box__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: rgba(30,136,229,0.06);
+  border-bottom: 1px solid #e0e7f0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3a5c;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 20px;
+  padding: 16px 20px 8px;
+}
+.filter-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-cell__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7c8799;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.filter-actions {
+  padding: 6px 20px 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.table-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.table-section__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fafbfc;
+  border-bottom: 1px solid #e8ecf1;
+}
+.table-section__count {
+  flex: 1;
+  font-size: 13px;
+  color: #5f6b7a;
+}
+.table-section__count strong {
+  color: #1e88e5;
+  font-weight: 700;
+}
 </style>

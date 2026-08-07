@@ -1,5 +1,11 @@
 <template>
   <div class="login-wrap">
+    <!-- 品牌标语 -->
+    <div class="login-brand">
+      <div class="login-brand__title">知识产权管理系统</div>
+      <div class="login-brand__sub">INTELLECTUAL PROPERTY MANAGEMENT</div>
+    </div>
+
     <el-card class="login-card" shadow="hover">
       <template #header>
         <div class="tab-header">
@@ -208,27 +214,71 @@ onMounted(() => refreshCaptcha())
 <style scoped>
 .login-wrap {
   height: 100vh;
-  background: #f0f2f5;
+  background: linear-gradient(135deg, #0a1628 0%, #132036 30%, #1a2f4a 60%, #1e3348 100%);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
+
+/* 背景装饰 */
+.login-wrap::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse at 30% 20%, rgba(30,136,229,0.08) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 80%, rgba(66,165,245,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* 品牌标语 */
+.login-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.login-brand__title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 4px;
+  text-shadow: 0 0 30px rgba(255,255,255,0.15);
+}
+.login-brand__sub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 2px;
+  margin-top: 6px;
+}
+
 .login-card {
   width: 440px;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3) !important;
 }
+
 .tab-header {
   display: flex;
   gap: 24px;
-  font-size: 18px;
+  font-size: 17px;
+  font-weight: 600;
 }
 .tab-item {
   cursor: pointer;
   padding: 6px 4px;
-  color: #666;
+  color: #999;
+  transition: all 0.2s;
+}
+.tab-item:hover {
+  color: var(--brand-blue);
 }
 .tab-item.active {
-  border-bottom: 2px solid #409eff;
-  color: #409eff;
+  border-bottom: 2px solid var(--brand-blue);
+  color: var(--brand-blue);
 }
 .code-row {
   display: flex;
@@ -237,10 +287,13 @@ onMounted(() => refreshCaptcha())
 .captcha-img {
   height: 40px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid #dcdcdc;
 }
 .submit-btn {
   width: 100%;
+  height: 42px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
 }
 </style>

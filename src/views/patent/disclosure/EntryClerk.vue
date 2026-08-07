@@ -1,25 +1,33 @@
 <template>
   <div class="page">
     <el-card>
-      <!-- Search Form -->
-      <SearchBar
-        v-model="ec.query"
-        :fields="ec.searchFields"
-        :loading="ec.loading"
-        :collapsed-threshold="4"
-        @search="ecFetchData"
-        @reset="ecResetQuery"
-      />
-
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <el-button v-if="hasPerm('patent:disclosure:add')" type="primary" @click="ecOpenAdd">新增交底</el-button>
-        <el-button v-if="hasPerm('patent:disclosure:copy') || hasPerm('patent:disclosure:add')" type="success" @click="ecOpenCopy">复制历史交底</el-button>
-        <el-button v-if="hasPerm('patent:disclosure:delete')" type="danger" :disabled="!ec.selected.length" @click="ecBatchDelete">批量删除</el-button>
+      <!-- 筛选面板 -->
+      <div class="filter-box">
+        <div class="filter-box__title"><el-icon :size="15"><Search /></el-icon><span>筛选条件</span></div>
+        <div class="filter-grid">
+          <div class="filter-cell" v-for="f in ec.searchFields" :key="f.key">
+            <label class="filter-cell__label">{{ f.label }}</label>
+            <el-input v-if="f.type === 'input'" v-model="ec.query[f.key]" clearable />
+            <el-select v-else-if="f.type === 'select'" v-model="ec.query[f.key]" clearable placeholder="全部" @change="ecFetchData">
+              <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </div>
+        </div>
+        <div class="filter-actions"><el-button type="primary" @click="ecFetchData">查询</el-button><el-button @click="ecResetQuery">重置</el-button></div>
       </div>
 
-      <!-- Table -->
-      <el-table :data="ec.tableData" v-loading="ec.loading" border stripe @selection-change="(s) => ec.selected = s">
+      <!-- 表格区域 -->
+      <div class="table-section">
+        <div class="table-section__bar">
+          <span class="table-section__count">共 <strong>{{ ec.page.total }}</strong> 条</span>
+          <el-button size="small" @click="ecFetchData" :icon="Refresh">刷新</el-button>
+          <el-button v-if="hasPerm('patent:disclosure:add')" type="primary" size="small" @click="ecOpenAdd">新增交底</el-button>
+          <el-button v-if="hasPerm('patent:disclosure:copy') || hasPerm('patent:disclosure:add')" type="success" size="small" @click="ecOpenCopy">复制历史交底</el-button>
+          <el-button v-if="hasPerm('patent:disclosure:delete')" type="danger" size="small" :disabled="!ec.selected.length" @click="ecBatchDelete">批量删除</el-button>
+        </div>
+
+        <!-- Table -->
+        <el-table :data="ec.tableData" v-loading="ec.loading" border stripe @selection-change="(s) => ec.selected = s">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="tempNo" label="临时编号" width="120" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
@@ -52,12 +60,14 @@
         <el-table-column prop="inventor" label="发明人" width="120" />
         <el-table-column prop="sponsor" label="主办人" width="100" />
         <el-table-column prop="agent" label="代理人" width="130" />
+        <el-table-column prop="mentor" label="指导人" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="businessPersonnel" label="业务人员" min-width="180" show-overflow-tooltip />
         <el-table-column prop="contactPerson" label="联系人" width="100" />
         <el-table-column prop="disclosureDate" label="交底日期" width="110" :formatter="(_,__,v)=>formatDate(v)" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" @click="ecOpenEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="ecDelete(row.id)">删除</el-button>
+            <el-button size="small" type="primary" link @click="router.push(`/patent/disclosure/add?id=${row.id}`)">编辑</el-button>
+            <el-button size="small" type="danger" link @click="ecDelete(row.id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,6 +79,7 @@
         layout="total, sizes, prev, pager, next" @size-change="ecFetchData" @current-change="ecFetchData"
         class="pagination"
       />
+      </div>
     </el-card>
 
     <!-- Edit Dialog -->
@@ -135,6 +146,16 @@
               <el-col :span="12">
                 <el-form-item label="代理人">
                   <ApplicantAgentSelect v-model="ec.editForm.agent" type="agent" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="指导人">
+                  <el-input v-model.trim="ec.editForm.mentor" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="业务人员">
+                  <el-input v-model.trim="ec.editForm.businessPersonnel" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -223,7 +244,7 @@
         <el-table-column prop="applicant" label="申请人" width="130" />
         <el-table-column label="操作" width="80">
           <template #default="{ row }">
-            <el-button size="small" type="primary" @click="ecDoCopy(row)">复制</el-button>
+            <el-button size="small" type="primary" link @click="ecDoCopy(row)">复制</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -246,12 +267,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh } from '@element-plus/icons-vue'
 import { getList, getById, getSponsorOptions, update, remove, batchRemove } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
 import DisclosureAttachmentLinks from '../../../components/DisclosureAttachmentLinks.vue'
 import FilePreviewDialog from '../../../components/FilePreviewDialog.vue'
-import SearchBar from '../../../components/SearchBar.vue'
 import { formatDate } from '../../../utils/format'
 import { statusTag, emptyForm, hasPerm, mergeDisclosureAttachments } from './shared'
 
@@ -268,6 +289,8 @@ const ec = reactive({
     { key: 'applicant', label: '申请人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'inventor', label: '发明人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'agent', label: '代理人', type: 'input', matchType: 'fuzzy', width: 160 },
+    { key: 'mentor', label: '指导人', type: 'input', matchType: 'fuzzy', width: 180 },
+    { key: 'businessPersonnel', label: '业务人员', type: 'input', matchType: 'fuzzy', width: 180 },
     { key: 'sponsor', label: '主办人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'contactPerson', label: '联系人', type: 'input', matchType: 'fuzzy', width: 160 },
     { key: 'manager', label: '管理人', type: 'input', matchType: 'fuzzy', width: 160 },
@@ -277,7 +300,7 @@ const ec = reactive({
   ],
   query: { 
     disclosureName: '', internalNo: '', tempNo: '', patentType: '', patentStatus: '',
-    applicant: '', inventor: '', agent: '', sponsor: '', contactPerson: '', manager: '',
+    applicant: '', inventor: '', agent: '', mentor: '', businessPersonnel: '', sponsor: '', contactPerson: '', manager: '',
     syncedToPatent: '', disclosureDateRange: null, createTimeRange: null 
   },
   page: { pageNum: 1, pageSize: 10, total: 0 },
@@ -485,9 +508,18 @@ onMounted(() => {
 
 <style scoped>
 .page { max-width: 1600px; }
-.search-form { margin-bottom: 10px; }
-.toolbar { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.filter-box { margin-bottom:20px; background:linear-gradient(135deg,#f0f4fa 0%,#f7f9fc 50%,#fafbfd 100%); border:1px solid #d4dde8; border-left:4px solid #1e88e5; border-radius:8px; box-shadow:0 2px 8px rgba(10,22,40,0.04); overflow:hidden; }
+.filter-box__title { display:flex;align-items:center;gap:8px; padding:8px 20px; background:rgba(30,136,229,0.06); border-bottom:1px solid #e0e7f0; font-size:12px;font-weight:700;color:#1e3a5c; }
+.filter-grid { display:grid;grid-template-columns:repeat(4,1fr); gap:10px 20px; padding:16px 20px 8px; }
+.filter-cell { display:flex;align-items:center;gap:8px; }
+.filter-cell__label { font-size:11px;font-weight:600;color:#7c8799;white-space:nowrap;flex-shrink:0; }
+.filter-actions { padding:6px 20px 14px;display:flex;gap:8px; }
+.table-section { border:1px solid #e2e8f0;border-radius:8px;overflow:hidden; }
+.table-section__bar { display:flex;align-items:center;gap:8px; padding:10px 16px; background:#fafbfc; border-bottom:1px solid #e8ecf1; }
+.table-section__count { flex:1;font-size:13px;color:#5f6b7a; }
+.table-section__count strong { color:#1e88e5;font-weight:700; }
 .pagination { margin-top: 16px; justify-content: flex-end; display: flex; }
+.search-form { margin-bottom: 10px; }
 .tab-section { padding: 4px 0; }
 .upload-group { margin-bottom: 4px; }
 .upload-group h4 { margin: 0 0 8px 0; font-size: 14px; color: #303133; }
