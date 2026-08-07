@@ -12,8 +12,8 @@
         <el-icon :size="30"><DocumentAdd /></el-icon>
       </div>
       <div class="page-header__text">
-        <h2 class="page-header__title">新增交底</h2>
-        <p class="page-header__subtitle">填写交底基本信息并上传附件</p>
+        <h2 class="page-header__title">{{ isEdit ? '编辑交底' : '新增交底' }}</h2>
+        <p class="page-header__subtitle">{{ isEdit ? '修改交底信息并保存' : '填写交底基本信息并上传附件' }}</p>
       </div>
     </div>
 
@@ -43,49 +43,6 @@
 
             <!-- ========== 人员信息 ========== -->
             <h4 class="sec-head">人员信息</h4>
-
-            <!-- 主办人（必填） -->
-            <div class="sub-block">
-              <span class="sub-label">主办人 <el-tag size="small" type="danger">必填</el-tag></span>
-              <el-select
-                v-model="form.sponsorUserId"
-                filterable
-                :loading="sponsorLoading"
-                placeholder="搜索选择主办人"
-                no-data-text="暂无启用的主办人"
-                style="width:100%"
-                @change="onSponsorChange"
-              >
-                <el-option
-                  v-for="u in userList"
-                  :key="u.userId"
-                  :label="`${u.userName || u.loginName} (ID:${u.userId})`"
-                  :value="u.userId"
-                />
-              </el-select>
-            </div>
-
-            <!-- 申请人（选填） -->
-            <div class="sub-block">
-              <span class="sub-label">申请人 <el-tag size="small" type="info">选填</el-tag></span>
-              <div v-for="(ap, idx) in applicants" :key="idx" class="person-row">
-                <el-row :gutter="12">
-                  <el-col :span="8">
-                    <el-input v-model="ap.name" placeholder="姓名" />
-                  </el-col>
-                  <el-col :span="8">
-                    <el-input v-model="ap.email" placeholder="邮箱" />
-                  </el-col>
-                  <el-col :span="8">
-                    <el-input v-model="ap.phone" placeholder="电话" />
-                  </el-col>
-                </el-row>
-                <el-button v-if="applicants.length > 1" class="person-del" type="danger" :icon="Delete" circle size="small" @click="removeApplicant(idx)" />
-              </div>
-              <el-button type="primary" text size="small" @click="addApplicant">
-                <el-icon><Plus /></el-icon> 添加申请人
-              </el-button>
-            </div>
 
             <!-- 联系人（必填） -->
             <div class="sub-block">
@@ -123,6 +80,49 @@
               <el-button type="primary" text size="small" @click="addMentor">
                 <el-icon><Plus /></el-icon> 添加指导人
               </el-button>
+            </div>
+
+            <!-- 申请人（选填） -->
+            <div class="sub-block">
+              <span class="sub-label">申请人 <el-tag size="small" type="info">选填</el-tag></span>
+              <div v-for="(ap, idx) in applicants" :key="idx" class="person-row">
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <el-input v-model="ap.name" placeholder="姓名" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="ap.email" placeholder="邮箱" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="ap.phone" placeholder="电话" />
+                  </el-col>
+                </el-row>
+                <el-button v-if="applicants.length > 1" class="person-del" type="danger" :icon="Delete" circle size="small" @click="removeApplicant(idx)" />
+              </div>
+              <el-button type="primary" text size="small" @click="addApplicant">
+                <el-icon><Plus /></el-icon> 添加申请人
+              </el-button>
+            </div>
+
+            <!-- 主办人（必填） -->
+            <div class="sub-block">
+              <span class="sub-label">主办人 <el-tag size="small" type="danger">必填</el-tag></span>
+              <el-select
+                v-model="form.sponsorUserId"
+                filterable
+                :loading="sponsorLoading"
+                placeholder="搜索选择主办人"
+                no-data-text="暂无启用的主办人"
+                style="width:100%"
+                @change="onSponsorChange"
+              >
+                <el-option
+                  v-for="u in userList"
+                  :key="u.userId"
+                  :label="`${u.userName || u.loginName} (ID:${u.userId})`"
+                  :value="u.userId"
+                />
+              </el-select>
             </div>
 
             <!-- 业务人员（选填） -->
@@ -169,7 +169,7 @@
           下一步
         </el-button>
         <el-button v-else class="footer-btn" type="primary" @click="handleSave" :loading="saving">
-          创建交底
+          {{ isEdit ? '保存修改' : '创建交底' }}
         </el-button>
       </div>
     </el-card>
@@ -177,16 +177,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { useRouter, onBeforeRouteLeave } from 'vue-router'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { DocumentAdd, ArrowLeft, Plus, Delete } from '@element-plus/icons-vue'
-import { getSponsorOptions, createWithAttachments } from '../../../api/disclosureWorkflow'
+import { getSponsorOptions, createWithAttachments, getById, update } from '../../../api/disclosureWorkflow'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
 import { useDialogAddDraft } from '../../../composables/useFormDraft'
 import { emptyForm } from './shared'
 
 const router = useRouter()
+const route = useRoute()
+const isEdit = computed(() => !!route.query.id)
 const formRef = ref(null)
 const activeTab = ref('basic')
 const saving = ref(false)
@@ -325,19 +327,59 @@ const loadUsers = async () => {
   }
 }
 
+// 把 "name1 email1 phone1; name2 email2 phone2" 解析成 [{name,email,phone}]
+const parsePeopleText = (text) => {
+  if (!text) return [{ name: '', email: '', phone: '' }]
+  const parts = text.split(';').filter(Boolean)
+  const list = parts.map(p => {
+    const segs = p.trim().split(/\s+/)
+    return { name: segs[0] || '', email: segs[1] || '', phone: segs.slice(2).join(' ') || '' }
+  }).filter(p => p.name || p.email || p.phone)
+  return list.length ? list : [{ name: '', email: '', phone: '' }]
+}
+
+const loadEditData = async (id) => {
+  try {
+    const r = await getById(id)
+    if (r.code === 200 && r.data) {
+      const d = r.data
+      Object.assign(form, emptyForm(), {
+        id: d.id, tempNo: d.tempNo, internalNo: d.internalNo, patentStatus: d.patentStatus,
+        disclosureName: d.disclosureName, patentType: d.patentType, applicant: d.applicant,
+        inventor: d.inventor, contactPerson: d.contactPerson, sponsor: d.sponsor,
+        sponsorUserId: d.sponsorUserId, agent: d.agent, mentor: d.mentor,
+        businessPersonnel: d.businessPersonnel, disclosureDate: d.disclosureDate,
+        requirement: d.requirement, remark: d.remark,
+        contactEmail: d.contactEmail, contactPhone: d.contactPhone, contactInfo: d.contactInfo
+      })
+      // 解析多人字段
+      applicants.value = parsePeopleText(d.applicant)
+      mentors.value = parsePeopleText(d.mentor)
+      businessPersonnelList.value = parsePeopleText(d.businessPersonnel)
+      // 解析预审/优审
+      if (d.requirement) {
+        preExam.value = d.requirement.includes('预审')
+        excellentExam.value = d.requirement.includes('优审')
+      }
+    }
+  } catch {
+    ElMessage.error('加载交底数据失败')
+    router.push('/patent/disclosure')
+  }
+}
+
 const handleSave = async () => {
   if (!validateBasicForm()) {
     activeTab.value = 'basic'
     return
   }
-  if (!pendingDocument.value) {
+  if (!isEdit.value && !pendingDocument.value) {
     ElMessage.warning('请在附件页上传一份 Word 格式的交底书')
     activeTab.value = 'attachments'
     return
   }
   saving.value = true
   try {
-    // 组装申请人：过滤空行，拼接为字符串
     const validApps = applicants.value.filter(a => a.name || a.email || a.phone)
     const applicantStr = validApps.map(a => [a.name, a.email, a.phone].filter(Boolean).join(' ')).join('; ')
     const mentor = peopleToText(mentors.value)
@@ -355,12 +397,22 @@ const handleSave = async () => {
     }
     delete submitData.patentType
     delete submitData.agent
-    const res = await createWithAttachments(submitData, pendingDocument.value, pendingOthers.value, null)
-    if (res.code === 200) {
-      addDraft.clear()
-      allowRouteLeave = true
-      ElMessage.success('交底创建成功')
-      router.push('/patent/disclosure')
+
+    if (isEdit.value) {
+      const res = await update(submitData)
+      if (res.code === 200) {
+        allowRouteLeave = true
+        ElMessage.success('修改成功')
+        router.push('/patent/disclosure')
+      }
+    } else {
+      const res = await createWithAttachments(submitData, pendingDocument.value, pendingOthers.value, null)
+      if (res.code === 200) {
+        addDraft.clear()
+        allowRouteLeave = true
+        ElMessage.success('交底创建成功')
+        router.push('/patent/disclosure')
+      }
     }
   } finally {
     saving.value = false
@@ -402,9 +454,13 @@ onBeforeRouteLeave(async () => {
   return canLeave
 })
 
-onMounted(() => {
+onMounted(async () => {
+  if (isEdit.value) {
+    await loadEditData(route.query.id)
+  } else {
+    addDraft.open(() => {})
+  }
   loadUsers()
-  addDraft.open(() => {})
   window.addEventListener('beforeunload', handleBeforeUnload)
 })
 

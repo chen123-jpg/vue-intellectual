@@ -1,20 +1,29 @@
 <template>
   <div class="page">
     <el-card>
-      <SearchBar
-        v-model="po.query"
-        :fields="po.searchFields"
-        :loading="po.loading"
-        :collapsed-threshold="4"
-        @search="poFetchData"
-        @reset="poResetQuery"
-      />
-
-      <div class="toolbar">
-        <span class="view-hint">待审核交底列表（状态：定稿 / 定稿待报，共 {{ po.page.total }} 条）</span>
+      <!-- 筛选面板 -->
+      <div class="filter-box">
+        <div class="filter-box__title"><el-icon :size="15"><Search /></el-icon><span>筛选条件</span></div>
+        <div class="filter-grid">
+          <div class="filter-cell" v-for="f in po.searchFields" :key="f.key">
+            <label class="filter-cell__label">{{ f.label }}</label>
+            <el-input v-if="f.type === 'input'" v-model="po.query[f.key]" clearable />
+            <el-select v-else-if="f.type === 'select'" v-model="po.query[f.key]" clearable placeholder="全部" @change="poFetchData">
+              <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </div>
+        </div>
+        <div class="filter-actions"><el-button type="primary" @click="poFetchData">查询</el-button><el-button @click="poResetQuery">重置</el-button></div>
       </div>
 
-      <el-table :data="po.tableData" v-loading="po.loading" border stripe>
+      <!-- 表格区域 -->
+      <div class="table-section">
+        <div class="table-section__bar">
+          <span class="table-section__count">共 <strong>{{ po.page.total }}</strong> 条</span>
+          <el-button size="small" @click="poFetchData" :icon="Refresh">刷新</el-button>
+        </div>
+
+        <el-table :data="po.tableData" v-loading="po.loading" border stripe>
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="专利状态" width="130">
@@ -31,7 +40,7 @@
         </el-table-column>
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" @click="poOpenReview(row)">审核</el-button>
+            <el-button size="small" type="primary" link @click="poOpenReview(row)">审核</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -46,6 +55,7 @@
         @current-change="poFetchData"
         class="pagination"
       />
+      </div>
     </el-card>
 
     <!-- 审核弹窗 -->
@@ -129,9 +139,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh } from '@element-plus/icons-vue'
 import { getList, getById, changeStatus, getPackages, confirmPackage } from '../../../api/disclosureWorkflow'
 import { createDownloadTicket } from '../../../api/applicationPackage'
-import SearchBar from '../../../components/SearchBar.vue'
 import { statusTag } from './shared'
 
 const po = reactive({
@@ -286,24 +296,20 @@ onMounted(() => poFetchData())
 .page {
   max-width: 1600px;
 }
-.search-form {
-  margin-bottom: 10px;
-}
-.toolbar {
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+.filter-box { margin-bottom:20px; background:linear-gradient(135deg,#f0f4fa 0%,#f7f9fc 50%,#fafbfd 100%); border:1px solid #d4dde8; border-left:4px solid #1e88e5; border-radius:8px; box-shadow:0 2px 8px rgba(10,22,40,0.04); overflow:hidden; }
+.filter-box__title { display:flex;align-items:center;gap:8px; padding:8px 20px; background:rgba(30,136,229,0.06); border-bottom:1px solid #e0e7f0; font-size:12px;font-weight:700;color:#1e3a5c; }
+.filter-grid { display:grid;grid-template-columns:repeat(4,1fr); gap:10px 20px; padding:16px 20px 8px; }
+.filter-cell { display:flex;align-items:center;gap:8px; }
+.filter-cell__label { font-size:11px;font-weight:600;color:#7c8799;white-space:nowrap;flex-shrink:0; }
+.filter-actions { padding:6px 20px 14px;display:flex;gap:8px; }
+.table-section { border:1px solid #e2e8f0;border-radius:8px;overflow:hidden; }
+.table-section__bar { display:flex;align-items:center;gap:8px; padding:10px 16px; background:#fafbfc; border-bottom:1px solid #e8ecf1; }
+.table-section__count { flex:1;font-size:13px;color:#5f6b7a; }
+.table-section__count strong { color:#1e88e5;font-weight:700; }
 .pagination {
   margin-top: 16px;
   justify-content: flex-end;
   display: flex;
-}
-.view-hint {
-  color: #909399;
-  font-size: 13px;
 }
 .empty-hint {
   color: #909399;
