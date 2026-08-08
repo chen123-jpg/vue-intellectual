@@ -1,26 +1,33 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="全部" clearable style="width: 160px">
-            <el-option v-for="(meta, code) in statusMap" :key="code" :label="meta.label" :value="code" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="内部编号">
-          <el-input v-model="query.internalNo" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="交底名称">
-          <el-input v-model="query.disclosureName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="主办人">
-          <el-input v-model="query.sponsorName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item>
+      <div class="filter-box">
+        <div class="filter-box__title"><span>筛选条件</span></div>
+        <div class="filter-grid">
+          <div class="filter-cell">
+            <label class="filter-cell__label">状态</label>
+            <el-select v-model="query.status" placeholder="全部" clearable style="width:160px">
+              <el-option v-for="(meta, code) in statusMap" :key="code" :label="meta.label" :value="code" />
+            </el-select>
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">内部编号</label>
+            <el-input v-model="query.internalNo" placeholder="模糊搜索" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">交底名称</label>
+            <el-input v-model="query.disclosureName" placeholder="模糊搜索" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">主办人</label>
+            <el-input v-model="query.sponsorName" placeholder="模糊搜索" clearable />
+          </div>
+        </div>
+        <div class="filter-actions">
           <el-button type="primary" @click="search">查询</el-button>
           <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+        </div>
+      </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe>
         <el-table-column prop="internalNo" label="内部编号" width="145" />

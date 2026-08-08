@@ -1,9 +1,10 @@
 <template>
-  <el-form :inline="true" class="search-bar" @submit.prevent="emitSearch">
-    <!-- 始终可见的字段（最后一个是操作按钮行） -->
-    <template v-for="(field, idx) in visibleFields" :key="field.key">
-      <el-form-item :label="field.label" class="search-field">
-        <!-- input 类型 -->
+  <!-- boxed 模式：使用 filter-box 包裹样式 -->
+  <div v-if="boxed" class="filter-box">
+    <div class="filter-box__title"><el-icon :size="15"><Search /></el-icon><span>筛选条件</span></div>
+    <div class="filter-grid">
+      <div class="filter-cell" v-for="(field, idx) in visibleFields" :key="field.key">
+        <label class="filter-cell__label">{{ field.label }}</label>
         <el-input
           v-if="field.type === 'input'"
           v-model="localQuery[field.key]"
@@ -14,7 +15,6 @@
           @keyup.enter="emitSearch"
           @update:model-value="onFieldInput(field.key)"
         />
-        <!-- select 类型 -->
         <el-select
           v-else-if="field.type === 'select'"
           v-model="localQuery[field.key]"
@@ -24,14 +24,8 @@
           clearable
           @change="emitSearch"
         >
-          <el-option
-            v-for="opt in field.options"
-            :key="opt.value"
-            :label="opt.label"
-            :value="opt.value"
-          />
+          <el-option v-for="opt in field.options" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
-        <!-- date 类型 -->
         <el-date-picker
           v-else-if="field.type === 'date'"
           v-model="localQuery[field.key]"
@@ -42,7 +36,67 @@
           value-format="YYYY-MM-DD"
           @change="emitSearch"
         />
-        <!-- daterange 类型 -->
+        <el-date-picker
+          v-else-if="field.type === 'daterange'"
+          v-model="localQuery[field.key]"
+          type="daterange"
+          :start-placeholder="field.placeholder || '开始日期'"
+          end-placeholder="结束日期"
+          :style="{ width: (field.width || 260) + 'px' }"
+          value-format="YYYY-MM-DD"
+          @change="emitSearch"
+        />
+      </div>
+    </div>
+    <div class="filter-actions">
+      <el-button :size="size" type="primary" :loading="loading" @click="emitSearch">
+        <el-icon v-if="!loading"><Search /></el-icon>查询
+      </el-button>
+      <el-button :size="size" @click="handleReset">
+        <el-icon><Refresh /></el-icon>重置
+      </el-button>
+      <el-button v-if="collapsible" type="primary" link @click="collapsed = !collapsed">
+        {{ collapsed ? '展开' : '收起' }}
+        <el-icon><ArrowDown v-if="collapsed" /><ArrowUp v-else /></el-icon>
+      </el-button>
+    </div>
+  </div>
+
+  <!-- 原始 inline 模式 -->
+  <el-form v-else :inline="true" class="search-bar" @submit.prevent="emitSearch">
+    <template v-for="(field, idx) in visibleFields" :key="field.key">
+      <el-form-item :label="field.label" class="search-field">
+        <el-input
+          v-if="field.type === 'input'"
+          v-model="localQuery[field.key]"
+          :size="size"
+          :placeholder="field.placeholder || (field.matchType === 'fuzzy' ? '支持拼音首字母、模糊搜索' : '精确搜索')"
+          :style="{ width: (field.width || 180) + 'px' }"
+          clearable
+          @keyup.enter="emitSearch"
+          @update:model-value="onFieldInput(field.key)"
+        />
+        <el-select
+          v-else-if="field.type === 'select'"
+          v-model="localQuery[field.key]"
+          :size="size"
+          :placeholder="field.placeholder || '全部'"
+          :style="{ width: (field.width || 160) + 'px' }"
+          clearable
+          @change="emitSearch"
+        >
+          <el-option v-for="opt in field.options" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+        <el-date-picker
+          v-else-if="field.type === 'date'"
+          v-model="localQuery[field.key]"
+          :size="size"
+          type="date"
+          :placeholder="field.placeholder || '选择日期'"
+          :style="{ width: (field.width || 180) + 'px' }"
+          value-format="YYYY-MM-DD"
+          @change="emitSearch"
+        />
         <el-date-picker
           v-else-if="field.type === 'daterange'"
           v-model="localQuery[field.key]"
@@ -55,29 +109,16 @@
         />
       </el-form-item>
     </template>
-
-    <!-- 操作按钮 -->
     <el-form-item class="search-actions">
       <el-button :size="size" type="primary" :loading="loading" @click="emitSearch">
-        <el-icon v-if="!loading"><Search /></el-icon>
-        查询
+        <el-icon v-if="!loading"><Search /></el-icon>查询
       </el-button>
       <el-button :size="size" @click="handleReset">
-        <el-icon><Refresh /></el-icon>
-        重置
+        <el-icon><Refresh /></el-icon>重置
       </el-button>
-      <!-- 展开/收起切换 -->
-      <el-button
-        v-if="collapsible"
-        type="primary"
-        link
-        @click="collapsed = !collapsed"
-      >
+      <el-button v-if="collapsible" type="primary" link @click="collapsed = !collapsed">
         {{ collapsed ? '展开' : '收起' }}
-        <el-icon>
-          <ArrowDown v-if="collapsed" />
-          <ArrowUp v-else />
-        </el-icon>
+        <el-icon><ArrowDown v-if="collapsed" /><ArrowUp v-else /></el-icon>
       </el-button>
     </el-form-item>
   </el-form>
@@ -113,6 +154,11 @@ const props = defineProps({
   size: {
     type: String,
     default: 'default'
+  },
+  /** 是否使用 filter-box 包裹样式 */
+  boxed: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -231,5 +277,50 @@ const handleReset = () => {
 }
 .search-actions {
   margin-right: 0;
+}
+
+/* filter-box 包裹样式 */
+.filter-box {
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #f0f4fa 0%, #f7f9fc 50%, #fafbfd 100%);
+  border: 1px solid #d4dde8;
+  border-left: 4px solid #1e88e5;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(10, 22, 40, 0.04);
+  overflow: hidden;
+}
+.filter-box__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: rgba(30, 136, 229, 0.06);
+  border-bottom: 1px solid #e0e7f0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3a5c;
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 20px;
+  padding: 16px 20px 8px;
+}
+.filter-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-cell__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7c8799;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.filter-actions {
+  padding: 6px 20px 14px;
+  display: flex;
+  gap: 8px;
 }
 </style>

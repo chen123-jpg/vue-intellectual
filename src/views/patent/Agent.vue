@@ -5,6 +5,7 @@
         v-model="query"
         :fields="searchFields"
         :loading="loading"
+        boxed
         @search="fetchData"
         @reset="resetQuery"
       />

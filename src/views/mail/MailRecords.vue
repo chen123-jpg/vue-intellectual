@@ -1,36 +1,43 @@
 <template>
   <div class="mail-records-page">
     <!-- 搜索栏 -->
-    <el-form :inline="true" :model="sentQuery" class="search-form">
-      <el-form-item label="收件人">
-        <el-input v-model="sentQuery.toEmails" placeholder="模糊搜索" clearable style="width:180px" />
-      </el-form-item>
-      <el-form-item label="主题">
-        <el-input v-model="sentQuery.subject" placeholder="模糊搜索" clearable style="width:180px" />
-      </el-form-item>
-      <el-form-item label="状态">
-        <el-select v-model="sentQuery.sendStatus" placeholder="全部" clearable style="width:130px">
-          <el-option label="待发送" :value="0" />
-          <el-option label="发送成功" :value="1" />
-          <el-option label="发送失败" :value="2" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="时间">
-        <el-date-picker
-          v-model="sentDateRange"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          value-format="YYYY-MM-DD"
-          style="width:260px"
-        />
-      </el-form-item>
-      <el-form-item>
+    <div class="filter-box">
+      <div class="filter-box__title"><span>筛选条件</span></div>
+      <div class="filter-grid">
+        <div class="filter-cell">
+          <label class="filter-cell__label">收件人</label>
+          <el-input v-model="sentQuery.toEmails" placeholder="模糊搜索" clearable style="width:180px" />
+        </div>
+        <div class="filter-cell">
+          <label class="filter-cell__label">主题</label>
+          <el-input v-model="sentQuery.subject" placeholder="模糊搜索" clearable style="width:180px" />
+        </div>
+        <div class="filter-cell">
+          <label class="filter-cell__label">状态</label>
+          <el-select v-model="sentQuery.sendStatus" placeholder="全部" clearable style="width:130px">
+            <el-option label="待发送" :value="0" />
+            <el-option label="发送成功" :value="1" />
+            <el-option label="发送失败" :value="2" />
+          </el-select>
+        </div>
+        <div class="filter-cell">
+          <label class="filter-cell__label">时间</label>
+          <el-date-picker
+            v-model="sentDateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width:260px"
+          />
+        </div>
+      </div>
+      <div class="filter-actions">
         <el-button type="primary" @click="fetchSentLogs">查询</el-button>
         <el-button @click="resetSentQuery">重置</el-button>
-      </el-form-item>
-    </el-form>
+      </div>
+    </div>
 
     <!-- 表格 -->
     <el-table :data="sentTableData" v-loading="sentLoading" border stripe @selection-change="onSentSelectionChange">
@@ -75,7 +82,7 @@
     </div>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="sentDetailVisible" title="发送邮件详情" width="700px" destroy-on-close>
+    <el-dialog v-model="sentDetailVisible" title="发送邮件详情" width="750px" destroy-on-close>
       <el-descriptions v-if="sentDetail" :column="2" border>
         <el-descriptions-item label="收件人" :span="2">{{ sentDetail.toEmails }}</el-descriptions-item>
         <el-descriptions-item label="抄送" :span="2">{{ sentDetail.ccEmails || '无' }}</el-descriptions-item>
@@ -92,10 +99,14 @@
         <el-descriptions-item v-if="sentDetail.errorMessage" label="失败原因" :span="2">
           <span style="color:#f56c6c">{{ sentDetail.errorMessage }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="邮件正文" :span="2">
-          <div class="content-preview" v-html="sentDetail.content || sentDetail.body || sentDetail.text || '无'"></div>
+        <el-descriptions-item label="模板编码" v-if="sentDetail.templateCode">
+          {{ sentDetail.templateCode }}
         </el-descriptions-item>
       </el-descriptions>
+      <div v-if="sentDetail" style="margin-top: 16px">
+        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #303133">邮件正文预览</h4>
+        <div class="content-preview" v-html="sentDetail.content || sentDetail.body || sentDetail.text || '无'"></div>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -206,12 +217,14 @@ onMounted(() => fetchSentLogs())
 .pagination { margin: 0; }
 .content-preview {
   background: #f5f7fa;
-  padding: 12px;
+  padding: 16px;
   border-radius: 4px;
-  max-height: 260px;
+  min-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.8;
   width: 100%;
+  border: 1px solid #e4e7ed;
 }
 </style>

@@ -1,65 +1,60 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="模板编码">
-          <el-input v-model="query.templateCode" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="模板名称">
-          <el-input v-model="query.templateName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="启用状态">
-          <el-select v-model="query.enabled" placeholder="全部" clearable>
-            <el-option label="禁用" :value="0" />
-            <el-option label="启用" :value="1" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="fetchData">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
-
-      <div class="toolbar">
-        <el-button v-if="hasPerm('system:mailTemplate:add')" type="primary" @click="openAdd">新增</el-button>
-        <el-button v-if="hasPerm('system:mailTemplate:delete')" type="danger" :disabled="!selected.length" @click="handleBatchDelete">
-          批量删除
-        </el-button>
-      </div>
-
-      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
-        <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="templateCode" label="模板编码" width="160" />
-        <el-table-column prop="templateName" label="模板名称" min-width="160" />
-        <el-table-column prop="subject" label="主题模板" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="enabled" label="启用" width="70">
-          <template #default="{ row }">
-            <el-tag :type="row.enabled === 1 ? 'success' : 'info'" size="small">
-              {{ row.enabled === 1 ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button v-if="hasPerm('system:mailTemplate:edit')" size="small" type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button v-if="hasPerm('system:mailTemplate:delete')" size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-pagination
-        v-model:current-page="page.pageNum"
-        v-model:page-size="page.pageSize"
-        :total="page.total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next"
-        @size-change="fetchData"
-        @current-change="fetchData"
-        class="pagination"
+      <SearchBar
+        v-model="query"
+        :fields="searchFields"
+        :loading="loading"
+        boxed
+        @search="fetchData"
+        @reset="resetQuery"
       />
+
+      <div class="table-section">
+        <div class="table-section__bar">
+          <span class="table-section__count">共 <strong>{{ page.total }}</strong> 条</span>
+          <el-button v-if="hasPerm('system:mailTemplate:add')" type="primary" size="small" @click="openAdd">新增</el-button>
+          <el-button v-if="hasPerm('system:mailTemplate:delete')" type="danger" size="small" :disabled="!selected.length" @click="handleBatchDelete">
+            批量删除
+          </el-button>
+        </div>
+
+        <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
+          <el-table-column type="selection" width="50" />
+          <el-table-column prop="id" label="ID" width="60" />
+          <el-table-column prop="templateCode" label="模板编码" width="160" />
+          <el-table-column prop="templateName" label="模板名称" min-width="160" />
+          <el-table-column prop="subject" label="主题模板" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="enabled" label="启用" width="70">
+            <template #default="{ row }">
+              <el-tag :type="row.enabled === 1 ? 'success' : 'info'" size="small">
+                {{ row.enabled === 1 ? '启用' : '禁用' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="240" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" type="success" link @click="openPreview(row)">预览</el-button>
+              <el-button v-if="hasPerm('system:mailTemplate:edit')" size="small" type="primary" link @click="openEdit(row)">编辑</el-button>
+              <el-button v-if="hasPerm('system:mailTemplate:delete')" size="small" type="danger" link @click="handleDelete(row.id)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-pagination
+          v-model:current-page="page.pageNum"
+          v-model:page-size="page.pageSize"
+          :total="page.total"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          @size-change="fetchData"
+          @current-change="fetchData"
+          class="pagination"
+        />
+      </div>
     </el-card>
 
+    <!-- Add/Edit Dialog -->
     <el-dialog
       v-model="dialog.visible"
       :title="dialog.isEdit ? '编辑邮件模板' : '新增邮件模板'"
@@ -98,18 +93,50 @@
         <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- Preview Dialog -->
+    <el-dialog
+      v-model="previewVisible"
+      title="模板预览"
+      width="800px"
+      destroy-on-close
+    >
+      <el-descriptions :column="2" border size="small" style="margin-bottom:16px">
+        <el-descriptions-item label="模板编码">{{ previewData.templateCode }}</el-descriptions-item>
+        <el-descriptions-item label="模板名称">{{ previewData.templateName }}</el-descriptions-item>
+        <el-descriptions-item label="主题预览" :span="2">
+          <div style="font-weight:600;color:#303133">{{ renderedSubject || '-' }}</div>
+        </el-descriptions-item>
+      </el-descriptions>
+      <div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#606266">正文预览</div>
+      <div
+        class="preview-content"
+        v-html="renderedContent || '<span style=color:#909399>暂无正文</span>'"
+      />
+      <template #footer>
+        <el-button @click="previewVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/mailTemplate'
 import { useDialogAddDraft } from '../../composables/useFormDraft'
 import { useUserStore } from '../../stores/user'
+import SearchBar from '../../components/SearchBar.vue'
+import { renderTemplate } from '../../utils/templateHelper'
 
 const { state } = useUserStore()
 const hasPerm = (perm) => state.permissions.includes(perm)
+
+const searchFields = [
+  { key: 'templateCode', label: '模板编码', type: 'input', matchType: 'fuzzy', width: 200 },
+  { key: 'templateName', label: '模板名称', type: 'input', matchType: 'fuzzy', width: 200 },
+  { key: 'enabled', label: '启用状态', type: 'select', options: [{ label: '禁用', value: 0 }, { label: '启用', value: 1 }], width: 120 }
+]
 
 const tableData = ref([])
 const selected = ref([])
@@ -119,6 +146,9 @@ const saving = ref(false)
 const query = reactive({ templateCode: '', templateName: '', enabled: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
+const previewVisible = ref(false)
+const previewData = reactive({ templateCode: '', templateName: '', subject: '', content: '' })
+
 const emptyForm = () => ({
   id: null, templateCode: '', templateName: '', subject: '',
   content: '', defaultAttachTypes: '', enabled: 1
@@ -131,11 +161,21 @@ const addDraft = useDialogAddDraft('system-mail-template-add', {
   applyData: (data) => Object.assign(form, { ...emptyForm(), ...data })
 })
 
+const renderedSubject = computed(() => {
+  if (!previewData.subject) return ''
+  return renderTemplate(previewData.subject, {})
+})
+
+const renderedContent = computed(() => {
+  if (!previewData.content) return ''
+  return renderTemplate(previewData.content, {})
+})
+
 const fetchData = async () => {
   loading.value = true
   try {
-    const params = { pageNum: page.pageNum, pageSize: page.pageSize, ...query }
-    Object.keys(params).forEach(k => { if (!params[k] && params[k] !== 0) delete params[k] })
+    const params = { pageNum: page.pageNum, pageSize: page.pageSize }
+    Object.keys(query).forEach(k => { if (query[k] !== '' && query[k] !== null && query[k] !== undefined) params[k] = query[k] })
     const res = await getList(params)
     if (res.code === 200) {
       tableData.value = res.data.records || []
@@ -164,6 +204,16 @@ const openEdit = async (row) => {
       dialog.visible = true
     }
   } catch { /* handled */ }
+}
+
+const openPreview = (row) => {
+  Object.assign(previewData, {
+    templateCode: row.templateCode || '',
+    templateName: row.templateName || '',
+    subject: row.subject || '',
+    content: row.content || ''
+  })
+  previewVisible.value = true
 }
 
 const handleSave = async () => {
@@ -218,7 +268,21 @@ onMounted(() => fetchData())
 
 <style scoped>
 .page { max-width: 1600px; }
-.search-form { margin-bottom: 10px; }
-.toolbar { margin-bottom: 12px; display: flex; gap: 10px; }
-.pagination { margin-top: 16px; justify-content: flex-end; }
+.table-section { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+.table-section__bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fafbfc; border-bottom: 1px solid #e8ecf1; }
+.table-section__count { flex: 1; font-size: 13px; color: #5f6b7a; }
+.table-section__count strong { color: #1e88e5; font-weight: 700; }
+.pagination { margin-top: 16px; justify-content: flex-end; display: flex; }
+.preview-content {
+  min-height: 200px;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 16px;
+  background: #fafbfc;
+  line-height: 1.7;
+}
+.preview-content :deep(table) { border-collapse: collapse; width: 100%; }
+.preview-content :deep(td), .preview-content :deep(th) { border: 1px solid #d4dde8; padding: 6px 10px; }
 </style>

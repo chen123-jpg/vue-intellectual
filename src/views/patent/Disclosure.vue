@@ -1,34 +1,52 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="交底名称">
-          <el-input v-model="query.disclosureName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="内部编号">
-          <el-input v-model="query.internalNo" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item label="申请人">
-          <el-input v-model="query.applicant" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="主办人">
-          <el-input v-model="query.sponsor" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="发明人">
-          <el-input v-model="query.inventor" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="fetchData">查询</el-button>
+      <!-- 筛选面板 -->
+      <div class="filter-box">
+        <div class="filter-box__title">
+          <el-icon :size="15"><Search /></el-icon>
+          <span>筛选条件</span>
+        </div>
+        <div class="filter-grid">
+          <div class="filter-cell">
+            <label class="filter-cell__label">交底名称</label><el-input v-model="query.disclosureName" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">内部编号</label><el-input v-model="query.internalNo" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">申请人</label><el-input v-model="query.applicant" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">主办人</label><el-input v-model="query.sponsor" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">发明人</label><el-input v-model="query.inventor" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">指导人</label><el-input v-model="query.mentor" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">业务人员</label><el-input v-model="query.businessPersonnel" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">专利类型</label><el-input v-model="query.patentType" clearable />
+          </div>
+        </div>
+        <div class="filter-actions">
+          <el-button type="primary" @click="doSearch">查询</el-button>
           <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
-
-      <div class="toolbar">
-        <el-button v-if="hasPerm('patent:disclosure:add')" type="primary" @click="openAdd">新增</el-button>
-        <el-button v-if="hasPerm('patent:disclosure:delete')" type="danger" :disabled="!selected.length" @click="handleBatchDelete">
-          批量删除
-        </el-button>
+        </div>
       </div>
+
+      <!-- 表格区域 -->
+      <div class="table-section">
+        <div class="table-section__bar">
+          <span class="table-section__count">共 <strong>{{ page.total }}</strong> 条</span>
+          <el-button size="small" @click="doSearch" :icon="Refresh">刷新</el-button>
+          <el-button v-if="hasPerm('patent:disclosure:add')" type="primary" size="small" @click="openAdd">新增</el-button>
+          <el-button v-if="hasPerm('patent:disclosure:delete')" type="danger" size="small" :disabled="!selected.length" @click="handleBatchDelete">批量删除</el-button>
+        </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="50" />
@@ -41,10 +59,12 @@
         <el-table-column prop="inventor" label="发明人" width="100" />
         <el-table-column prop="sponsor" label="主办人" width="100" />
         <el-table-column prop="agent" label="代理人" width="100" />
+        <el-table-column prop="mentor" label="指导人" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="businessPersonnel" label="业务人员" min-width="180" show-overflow-tooltip />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="hasPerm('patent:disclosure:edit')" size="small" type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button v-if="hasPerm('patent:disclosure:delete')" size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
+            <el-button v-if="hasPerm('patent:disclosure:edit')" size="small" type="primary" link @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="hasPerm('patent:disclosure:delete')" size="small" type="danger" link @click="handleDelete(row.id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -59,6 +79,7 @@
         @current-change="fetchData"
         class="pagination"
       />
+      </div>
     </el-card>
 
     <el-dialog
@@ -98,6 +119,12 @@
             <el-form-item label="代理人"><ApplicantAgentSelect v-model="form.agent" type="agent" /></el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="指导人"><el-input v-model.trim="form.mentor" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="业务人员"><el-input v-model.trim="form.businessPersonnel" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="交底日期"><el-date-picker v-model="form.disclosureDate" type="date" style="width:100%" value-format="YYYY-MM-DD" /></el-form-item>
           </el-col>
           <el-col :span="12">
@@ -125,6 +152,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh } from '@element-plus/icons-vue'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/ttable'
 import ApplicantAgentSelect from '../../components/ApplicantAgentSelect.vue'
 import DisclosureAttachmentEditor from '../../components/DisclosureAttachmentEditor.vue'
@@ -148,13 +176,15 @@ const query = reactive({
   internalNo: '',
   applicant: '',
   sponsor: '',
-  inventor: ''   // 新增发明人搜索字段
+  inventor: '',
+  mentor: '',
+  businessPersonnel: ''
 })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
 const emptyForm = () => ({
   id: null, internalNo: '', patentStatus: '', disclosureName: '', patentType: '',
-  applicant: '', inventor: '', contactPerson: '', sponsor: '', agent: '',
+  applicant: '', inventor: '', contactPerson: '', sponsor: '', agent: '', mentor: '', businessPersonnel: '',
   disclosureDate: '', requirement: '', remark: '',
   _hasLocalDocument: false, _otherAttachmentCount: 0
 })
@@ -199,6 +229,7 @@ const fetchData = async () => {
   } finally { loading.value = false }
 }
 
+const doSearch = () => { page.pageNum = 1; fetchData() }
 const resetQuery = () => {
   Object.keys(query).forEach(k => query[k] = '')
   page.pageNum = 1
@@ -281,8 +312,36 @@ onMounted(() => fetchData())
 </script>
 
 <style scoped>
-.page { max-width: 1600px; }
-.search-form { margin-bottom: 8px; }
-.toolbar { margin-bottom: 12px; display: flex; gap: 10px; }
+.page { max-width: 1800px; }
+.filter-box {
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #f0f4fa 0%, #f7f9fc 50%, #fafbfd 100%);
+  border: 1px solid #d4dde8;
+  border-left: 4px solid #1e88e5;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(10,22,40,0.04);
+  overflow: hidden;
+}
+.filter-box__title {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 20px;
+  background: rgba(30,136,229,0.06);
+  border-bottom: 1px solid #e0e7f0;
+  font-size: 12px; font-weight: 700; color: #1e3a5c;
+}
+.filter-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 10px 20px; padding: 16px 20px 8px;
+}
+.filter-cell { display: flex; align-items: center; gap: 8px; }
+.filter-cell__label { font-size: 11px; font-weight: 600; color: #7c8799; white-space: nowrap; flex-shrink: 0; }
+.filter-actions { padding: 6px 20px 14px; display: flex; gap: 8px; }
+.table-section { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+.table-section__bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: #fafbfc; border-bottom: 1px solid #e8ecf1;
+}
+.table-section__count { flex: 1; font-size: 13px; color: #5f6b7a; }
+.table-section__count strong { color: #1e88e5; font-weight: 700; }
 .pagination { margin-top: 16px; justify-content: flex-end; }
 </style>

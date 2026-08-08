@@ -1,73 +1,79 @@
 <template>
   <div class="app-shell">
-    <!-- ==================== 侧边栏菜单（双栏布局） ==================== -->
-    <SidebarMenu
-      :menus="visibleMenus"
-      :active-path="activeMenu"
-      :is-collapse="isCollapse"
-      :user-name="userName"
-      :user-dept="userDept"
-      @navigate="handleMenuNavigate"
-      @toggle-collapse="isCollapse = !isCollapse"
-      @width-change="sidebarWidth = $event"
-    />
-
-    <!-- ==================== 右侧主体区域 ==================== -->
-    <div :class="['main-area', { 'main-area--mobile': isMobile }]">
-      <!-- 顶部导航栏 -->
-      <header class="top-header">
-        <div class="top-header__left">
-          <!-- 一级菜单按钮 -->
-          <button
-            v-for="m in headerMenus"
-            :key="m.id"
-            :class="['top-l1-btn', { 'top-l1-btn--active': activeL1?.id === m.id }]"
-            @click="handleL1Click(m)"
-          >{{ m.label }}</button>
-        </div>
-
-        <div class="top-header__right">
-          <!-- 通知铃铛 -->
-          <NotificationBell />
-
-          <!-- 用户信息下拉 -->
-          <el-dropdown @command="handleCommand" trigger="click">
-            <div class="user-dropdown-trigger">
-              <span class="user-avatar-sm">
-                <el-icon :size="16"><UserFilled /></el-icon>
-              </span>
-              <span class="user-dropdown-name">{{ userName }}</span>
-              <el-icon :size="14"><ArrowDown /></el-icon>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人信息</el-dropdown-item>
-                <el-dropdown-item command="reminder">提醒规则</el-dropdown-item>
-                <el-dropdown-item command="mailCenter">邮件中心</el-dropdown-item>
-                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </header>
-
-      <!-- 标签栏 -->
-      <div class="tab-bar" v-if="tabs.length">
-        <div
-          v-for="tab in tabs"
-          :key="tab.path"
-          :class="['tab-item', { 'tab-item--active': route.path === tab.path }]"
-          @click="switchTab(tab)"
-        >
-          <span class="tab-item__label">{{ tab.label }}</span>
-          <span class="tab-item__close" @click.stop="closeTab(tab)">×</span>
-        </div>
+    <!-- ==================== 顶部一级导航栏（全宽，横跨侧边栏和主内容） ==================== -->
+    <header class="top-header">
+      <!-- 左侧：系统名（宽度和侧边栏对齐，文字和二级菜单对齐） -->
+      <div class="top-header__brand">
+        <span class="brand-text">知识产权<br>管理系统</span>
       </div>
 
-      <!-- 主内容区 -->
-      <main class="main-content">
-        <router-view />
-      </main>
+      <!-- 中间：一级菜单 -->
+      <nav class="top-header__nav">
+        <button
+          v-for="m in headerMenus"
+          :key="m.id"
+          :class="['top-l1-btn', { 'top-l1-btn--active': activeL1?.id === m.id }]"
+          @click="handleL1Click(m)"
+        >
+          <span class="l1-btn-label">{{ m.label }}</span>
+        </button>
+      </nav>
+
+      <!-- 右侧：通知 + 用户 -->
+      <div class="top-header__right">
+        <NotificationBell />
+        <el-dropdown @command="handleCommand" trigger="click">
+          <div class="user-dropdown-trigger">
+            <span class="user-avatar-sm">
+              <el-icon :size="16"><UserFilled /></el-icon>
+            </span>
+            <span class="user-dropdown-name">{{ userName }}</span>
+            <el-icon :size="14"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="profile">个人信息</el-dropdown-item>
+              <el-dropdown-item command="reminder">提醒规则</el-dropdown-item>
+              <el-dropdown-item command="mailCenter">邮件中心</el-dropdown-item>
+              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </header>
+
+    <!-- ==================== 下方区域：侧边栏 + 主体 ==================== -->
+    <div class="body-area">
+      <SidebarMenu
+        :menus="visibleMenus"
+        :active-path="activeMenu"
+        :is-collapse="isCollapse"
+        :user-name="userName"
+        :user-dept="userDept"
+        :current-l1-label="activeL1?.label || ''"
+        @navigate="handleMenuNavigate"
+        @toggle-collapse="isCollapse = !isCollapse"
+        @width-change="sidebarWidth = $event"
+      />
+
+      <div :class="['main-area', { 'main-area--mobile': isMobile }]">
+        <!-- 标签栏 -->
+        <div class="tab-bar" v-if="tabs.length">
+          <div
+            v-for="tab in tabs"
+            :key="tab.path"
+            :class="['tab-item', { 'tab-item--active': route.path === tab.path }]"
+            @click="switchTab(tab)"
+          >
+            <span class="tab-item__label">{{ tab.label }}</span>
+            <span class="tab-item__close" @click.stop="closeTab(tab)">×</span>
+          </div>
+        </div>
+
+        <main class="main-content">
+          <router-view />
+        </main>
+      </div>
     </div>
   </div>
 </template>
@@ -107,7 +113,8 @@ const { state, logout, fetchUserInfo } = useUserStore()
 const isCollapse = ref(false)
 const isMobile = ref(false)
 const fullMenus = ref([])
-const sidebarWidth = ref(80)
+const sidebarWidth = ref(120)
+const brandWidth = computed(() => sidebarWidth.value + 'px')
 
 // ========== 用户信息 ==========
 const userName = computed(() => state.userInfo?.loginName || state.userInfo?.userName || '未登录')
@@ -308,65 +315,159 @@ watch(() => state.menuVersion, () => {
 .app-shell {
   height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ==================== 右侧主体区域 ==================== */
+/* ==================== 下方区域（侧边栏 + 主体）==================== */
+.body-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ==================== 主体区域 ==================== */
 .main-area {
-  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  transition: margin-left 0.3s ease;
-  margin-left: v-bind(sidebarWidth + 'px');
+  overflow: hidden;
 }
 
 .main-area--mobile {
   margin-left: 0 !important;
 }
 
-/* ==================== 顶部导航栏 ==================== */
+/* ==================== 顶部导航栏（全宽，横跨整个视口）==================== */
 .top-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 44px;
-  padding: 0 20px;
-  background: #304156;
+  height: 64px;
+  padding: 0 16px 0 0;
+  background: linear-gradient(135deg, #0a1628 0%, #132036 40%, #1a2f4a 100%);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   border-radius: 0 0 8px 8px;
   flex-shrink: 0;
-  z-index: 10;
+  z-index: 1000;
+  position: relative;
+  overflow: visible;
 }
 
-.top-header__left {
+
+/* ==================== 品牌区（宽度和侧边栏对齐，文字和二级菜单对齐）==================== */
+.top-header__brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 8px;
+  width: v-bind(brandWidth);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding-left: 22px;
 }
 
+.brand-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #42a5f5;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(66, 165, 245, 0.6);
+}
+
+.brand-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1.5px;
+  line-height: 1.3;
+  text-align: left;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+/* ==================== 一级菜单导航区（右区，按钮居中）==================== */
+.top-header__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+}
+
+/* ==================== 右侧区 ==================== */
 .top-header__right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  flex-shrink: 0;
 }
 
-/* ==================== 顶部一级菜单按钮 ==================== */
+/* ==================== 一级菜单按钮 ==================== */
 .top-l1-btn {
-  padding: 5px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 3px 0;
+  padding: 8px 18px;
   border: none;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.8);
   background: transparent;
   font-size: 15px;
-  font-weight: 600;
-  transition: all 0.2s;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
+.l1-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0.75;
+  transition: all 0.25s;
+}
+
+
 .top-l1-btn--active {
-  border-radius: 20px;
+  color: #0a1628;
   background: #fff;
-  color: #304156;
+  border-radius: 20px;
+  position: relative;
+}
+
+/* 向下小三角，指向侧边栏 */
+.top-l1-btn--active::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #fff;
+  z-index: 1001;
+}
+
+.top-l1-btn--active .l1-btn-icon {
+  opacity: 1;
+  color: #0a1628;
+}
+
+.l1-btn-label {
+  line-height: 1;
 }
 
 /* ==================== 用户下拉触发器 ==================== */
@@ -400,7 +501,7 @@ watch(() => state.menuVersion, () => {
 .user-dropdown-name {
   font-size: 13px;
   color: #fff;
-  max-width: 120px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -409,41 +510,51 @@ watch(() => state.menuVersion, () => {
 /* ==================== 标签栏 ==================== */
 .tab-bar {
   display: flex;
-  align-items: center;
-  height: 36px;
+  align-items: flex-end;
+  height: 33px;
   padding: 0 8px;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
+  background: #f0f2f5;
   flex-shrink: 0;
   overflow-x: auto;
-  gap: 4px;
+  gap: 2px;
 }
 
 .tab-bar::-webkit-scrollbar {
-  height: 2px;
+  height: 0;
 }
 
 .tab-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 4px 14px 5px;
   font-size: 12px;
-  color: #666;
-  background: #f5f5f5;
-  border-radius: 4px 4px 0 0;
+  color: #999;
+  background: transparent;
+  border-radius: 6px 6px 0 0;
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
   transition: all 0.15s;
-  border: 1px solid transparent;
-  border-bottom: none;
+}
+
+.tab-item:hover {
+  color: #666;
+  background: rgba(0,0,0,0.04);
 }
 
 .tab-item--active {
-  color: #1890FF;
-  background: #e6f7ff;
+  color: #1a1a1a;
+  background: #fff;
   font-weight: 600;
+}
+
+/* ==================== 主内容区 ==================== */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  padding: 16px 20px 20px;
 }
 
 .tab-item__label {
@@ -453,9 +564,9 @@ watch(() => state.menuVersion, () => {
 }
 
 .tab-item__close {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
-  color: #999;
+  color: #bbb;
   border-radius: 50%;
   width: 16px;
   height: 16px;
@@ -465,11 +576,20 @@ watch(() => state.menuVersion, () => {
   transition: all 0.15s;
 }
 
+.tab-item--active .tab-item__close {
+  color: #999;
+}
+
+.tab-item__close:hover {
+  color: #fff;
+  background: #d0d0d0;
+}
+
 /* ==================== 主内容区 ==================== */
 .main-content {
   flex: 1;
   overflow-y: auto;
-  background: #f0f2f5;
+  background: #eef1f5;
   padding: 20px;
 }
 </style>

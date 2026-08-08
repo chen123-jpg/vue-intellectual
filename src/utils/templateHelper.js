@@ -107,11 +107,20 @@ export function templateVarLabel(varName) {
   return VAR_LABELS[varName] || varName
 }
 
-/** 将模板字符串中的 ${varName} 替换为实际值 */
+/** 将模板字符串中的 ${varName} 替换为实际值，并处理 Thymeleaf th:text 用于前端预览 */
 export function renderTemplate(template, data) {
   if (!template) return ''
-  return template.replace(/\$\{(\w+)\}/g, (match, name) => {
+  // Step 1: replace ${varName} with actual values
+  let html = template.replace(/\$\{(\w+)\}/g, (match, name) => {
     const val = data[name]
     return val != null ? String(val) : match
   })
+  // Step 2: convert th:text="VALUE" → replace element inner text with VALUE
+  html = html.replace(
+    /<(\w+)([^>]*?)\s+th:text="([^"]*)"([^>]*?)>([^<]*)<\/\1>/g,
+    '<$1$2$4>$3</$1>'
+  )
+  // Step 3: strip remaining th:* attributes for clean HTML preview
+  html = html.replace(/\s*th:\w+(?:\s*=\s*"[^"]*")?\s*/g, ' ')
+  return html
 }

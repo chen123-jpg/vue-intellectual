@@ -12,9 +12,12 @@
         <el-icon :size="30"><DocumentAdd /></el-icon>
       </div>
       <div class="page-header__text">
-        <h2 class="page-header__title">新增交底</h2>
-        <p class="page-header__subtitle">填写交底基本信息并上传附件</p>
+        <h2 class="page-header__title">{{ isEdit ? '编辑交底' : '新增交底' }}</h2>
+        <p class="page-header__subtitle">{{ isEdit ? '修改交底信息并保存' : '填写交底基本信息并上传附件' }}</p>
       </div>
+      <el-button v-if="!isEdit" type="primary" plain size="small" @click="openHistoryDialog" style="margin-left:auto">
+        <el-icon><Clock /></el-icon> 从历史交底选择
+      </el-button>
     </div>
 
     <!-- 表单 -->
@@ -44,25 +47,42 @@
             <!-- ========== 人员信息 ========== -->
             <h4 class="sec-head">人员信息</h4>
 
-            <!-- 主办人（必填） -->
+            <!-- 联系人（必填） -->
             <div class="sub-block">
-              <span class="sub-label">主办人 <el-tag size="small" type="danger">必填</el-tag></span>
-              <el-select
-                v-model="form.sponsorUserId"
-                filterable
-                :loading="sponsorLoading"
-                placeholder="搜索选择主办人"
-                no-data-text="暂无启用的主办人"
-                style="width:100%"
-                @change="onSponsorChange"
-              >
-                <el-option
-                  v-for="u in userList"
-                  :key="u.userId"
-                  :label="`${u.userName || u.loginName} (ID:${u.userId})`"
-                  :value="u.userId"
-                />
-              </el-select>
+              <span class="sub-label">联系人 <el-tag size="small" type="danger">必填</el-tag></span>
+              <el-row :gutter="12">
+                <el-col :span="8">
+                  <el-input v-model="form.contactPerson" placeholder="姓名" />
+                </el-col>
+                <el-col :span="8">
+                  <el-input v-model="form.contactEmail" placeholder="邮箱" />
+                </el-col>
+                <el-col :span="8">
+                  <el-input v-model="form.contactPhone" placeholder="电话" />
+                </el-col>
+              </el-row>
+            </div>
+
+            <!-- 指导人（选填） -->
+            <div class="sub-block">
+              <span class="sub-label">指导人 <el-tag size="small" type="info">选填</el-tag></span>
+              <div v-for="(mentor, idx) in mentors" :key="idx" class="person-row">
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <el-input v-model="mentor.name" placeholder="姓名" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="mentor.email" placeholder="邮箱" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="mentor.phone" placeholder="电话" />
+                  </el-col>
+                </el-row>
+                <el-button v-if="mentors.length > 1" class="person-del" type="danger" :icon="Delete" circle size="small" @click="removeMentor(idx)" />
+              </div>
+              <el-button type="primary" text size="small" @click="addMentor">
+                <el-icon><Plus /></el-icon> 添加指导人
+              </el-button>
             </div>
 
             <!-- 申请人（选填） -->
@@ -87,20 +107,47 @@
               </el-button>
             </div>
 
-            <!-- 联系人（必填） -->
+            <!-- 主办人（必填） -->
             <div class="sub-block">
-              <span class="sub-label">联系人 <el-tag size="small" type="danger">必填</el-tag></span>
-              <el-row :gutter="12">
-                <el-col :span="8">
-                  <el-input v-model="form.contactPerson" placeholder="姓名" />
-                </el-col>
-                <el-col :span="8">
-                  <el-input v-model="form.contactEmail" placeholder="邮箱" />
-                </el-col>
-                <el-col :span="8">
-                  <el-input v-model="form.contactPhone" placeholder="电话" />
-                </el-col>
-              </el-row>
+              <span class="sub-label">主办人 <el-tag size="small" type="danger">必填</el-tag></span>
+              <el-select
+                v-model="form.sponsorUserId"
+                filterable
+                :loading="sponsorLoading"
+                placeholder="搜索选择主办人"
+                no-data-text="暂无启用的主办人"
+                style="width:100%"
+                @change="onSponsorChange"
+              >
+                <el-option
+                  v-for="u in userList"
+                  :key="u.userId"
+                  :label="`${u.userName || u.loginName} (ID:${u.userId})`"
+                  :value="u.userId"
+                />
+              </el-select>
+            </div>
+
+            <!-- 业务人员（选填） -->
+            <div class="sub-block">
+              <span class="sub-label">业务人员 <el-tag size="small" type="info">选填</el-tag></span>
+              <div v-for="(person, idx) in businessPersonnelList" :key="idx" class="person-row">
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <el-input v-model="person.name" placeholder="姓名" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="person.email" placeholder="邮箱" />
+                  </el-col>
+                  <el-col :span="8">
+                    <el-input v-model="person.phone" placeholder="电话" />
+                  </el-col>
+                </el-row>
+                <el-button v-if="businessPersonnelList.length > 1" class="person-del" type="danger" :icon="Delete" circle size="small" @click="removeBusinessPersonnel(idx)" />
+              </div>
+              <el-button type="primary" text size="small" @click="addBusinessPersonnel">
+                <el-icon><Plus /></el-icon> 添加业务人员
+              </el-button>
             </div>
 
             <!-- ========== 客户要求 ========== -->
@@ -125,24 +172,65 @@
           下一步
         </el-button>
         <el-button v-else class="footer-btn" type="primary" @click="handleSave" :loading="saving">
-          创建交底
+          {{ isEdit ? '保存修改' : '创建交底' }}
         </el-button>
       </div>
     </el-card>
+
+    <!-- 历史交底选择对话框 -->
+    <el-dialog v-model="historyDialog.visible" title="选择历史交底" width="850px" destroy-on-close>
+      <SearchBar
+        v-model="historyDialog.query"
+        :fields="historySearchFields"
+        :loading="historyDialog.loading"
+        boxed
+        @search="historySearch"
+        @reset="historyReset"
+      />
+      <el-table :data="historyDialog.list" v-loading="historyDialog.loading" border stripe max-height="350" @row-dblclick="applyHistory">
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="internalNo" label="内部编号" width="120" />
+        <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="patentType" label="类型" width="90" />
+        <el-table-column prop="patentStatus" label="状态" width="100" />
+        <el-table-column prop="applicant" label="申请人" width="130" />
+        <el-table-column label="操作" width="80">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" link @click="applyHistory(row)">选择</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        v-model:current-page="historyDialog.page.pageNum"
+        v-model:page-size="historyDialog.page.pageSize"
+        :total="historyDialog.page.total"
+        :page-sizes="[10, 20]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="historySearch"
+        @current-change="historySearch"
+        class="pagination"
+      />
+      <template #footer>
+        <el-button @click="historyDialog.visible = false">取消</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { useRouter, onBeforeRouteLeave } from 'vue-router'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { DocumentAdd, ArrowLeft, Plus, Delete } from '@element-plus/icons-vue'
-import { getSponsorOptions, createWithAttachments } from '../../../api/disclosureWorkflow'
+import { DocumentAdd, ArrowLeft, Plus, Delete, Clock } from '@element-plus/icons-vue'
+import { getSponsorOptions, createWithAttachments, getById, update, getList } from '../../../api/disclosureWorkflow'
 import DisclosureAttachmentEditor from '../../../components/DisclosureAttachmentEditor.vue'
+import SearchBar from '../../../components/SearchBar.vue'
 import { useDialogAddDraft } from '../../../composables/useFormDraft'
 import { emptyForm } from './shared'
 
 const router = useRouter()
+const route = useRoute()
+const isEdit = computed(() => !!route.query.id)
 const formRef = ref(null)
 const activeTab = ref('basic')
 const saving = ref(false)
@@ -153,6 +241,77 @@ const userList = ref([])
 const sponsorLoading = ref(false)
 let allowRouteLeave = false
 
+// 历史交底选择
+const historySearchFields = [
+  { key: 'disclosureName', label: '交底名称', type: 'input', matchType: 'fuzzy', width: 180 },
+  { key: 'internalNo', label: '内部编号', type: 'input', width: 160 },
+  { key: 'patentType', label: '专利类型', type: 'select', options: [{ label: '发明', value: '发明' }, { label: '实用新型', value: '实用新型' }, { label: '外观', value: '外观' }], width: 120 }
+]
+const historyDialog = reactive({
+  visible: false,
+  query: { disclosureName: '', internalNo: '', patentType: '' },
+  page: { pageNum: 1, pageSize: 10, total: 0 },
+  list: [],
+  loading: false
+})
+
+const openHistoryDialog = () => {
+  historyDialog.visible = true
+  historySearch()
+}
+
+const historySearch = async () => {
+  historyDialog.loading = true
+  try {
+    const params = { pageNum: historyDialog.page.pageNum, pageSize: historyDialog.page.pageSize }
+    Object.keys(historyDialog.query).forEach(k => { if (historyDialog.query[k]) params[k] = historyDialog.query[k] })
+    const r = await getList(params)
+    if (r.code === 200) {
+      historyDialog.list = r.data.records || []
+      historyDialog.page.total = r.data.total || 0
+    }
+  } finally { historyDialog.loading = false }
+}
+
+const historyReset = () => {
+  Object.keys(historyDialog.query).forEach(k => historyDialog.query[k] = '')
+  historyDialog.page.pageNum = 1
+  historySearch()
+}
+
+const applyHistory = (row) => {
+  Object.assign(form, emptyForm(), {
+    disclosureName: row.disclosureName || '',
+    patentType: row.patentType || '',
+    internalNo: '',
+    patentStatus: '草稿',
+    applicant: row.applicant || '',
+    inventor: row.inventor || '',
+    contactPerson: row.contactPerson || '',
+    contactEmail: row.contactEmail || '',
+    contactPhone: row.contactPhone || '',
+    contactInfo: row.contactInfo || '',
+    agent: row.agent || '',
+    mentor: row.mentor || '',
+    businessPersonnel: row.businessPersonnel || '',
+    requirement: row.requirement || '',
+    remark: row.remark || '',
+    sponsorUserId: row.sponsorUserId || null,
+    sponsor: row.sponsor || '',
+    disclosureDate: row.disclosureDate || '',
+    noGenerateMode: 'AUTO'
+  })
+  applicants.value = parsePeopleText(row.applicant)
+  mentors.value = parsePeopleText(row.mentor)
+  businessPersonnelList.value = parsePeopleText(row.businessPersonnel)
+  if (row.requirement) {
+    preExam.value = row.requirement.includes('预审')
+    excellentExam.value = row.requirement.includes('优审')
+  }
+  historyDialog.visible = false
+  ElMessage.success('历史交底信息已回填，请确认内容并继续填写')
+}
+
 // 审查选项
 const preExam = ref(false)
 const excellentExam = ref(false)
@@ -160,9 +319,15 @@ const excellentExam = ref(false)
 // 申请人列表
 const applicants = ref([{ name: '', email: '', phone: '' }])
 
+// 指导人和业务人员均支持多人录入。
+const mentors = ref([{ name: '', email: '', phone: '' }])
+const businessPersonnelList = ref([{ name: '', email: '', phone: '' }])
+
 const emptyDraftData = () => ({
   form: emptyForm(),
   applicants: [{ name: '', email: '', phone: '' }],
+  mentors: [{ name: '', email: '', phone: '' }],
+  businessPersonnelList: [{ name: '', email: '', phone: '' }],
   preExam: false,
   excellentExam: false,
   activeTab: 'basic',
@@ -173,6 +338,8 @@ const emptyDraftData = () => ({
 const resetAddForm = () => {
   Object.assign(form, emptyForm())
   applicants.value = [{ name: '', email: '', phone: '' }]
+  mentors.value = [{ name: '', email: '', phone: '' }]
+  businessPersonnelList.value = [{ name: '', email: '', phone: '' }]
   preExam.value = false
   excellentExam.value = false
   activeTab.value = 'basic'
@@ -185,6 +352,8 @@ const addDraft = useDialogAddDraft('patent-disclosure-page-add', {
   getCurrentData: () => ({
     form: { ...form },
     applicants: applicants.value.map(item => ({ ...item })),
+    mentors: mentors.value.map(item => ({ ...item })),
+    businessPersonnelList: businessPersonnelList.value.map(item => ({ ...item })),
     preExam: preExam.value,
     excellentExam: excellentExam.value,
     activeTab: activeTab.value,
@@ -196,6 +365,12 @@ const addDraft = useDialogAddDraft('patent-disclosure-page-add', {
     Object.assign(form, emptyForm(), data.form || {})
     applicants.value = Array.isArray(data.applicants) && data.applicants.length
       ? data.applicants.map(item => ({ ...item }))
+      : [{ name: '', email: '', phone: '' }]
+    mentors.value = Array.isArray(data.mentors) && data.mentors.length
+      ? data.mentors.map(item => ({ ...item }))
+      : [{ name: '', email: '', phone: '' }]
+    businessPersonnelList.value = Array.isArray(data.businessPersonnelList) && data.businessPersonnelList.length
+      ? data.businessPersonnelList.map(item => ({ ...item }))
       : [{ name: '', email: '', phone: '' }]
     preExam.value = !!data.preExam
     excellentExam.value = !!data.excellentExam
@@ -218,6 +393,28 @@ const addApplicant = () => {
 const removeApplicant = (idx) => {
   applicants.value.splice(idx, 1)
 }
+
+const addMentor = () => {
+  mentors.value.push({ name: '', email: '', phone: '' })
+}
+
+const removeMentor = (idx) => {
+  mentors.value.splice(idx, 1)
+}
+
+const addBusinessPersonnel = () => {
+  businessPersonnelList.value.push({ name: '', email: '', phone: '' })
+}
+
+const removeBusinessPersonnel = (idx) => {
+  businessPersonnelList.value.splice(idx, 1)
+}
+
+/** 将多人表单转换为后端保存的分号分隔文本。 */
+const peopleToText = (people) => people
+  .filter(person => person.name || person.email || person.phone)
+  .map(person => [person.name, person.email, person.phone].filter(Boolean).join(' '))
+  .join('; ')
 
 // 日期变化时自动生成临时编号
 const onDateChange = (val) => {
@@ -243,24 +440,68 @@ const loadUsers = async () => {
   }
 }
 
+// 把 "name1 email1 phone1; name2 email2 phone2" 解析成 [{name,email,phone}]
+const parsePeopleText = (text) => {
+  if (!text) return [{ name: '', email: '', phone: '' }]
+  const parts = text.split(';').filter(Boolean)
+  const list = parts.map(p => {
+    const segs = p.trim().split(/\s+/)
+    return { name: segs[0] || '', email: segs[1] || '', phone: segs.slice(2).join(' ') || '' }
+  }).filter(p => p.name || p.email || p.phone)
+  return list.length ? list : [{ name: '', email: '', phone: '' }]
+}
+
+const loadEditData = async (id) => {
+  try {
+    const r = await getById(id)
+    if (r.code === 200 && r.data) {
+      const d = r.data
+      Object.assign(form, emptyForm(), {
+        id: d.id, tempNo: d.tempNo, internalNo: d.internalNo, patentStatus: d.patentStatus,
+        disclosureName: d.disclosureName, patentType: d.patentType, applicant: d.applicant,
+        inventor: d.inventor, contactPerson: d.contactPerson, sponsor: d.sponsor,
+        sponsorUserId: d.sponsorUserId, agent: d.agent, mentor: d.mentor,
+        businessPersonnel: d.businessPersonnel, disclosureDate: d.disclosureDate,
+        requirement: d.requirement, remark: d.remark,
+        contactEmail: d.contactEmail, contactPhone: d.contactPhone, contactInfo: d.contactInfo
+      })
+      // 解析多人字段
+      applicants.value = parsePeopleText(d.applicant)
+      mentors.value = parsePeopleText(d.mentor)
+      businessPersonnelList.value = parsePeopleText(d.businessPersonnel)
+      // 解析预审/优审
+      if (d.requirement) {
+        preExam.value = d.requirement.includes('预审')
+        excellentExam.value = d.requirement.includes('优审')
+      }
+    }
+  } catch {
+    ElMessage.error('加载交底数据失败')
+    router.push('/patent/disclosure')
+  }
+}
+
 const handleSave = async () => {
   if (!validateBasicForm()) {
     activeTab.value = 'basic'
     return
   }
-  if (!pendingDocument.value) {
+  if (!isEdit.value && !pendingDocument.value) {
     ElMessage.warning('请在附件页上传一份 Word 格式的交底书')
     activeTab.value = 'attachments'
     return
   }
   saving.value = true
   try {
-    // 组装申请人：过滤空行，拼接为字符串
     const validApps = applicants.value.filter(a => a.name || a.email || a.phone)
     const applicantStr = validApps.map(a => [a.name, a.email, a.phone].filter(Boolean).join(' ')).join('; ')
+    const mentor = peopleToText(mentors.value)
+    const businessPersonnel = peopleToText(businessPersonnelList.value)
     const submitData = {
       ...form,
       applicant: applicantStr || form.applicant,
+      mentor: mentor || undefined,
+      businessPersonnel: businessPersonnel || undefined,
       requirement: [
         form.requirement || '',
         preExam.value ? '预审' : '',
@@ -269,12 +510,22 @@ const handleSave = async () => {
     }
     delete submitData.patentType
     delete submitData.agent
-    const res = await createWithAttachments(submitData, pendingDocument.value, pendingOthers.value, null)
-    if (res.code === 200) {
-      addDraft.clear()
-      allowRouteLeave = true
-      ElMessage.success('交底创建成功')
-      router.push('/patent/disclosure')
+
+    if (isEdit.value) {
+      const res = await update(submitData)
+      if (res.code === 200) {
+        allowRouteLeave = true
+        ElMessage.success('修改成功')
+        router.push('/patent/disclosure')
+      }
+    } else {
+      const res = await createWithAttachments(submitData, pendingDocument.value, pendingOthers.value, null)
+      if (res.code === 200) {
+        addDraft.clear()
+        allowRouteLeave = true
+        ElMessage.success('交底创建成功')
+        router.push('/patent/disclosure')
+      }
     }
   } finally {
     saving.value = false
@@ -316,9 +567,27 @@ onBeforeRouteLeave(async () => {
   return canLeave
 })
 
-onMounted(() => {
+const loadFromSource = async (sourceId) => {
+  try {
+    const r = await getById(sourceId)
+    if (r.code === 200 && r.data) {
+      applyHistory(r.data)
+    }
+  } catch {
+    ElMessage.error('加载历史交底数据失败')
+  }
+}
+
+onMounted(async () => {
+  if (isEdit.value) {
+    await loadEditData(route.query.id)
+  } else {
+    addDraft.open(() => {})
+    if (route.query.sourceId) {
+      await loadFromSource(route.query.sourceId)
+    }
+  }
   loadUsers()
-  addDraft.open(() => {})
   window.addEventListener('beforeunload', handleBeforeUnload)
 })
 

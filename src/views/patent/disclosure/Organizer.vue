@@ -1,23 +1,30 @@
 <template>
   <div class="page">
     <el-card>
-      <!-- Search Form -->
-      <SearchBar
-        v-model="og.query"
-        :fields="og.searchFields"
-        :loading="og.loading"
-        :collapsed-threshold="4"
-        @search="ogFetchData"
-        @reset="ogResetQuery"
-      />
-
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <span class="view-hint">我的交底处理列表（共 {{ og.page.total }} 条）</span>
+      <!-- 筛选面板 -->
+      <div class="filter-box">
+        <div class="filter-box__title"><el-icon :size="15"><Search /></el-icon><span>筛选条件</span></div>
+        <div class="filter-grid">
+          <div class="filter-cell" v-for="f in og.searchFields" :key="f.key">
+            <label class="filter-cell__label">{{ f.label }}</label>
+            <el-input v-if="f.type === 'input'" v-model="og.query[f.key]" clearable />
+            <el-select v-else-if="f.type === 'select'" v-model="og.query[f.key]" clearable placeholder="全部" @change="ogFetchData">
+              <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </div>
+        </div>
+        <div class="filter-actions"><el-button type="primary" @click="ogFetchData">查询</el-button><el-button @click="ogResetQuery">重置</el-button></div>
       </div>
 
-      <!-- Table -->
-      <el-table :data="og.tableData" v-loading="og.loading" border stripe>
+      <!-- 表格区域 -->
+      <div class="table-section">
+        <div class="table-section__bar">
+          <span class="table-section__count">共 <strong>{{ og.page.total }}</strong> 条</span>
+          <el-button size="small" @click="ogFetchData" :icon="Refresh">刷新</el-button>
+        </div>
+
+        <!-- Table -->
+        <el-table :data="og.tableData" v-loading="og.loading" border stripe>
         <el-table-column prop="tempNo" label="临时编号" width="120" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
@@ -45,7 +52,7 @@
         </el-table-column>
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" @click="ogOpenProcess(row)">处理</el-button>
+            <el-button size="small" type="primary" link @click="ogOpenProcess(row)">处理</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -61,6 +68,7 @@
         @current-change="ogFetchData"
         class="pagination"
       />
+      </div>
     </el-card>
 
     <!-- Process Dialog -->
@@ -266,12 +274,12 @@
             </template>
 
             <template v-if="og.emailMode === 'template' && og.emailSelectedTemplate">
-              <el-divider content-position="left">模板预览</el-divider>
+              <el-divider content-position="left">邮件预览</el-divider>
               <el-form-item label="主题">
                 <el-input :model-value="ogRenderedSubject" disabled />
               </el-form-item>
               <el-form-item label="正文">
-                <div class="content-preview" v-html="og.emailSelectedTemplate.content"></div>
+                <div class="content-preview" v-html="ogRenderedContent"></div>
               </el-form-item>
             </template>
 
@@ -400,7 +408,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete } from '@element-plus/icons-vue'
+import { Delete, Search, Refresh } from '@element-plus/icons-vue'
 import {
   search,
   getById,
@@ -416,7 +424,6 @@ import {
 } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import ApplicationPackageComposer from '../../../components/ApplicationPackageComposer.vue'
-import SearchBar from '../../../components/SearchBar.vue'
 import { downloadFile, formatDate, formatDateTime } from '../../../utils/format'
 import { autoFillTemplateVars, templateVarLabel, renderTemplate } from '../../../utils/templateHelper'
 import { useUserStore } from '../../../stores/user'
@@ -480,6 +487,11 @@ const ogRenderedSubject = computed(() => {
   return renderTemplate(og.emailSelectedTemplate.subject, og.emailTemplateData)
 })
 
+const ogRenderedContent = computed(() => {
+  if (!og.emailSelectedTemplate) return ''
+  return renderTemplate(og.emailSelectedTemplate.content, og.emailTemplateData)
+})
+
 // ========================== Data Fetching ==========================
 const ogFetchData = async () => {
   og.loading = true
@@ -536,9 +548,10 @@ const ogOpenProcess = async (row) => {
       og.fees = []
       og.invoices = []
       og.emailMode = 'normal'
+      const userEmail = userState.userInfo?.email || userState.email || ''
       og.emailForm = {
         to: r.data.contactEmail || '',
-        cc: '',
+        cc: userEmail,
         subject: `关于专利交底"${r.data.disclosureName}"的通知`,
         text: '',
         templateCode: ''
@@ -808,22 +821,16 @@ onMounted(() => {
   max-width: 1600px;
 }
 
-.search-form {
-  margin-bottom: 10px;
-}
-
-.toolbar {
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.view-hint {
-  color: #909399;
-  font-size: 13px;
-}
+.filter-box { margin-bottom:20px; background:linear-gradient(135deg,#f0f4fa 0%,#f7f9fc 50%,#fafbfd 100%); border:1px solid #d4dde8; border-left:4px solid #1e88e5; border-radius:8px; box-shadow:0 2px 8px rgba(10,22,40,0.04); overflow:hidden; }
+.filter-box__title { display:flex;align-items:center;gap:8px; padding:8px 20px; background:rgba(30,136,229,0.06); border-bottom:1px solid #e0e7f0; font-size:12px;font-weight:700;color:#1e3a5c; }
+.filter-grid { display:grid;grid-template-columns:repeat(4,1fr); gap:10px 20px; padding:16px 20px 8px; }
+.filter-cell { display:flex;align-items:center;gap:8px; }
+.filter-cell__label { font-size:11px;font-weight:600;color:#7c8799;white-space:nowrap;flex-shrink:0; }
+.filter-actions { padding:6px 20px 14px;display:flex;gap:8px; }
+.table-section { border:1px solid #e2e8f0;border-radius:8px;overflow:hidden; }
+.table-section__bar { display:flex;align-items:center;gap:8px; padding:10px 16px; background:#fafbfc; border-bottom:1px solid #e8ecf1; }
+.table-section__count { flex:1;font-size:13px;color:#5f6b7a; }
+.table-section__count strong { color:#1e88e5;font-weight:700; }
 
 .pagination {
   margin-top: 16px;
@@ -890,11 +897,14 @@ onMounted(() => {
 
 .content-preview {
   background: #f5f7fa;
-  padding: 12px;
+  padding: 16px;
   border-radius: 4px;
-  max-height: 200px;
+  min-height: 150px;
+  max-height: 360px;
   overflow-y: auto;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.8;
+  border: 1px solid #e4e7ed;
 }
 .image-upload-area { display: flex; align-items: center; gap: 12px; }
 .image-preview-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }

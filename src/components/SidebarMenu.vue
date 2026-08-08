@@ -28,9 +28,9 @@
     ]"
     :style="{ width: sidebarWidth + 'px' }"
   >
-    <!-- 标题 -->
+    <!-- 当前一级菜单名 -->
     <div class="sidebar__header">
-      <span class="sidebar__title">知识产权<br>管理系统</span>
+      <span class="sidebar__header-text">{{ currentL1Label }}</span>
     </div>
 
     <!-- 分割线 -->
@@ -89,6 +89,7 @@ const props = defineProps({
   menus: { type: Array, default: () => [] },
   activePath: { type: String, default: '' },
   isCollapse: { type: Boolean, default: false },
+  currentL1Label: { type: String, default: '' },
   userName: { type: String, default: '' },
   userDept: { type: String, default: '' }
 })
@@ -211,11 +212,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #304156;
+  background: linear-gradient(135deg, #1a2332, #304156);
   color: #fff;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 /* ==================== 遮罩层 ==================== */
@@ -224,6 +225,7 @@ onUnmounted(() => {
   inset: 0;
   z-index: 998;
   background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
   animation: fadeIn 0.3s ease;
 }
 
@@ -233,19 +235,19 @@ onUnmounted(() => {
 }
 
 /* ================================================================ */
-/*  侧边栏（单面板白色背景）                                          */
+/*  侧边栏                                                        */
 /* ================================================================ */
 .sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  background: #FFFFFF;
-  z-index: 999;
-  transition: width 0.3s ease;
+  background: #fafbfc;
+  border-right: 1px solid #e8ecf1;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.04);
+  z-index: 99;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 /* 移动端抽屉模式 */
@@ -260,36 +262,57 @@ onUnmounted(() => {
   transform: translateX(0);
 }
 
-/* 标题 */
+/* ================================================================ */
+/*  标题（和顶部一级菜单同色系，产生视觉关联）                      */
+/* ================================================================ */
 .sidebar__header {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 60px;
-  padding: 20px 12px;
+  min-height: 48px;
+  padding: 14px 12px;
+  background: linear-gradient(180deg, #e8f0fe 0%, #fafbfc 100%);
+  border-bottom: 1px solid #dce8f5;
+  position: relative;
 }
 
-.sidebar__title {
-  font-size: 16px;
+.sidebar__header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #1e88e5;
+  border-radius: 0 2px 2px 0;
+}
+
+.sidebar__header-text {
+  font-size: 14px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #1565c0;
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.2;
+  letter-spacing: 0.5px;
 }
 
-/* 分割线 */
+/* ================================================================ */
+/*  分割线                                                         */
+/* ================================================================ */
 .sidebar__divider {
   height: 1px;
-  margin: 0 24px;
-  background: rgba(0, 0, 0, 0.08);
+  margin: 0 20px;
+  background: linear-gradient(90deg, transparent, #dde3ea 20%, #dde3ea 80%, transparent);
 }
 
-/* 菜单滚动区 */
+/* ================================================================ */
+/*  菜单滚动区                                                      */
+/* ================================================================ */
 .sidebar__menu-scroll {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 8px 0;
+  padding: 10px 8px;
 }
 
 .sidebar__menu-scroll::-webkit-scrollbar {
@@ -301,81 +324,78 @@ onUnmounted(() => {
 }
 
 .sidebar__menu-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 2px;
 }
 
 .sidebar__empty {
   padding: 40px 24px;
   text-align: center;
-  color: rgba(0, 0, 0, 0.35);
+  color: rgba(0, 0, 0, 0.3);
   font-size: 12px;
 }
 
 /* ================================================================ */
-/*  二级菜单项                                                       */
+/*  二级菜单项                                                      */
 /* ================================================================ */
 .l2-item {
   display: flex;
   align-items: center;
-  min-height: 32px;
-  padding: 2px 16px 2px 10px;
+  min-height: 36px;
+  margin: 2px 4px;
+  padding: 6px 12px 6px 10px;
   cursor: pointer;
   user-select: none;
-  color: rgba(0, 0, 0, 0.7);
+  color: #455a64;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   gap: 8px;
   position: relative;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .l2-item:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: #1a1a1a;
+  background: #eef2f7;
+  color: #1a2332;
 }
 
 .l2-item--active {
-  background: rgba(0, 0, 0, 0.09);
-  color: #1a1a1a;
+  background: linear-gradient(135deg, #e8f0fe 0%, #e3ecf7 100%);
+  color: #1565c0;
+  box-shadow: inset 0 0 0 1px rgba(21, 101, 192, 0.12);
 }
 
-.l2-item--active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: #1890FF;
+.l2-item--active .l2-item__dot {
+  background: #1e88e5;
+  box-shadow: 0 0 6px rgba(30, 136, 229, 0.4);
+  width: 6px;
+  height: 6px;
 }
 
 .l2-item__dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.25);
+  background: #b0bec5;
   flex-shrink: 0;
-}
-
-.l2-item--active .l2-item__dot {
-  background: #1890FF;
+  transition: all 0.22s ease;
 }
 
 .l2-item__label {
   flex: 1;
   word-break: break-all;
-  line-height: 1.2;
-  font-size: 12px;
+  line-height: 1.3;
+  font-size: 13px;
 }
 
 .l2-item__arrow {
   display: flex;
   align-items: center;
-  color: rgba(0, 0, 0, 0.3);
+  color: #90a4ae;
   flex-shrink: 0;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .l2-item--expanded .l2-item__arrow {
@@ -383,64 +403,73 @@ onUnmounted(() => {
 }
 
 /* ================================================================ */
-/*  三级菜单项                                                       */
+/*  三级菜单项                                                      */
 /* ================================================================ */
 .l3-list {
   overflow: hidden;
+  padding: 2px 0;
 }
 
 .l3-item {
   display: flex;
   align-items: center;
-  min-height: 30px;
-  padding: 2px 16px 2px 22px;
+  min-height: 32px;
+  margin: 1px 4px 1px 8px;
+  padding: 4px 12px 4px 20px;
   cursor: pointer;
   user-select: none;
-  color: rgba(0, 0, 0, 0.6);
+  color: #607d8b;
   font-size: 12px;
-  font-weight: 600;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   gap: 8px;
   position: relative;
   border-radius: 6px;
 }
 
+.l3-item::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #cfd8dc;
+  transition: all 0.2s ease;
+}
+
 .l3-item:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: #1a1a1a;
+  background: #eef2f7;
+  color: #37474f;
+}
+
+.l3-item:hover::before {
+  background: #90a4ae;
 }
 
 .l3-item--active {
-  background: rgba(0, 0, 0, 0.08);
-  color: #1a1a1a;
+  background: #e8f0fe;
+  color: #1565c0;
+  font-weight: 600;
 }
 
 .l3-item--active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: #1890FF;
+  background: #1e88e5;
+  box-shadow: 0 0 4px rgba(30, 136, 229, 0.4);
+  width: 6px;
+  height: 6px;
 }
 
 .l3-item__dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.2);
-  flex-shrink: 0;
-}
-
-.l3-item--active .l3-item__dot {
-  background: #1890FF;
+  display: none;
 }
 
 .l3-item__label {
   flex: 1;
   word-break: break-all;
-  line-height: 1.2;
-  font-size: 11px;
+  line-height: 1.3;
+  font-size: 12px;
 }
 </style>

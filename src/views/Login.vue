@@ -164,7 +164,7 @@ const sendSmsCode = async () => {
     ElMessage.warning("请输入手机号")
     return
   }
-  
+
   // 对于手机号登录，必须先填写人机验证码
   let currentCheckCode = ''
   let currentCheckCodeKey = ''
@@ -185,7 +185,7 @@ const sendSmsCode = async () => {
   }
 
   try {
-    const res = await getSmsCode(phone, currentCheckCode, currentCheckCodeKey)
+    const res = await getSmsCode(phone)
     isSending.value = true
     
     // 直接弹窗显示验证码（为了绕过阿里云短信资质审核）

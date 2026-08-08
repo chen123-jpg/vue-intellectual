@@ -1,28 +1,34 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="菜单名称">
-          <el-input v-model="query.menuName" placeholder="模糊搜索" clearable />
-        </el-form-item>
-        <el-form-item label="菜单类型">
-          <el-select v-model="query.menuType" placeholder="全部" clearable>
-            <el-option label="目录" value="M" />
-            <el-option label="菜单" value="C" />
-            <el-option label="按钮" value="F" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="query.visible" placeholder="全部" clearable>
-            <el-option label="显示" value="0" />
-            <el-option label="隐藏" value="1" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
+      <div class="filter-box">
+        <div class="filter-box__title"><span>筛选条件</span></div>
+        <div class="filter-grid">
+          <div class="filter-cell">
+            <label class="filter-cell__label">菜单名称</label>
+            <el-input v-model="query.menuName" placeholder="模糊搜索" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">菜单类型</label>
+            <el-select v-model="query.menuType" placeholder="全部" clearable>
+              <el-option label="目录" value="M" />
+              <el-option label="菜单" value="C" />
+              <el-option label="按钮" value="F" />
+            </el-select>
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">状态</label>
+            <el-select v-model="query.visible" placeholder="全部" clearable>
+              <el-option label="显示" value="0" />
+              <el-option label="隐藏" value="1" />
+            </el-select>
+          </div>
+        </div>
+        <div class="filter-actions">
           <el-button type="primary" @click="fetchData">查询</el-button>
           <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+        </div>
+      </div>
 
       <div class="toolbar">
         <el-button v-if="hasPerm('system:menu:add')" type="primary" @click="openAdd">新增</el-button>

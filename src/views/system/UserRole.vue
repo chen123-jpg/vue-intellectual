@@ -1,18 +1,23 @@
 <template>
   <div class="page">
     <el-card>
-      <el-form :inline="true" :model="query" class="search-form">
-        <el-form-item label="用户ID">
-          <el-input v-model="query.userId" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item label="角色ID">
-          <el-input v-model="query.roleId" placeholder="精确搜索" clearable />
-        </el-form-item>
-        <el-form-item>
+      <div class="filter-box">
+        <div class="filter-box__title"><span>筛选条件</span></div>
+        <div class="filter-grid">
+          <div class="filter-cell">
+            <label class="filter-cell__label">用户ID</label>
+            <el-input v-model="query.userId" placeholder="精确搜索" clearable />
+          </div>
+          <div class="filter-cell">
+            <label class="filter-cell__label">角色ID</label>
+            <el-input v-model="query.roleId" placeholder="精确搜索" clearable />
+          </div>
+        </div>
+        <div class="filter-actions">
           <el-button type="primary" @click="fetchData">查询</el-button>
           <el-button @click="resetQuery">重置</el-button>
-        </el-form-item>
-      </el-form>
+        </div>
+      </div>
 
       <div class="toolbar">
         <el-button v-if="hasPerm('system:userRole:add')" type="primary" @click="openAdd">新增</el-button>
