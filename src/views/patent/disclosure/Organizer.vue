@@ -215,6 +215,7 @@
         <!-- Tab 4: 发送邮件 -->
         <el-tab-pane label="发送邮件" name="email">
           <el-form label-width="80px">
+            <input ref="emailImageFileInputRef" type="file" accept="image/*" style="display:none" @change="ogOnEmailImageFileChosen" />
             <el-form-item label="发送模式">
               <el-radio-group v-model="og.emailMode" @change="ogOnEmailModeChange">
                 <el-radio-button value="normal">普通发送</el-radio-button>
@@ -245,13 +246,13 @@
                   <template v-if="og.emailTemplateData[v]">
                     <div class="var-image-filled">
                       <img :src="og.emailTemplateData[v]" class="var-image-thumb" />
-                      <el-button size="small" type="danger" text @click="og.emailTemplateData[v]=''">清除</el-button>
+                      <el-button size="small" type="danger" text @click="ogOnEmailClearImageVar(v)">清除</el-button>
                     </div>
                   </template>
-                  <span v-else class="var-image-waiting">上传图片后自动填入</span>
+                  <span v-else class="var-image-waiting">上传图片后自动填入模板对应位置</span>
                 </el-form-item>
                 <el-form-item v-else :label="templateVarLabel(v)" required>
-                  <el-input v-model="og.emailTemplateData[v]" :placeholder="`输入${templateVarLabel(v)}`" />
+                  <el-input v-model="og.emailTemplateData[v]" :placeholder="`输入${templateVarLabel(v)}`" @input="ogOnEmailVarChange" />
                 </el-form-item>
               </template>
             </template>
@@ -276,31 +277,65 @@
             <template v-if="og.emailMode === 'template' && og.emailSelectedTemplate">
               <el-divider content-position="left">邮件预览</el-divider>
               <el-form-item label="主题">
-                <el-input :model-value="ogRenderedSubject" disabled />
+                <el-input v-model="og.emailPreviewSubject" @input="ogOnEmailSubjectInput" placeholder="邮件主题" />
               </el-form-item>
               <el-form-item label="正文">
-                <div class="content-preview" v-html="ogRenderedContent"></div>
+                <div class="editor-toolbar" @mousedown.prevent>
+                  <el-button-group>
+                    <el-button size="small" text title="撤销" @click="ogEmailExecCmd('undo')"><el-icon><RefreshLeft /></el-icon></el-button>
+                    <el-button size="small" text title="重做" @click="ogEmailExecCmd('redo')"><el-icon><RefreshRight /></el-icon></el-button>
+                  </el-button-group>
+                  <el-divider direction="vertical" />
+                  <el-button-group>
+                    <el-button size="small" text title="加粗" @click="ogEmailExecCmd('bold')"><b>B</b></el-button>
+                    <el-button size="small" text title="斜体" @click="ogEmailExecCmd('italic')"><i>I</i></el-button>
+                    <el-button size="small" text title="下划线" @click="ogEmailExecCmd('underline')"><u>U</u></el-button>
+                    <el-button size="small" text title="删除线" @click="ogEmailExecCmd('strikeThrough')"><s>S</s></el-button>
+                  </el-button-group>
+                  <el-divider direction="vertical" />
+                  <el-button-group>
+                    <el-button size="small" text title="无序列表" @click="ogEmailExecCmd('insertUnorderedList')"><el-icon><List /></el-icon></el-button>
+                    <el-button size="small" text title="有序列表" @click="ogEmailExecCmd('insertOrderedList')"><el-icon><Tickets /></el-icon></el-button>
+                  </el-button-group>
+                  <el-divider direction="vertical" />
+                  <el-button-group>
+                    <el-button size="small" text title="插入链接" @click="ogEmailInsertLink"><el-icon><Link /></el-icon></el-button>
+                    <el-button size="small" text title="插入图片" :loading="og.emailInsertingImage" @click="ogEmailInsertImage"><el-icon><Picture /></el-icon></el-button>
+                    <el-button size="small" text title="清除格式" @click="ogEmailExecCmd('removeFormat')"><el-icon><Delete /></el-icon></el-button>
+                  </el-button-group>
+                  <div class="editor-toolbar__spacer"></div>
+                  <el-button size="small" @click="ogRegenerateEmailPreview" title="根据模板变量重新生成预览">重新生成</el-button>
+                </div>
+                <div
+                  ref="emailContentEditableRef"
+                  class="content-preview editable-preview"
+                  contenteditable="true"
+                  v-loading="og.emailPreviewLoading"
+                  @input="ogOnEmailContentInput"
+                  @mouseup="ogEmailCaptureEditorSelection"
+                  @keyup="ogEmailCaptureEditorSelection"
+                  @focus="ogEmailCaptureEditorSelection"
+                ></div>
+                <div v-if="og.emailContentDirty || og.emailSubjectDirty" class="dirty-hint">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>已手动修改，修改模板变量不会自动刷新预览，点击『重新生成』恢复模板渲染。</span>
+                </div>
               </el-form-item>
             </template>
 
-            <template v-if="og.emailMode === 'template' && og.emailTemplateVars.some(v => ogIsImageVar(v))">
-              <el-form-item label="插入图片">
-                <div class="image-upload-area">
-                  <el-upload :show-file-list="false" :before-upload="ogBeforeImageUpload" :http-request="ogUploadImage" accept="image/*" action="#">
-                    <el-button :loading="og.emailImageUploading" size="small">选择图片</el-button>
-                  </el-upload>
-                  <span class="upload-tip">上传后在模板正文中以 cid 或 URL 引用</span>
-                </div>
-                <div v-if="og.emailImageUrls.length" class="image-preview-list">
+            <template v-if="og.emailMode === 'template' && og.emailImageUrls.length">
+              <el-form-item label="已插入图片">
+                <div class="image-preview-list" @mousedown.prevent>
                   <div v-for="(url, idx) in og.emailImageUrls" :key="idx" class="image-preview-item">
-                    <img :src="url" class="image-thumb" @click="ogCopyImageUrl(url)" title="点击复制 URL" />
+                    <img :src="url" class="image-thumb" />
                     <span class="image-url-text">{{ ogGetImageName(url) }}</span>
                     <div class="image-url-actions">
-                      <el-button size="small" text @click="ogCopyImageUrl(url)">复制URL</el-button>
-                      <el-button size="small" type="danger" text @click="og.emailImageUrls.splice(idx, 1)">删除</el-button>
+                      <el-button size="small" type="primary" text @click="ogEmailInsertImageAtCaret(url)">插入</el-button>
+                      <el-button size="small" type="danger" text @click="ogRemoveEmailImage(idx)">删除</el-button>
                     </div>
                   </div>
                 </div>
+                <div class="image-insert-hint">先在预览正文中点击图片要插入的位置，再点『插入』。</div>
               </el-form-item>
             </template>
 
@@ -321,7 +356,7 @@
                     type="danger"
                     :icon="Delete"
                     circle
-                    @click="og.emailAttachments.splice(idx, 1)"
+                    @click="ogRemoveEmailAtt(idx)"
                   />
                 </div>
               </div>
@@ -408,7 +443,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Search, Refresh } from '@element-plus/icons-vue'
+import { Delete, Search, Refresh, RefreshLeft, RefreshRight, List, Tickets, Link, Picture, InfoFilled } from '@element-plus/icons-vue'
 import {
   search,
   getById,
@@ -420,7 +455,9 @@ import {
   getTemplateList,
   sendMail,
   sendMailWithTemplate,
-  uploadFile
+  renderMailPreview,
+  uploadFile,
+  deleteFile
 } from '../../../api/disclosureWorkflow'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import ApplicationPackageComposer from '../../../components/ApplicationPackageComposer.vue'
@@ -477,20 +514,156 @@ const og = reactive({
   emailImageUrls: [],
   emailSending: false,
   emailUploading: false,
-  emailImageUploading: false,
+  emailInsertingImage: false,
+  emailPreviewSubject: '',
+  emailPreviewContent: '',
+  emailContentDirty: false,
+  emailSubjectDirty: false,
+  emailPreviewLoading: false,
   templateList: [],
   enabledTemplates: computed(() => og.templateList.filter((t) => t.enabled === 1))
 })
 
-const ogRenderedSubject = computed(() => {
-  if (!og.emailSelectedTemplate) return ''
-  return renderTemplate(og.emailSelectedTemplate.subject, og.emailTemplateData)
-})
+const emailContentEditableRef = ref(null)
+const emailImageFileInputRef = ref(null)
+let emailRenderTimer = null
 
-const ogRenderedContent = computed(() => {
-  if (!og.emailSelectedTemplate) return ''
-  return renderTemplate(og.emailSelectedTemplate.content, og.emailTemplateData)
-})
+// ==================== 邮件预览渲染 ====================
+const ogEmailSyncEditorDom = () => {
+  if (emailContentEditableRef.value) {
+    emailContentEditableRef.value.innerHTML = og.emailPreviewContent
+  }
+}
+
+/** 后端渲染失败时的前端兜底渲染（仅刷新未手动编辑的部分） */
+const ogEmailRenderLocalPreview = () => {
+  if (!og.emailSelectedTemplate) return
+  if (!og.emailSubjectDirty) og.emailPreviewSubject = renderTemplate(og.emailSelectedTemplate.subject, og.emailTemplateData)
+  if (!og.emailContentDirty) {
+    og.emailPreviewContent = renderTemplate(og.emailSelectedTemplate.content, og.emailTemplateData)
+    ogEmailSyncEditorDom()
+  }
+}
+
+const ogFetchEmailPreview = async () => {
+  if (!og.emailSelectedTemplate || !og.emailForm.templateCode) return
+  og.emailPreviewLoading = true
+  try {
+    const r = await renderMailPreview({
+      templateCode: og.emailForm.templateCode,
+      templateData: { ...og.emailTemplateData }
+    })
+    if (r.code === 200) {
+      if (!og.emailSubjectDirty) og.emailPreviewSubject = r.data.subject || ''
+      if (!og.emailContentDirty) {
+        og.emailPreviewContent = r.data.content || ''
+        ogEmailSyncEditorDom()
+      }
+    } else {
+      ogEmailRenderLocalPreview()
+    }
+  } catch (e) {
+    ogEmailRenderLocalPreview()
+  } finally {
+    og.emailPreviewLoading = false
+  }
+}
+
+const ogOnEmailVarChange = () => {
+  clearTimeout(emailRenderTimer)
+  if (og.emailContentDirty && og.emailSubjectDirty) return
+  emailRenderTimer = setTimeout(ogFetchEmailPreview, 400)
+}
+
+const ogOnEmailSubjectInput = () => { og.emailSubjectDirty = true }
+
+const ogOnEmailContentInput = () => {
+  og.emailContentDirty = true
+  og.emailPreviewContent = emailContentEditableRef.value ? emailContentEditableRef.value.innerHTML : ''
+}
+
+const ogEmailExecCmd = (cmd, value = null) => {
+  if (!emailContentEditableRef.value) return
+  emailContentEditableRef.value.focus()
+  document.execCommand(cmd, false, value)
+  ogOnEmailContentInput()
+}
+
+const ogEmailInsertLink = () => {
+  const url = window.prompt('请输入链接地址（以 http:// 或 https:// 开头）')
+  if (!url) return
+  ogEmailExecCmd('createLink', url)
+}
+
+const ogEmailInsertImage = () => {
+  emailImageFileInputRef.value?.click()
+}
+
+const ogOnEmailImageFileChosen = async (e) => {
+  const file = e.target.files[0]
+  e.target.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) { ElMessage.warning('仅支持图片文件'); return }
+  if (file.size > 5 * 1024 * 1024) { ElMessage.warning('图片大小不能超过 5MB'); return }
+  og.emailInsertingImage = true
+  try {
+    const r = await uploadFile(file)
+    if (r.code === 200) {
+      og.emailImageUrls.push(r.data)
+      // 自动填入模板中第一个空的图片变量（如 qrImageUrl），图片会出现在模板对应位置
+      const imageVar = og.emailTemplateVars.find(v => ogIsImageVar(v) && !og.emailTemplateData[v])
+      if (imageVar) {
+        og.emailTemplateData[imageVar] = r.data
+        ogOnEmailVarChange()
+        ElMessage.success('图片已上传并填入模板图片位置')
+      } else {
+        ElMessage.success('图片上传成功，请在预览中点击要插入的位置后点『插入』')
+      }
+    } else {
+      ElMessage.warning(r.message || '图片上传失败')
+    }
+  } catch (err) {
+    ElMessage.warning('图片上传失败')
+  } finally {
+    og.emailInsertingImage = false
+  }
+}
+
+// 记录预览内最后一次光标位置，用于把图片插入到用户选择的位置
+let ogEmailEditorSelection = null
+const ogEmailCaptureEditorSelection = () => {
+  const sel = window.getSelection()
+  if (sel && sel.rangeCount > 0 && emailContentEditableRef.value && emailContentEditableRef.value.contains(sel.anchorNode)) {
+    ogEmailEditorSelection = sel.getRangeAt(0).cloneRange()
+  }
+}
+
+const ogEmailInsertImageAtCaret = (url) => {
+  const el = emailContentEditableRef.value
+  if (!el) return
+  el.focus()
+  if (ogEmailEditorSelection && document.contains(ogEmailEditorSelection.startContainer)) {
+    const sel = window.getSelection()
+    if (sel) {
+      sel.removeAllRanges()
+      sel.addRange(ogEmailEditorSelection)
+    }
+  }
+  document.execCommand('insertHTML', false, `<img src="${url}" style="max-width:100%" />`)
+  ogOnEmailContentInput()
+}
+
+const ogRegenerateEmailPreview = () => {
+  og.emailContentDirty = false
+  og.emailSubjectDirty = false
+  og.emailImageUrls = []
+  clearTimeout(emailRenderTimer)
+  ogFetchEmailPreview()
+}
+
+const ogEmailGetHtml = () => {
+  return emailContentEditableRef.value ? emailContentEditableRef.value.innerHTML : og.emailPreviewContent
+}
 
 // ========================== Data Fetching ==========================
 const ogFetchData = async () => {
@@ -662,6 +835,11 @@ const parseVars = (text) => [
 
 const ogOnEmailTemplateSelect = (code) => {
   Object.keys(og.emailTemplateData).forEach((k) => delete og.emailTemplateData[k])
+  clearTimeout(emailRenderTimer)
+  og.emailPreviewSubject = ''
+  og.emailPreviewContent = ''
+  og.emailContentDirty = false
+  og.emailSubjectDirty = false
   if (!code) {
     og.emailSelectedTemplate = null
     og.emailTemplateVars = []
@@ -681,6 +859,7 @@ const ogOnEmailTemplateSelect = (code) => {
       disclosure: og.form,
       user: userState.userInfo || {}
     }))
+    ogFetchEmailPreview()
   }
 }
 
@@ -691,6 +870,11 @@ const ogOnEmailModeChange = () => {
   Object.keys(og.emailTemplateData).forEach((k) => delete og.emailTemplateData[k])
   og.emailSelectedTemplate = null
   og.emailTemplateVars = []
+  og.emailPreviewSubject = ''
+  og.emailPreviewContent = ''
+  og.emailContentDirty = false
+  og.emailSubjectDirty = false
+  clearTimeout(emailRenderTimer)
 }
 
 const ogUploadEmailAtt = async (opt) => {
@@ -712,47 +896,54 @@ const ogUploadEmailAtt = async (opt) => {
   }
 }
 
-const ogBeforeImageUpload = (file) => {
-  if (!file.type.startsWith('image/')) { ElMessage.warning('仅支持图片文件'); return false }
-  if (file.size > 5 * 1024 * 1024) { ElMessage.warning('图片大小不能超过 5MB'); return false }
-  return true
-}
-
-const ogUploadImage = async (opt) => {
-  const { file, onSuccess, onError } = opt
-  og.emailImageUploading = true
-  try {
-    const r = await uploadFile(file)
-    if (r.code === 200) {
-      og.emailImageUrls.push(r.data)
-      ElMessage.success('图片上传成功')
-      const imageVar = og.emailTemplateVars.find(v => ogIsImageVar(v))
-      if (imageVar) {
-        og.emailTemplateData[imageVar] = r.data
-      }
-      onSuccess(r)
-    } else {
-      onError(new Error(r.message || '上传失败'))
-    }
-  } catch (e) {
-    onError(e)
-  } finally { og.emailImageUploading = false }
-}
-
 const ogIsImageVar = (name) => /image|logo|pic|img|photo|banner|icon|avatar|qr/i.test(name)
+
+const ogOnEmailClearImageVar = (v) => {
+  og.emailTemplateData[v] = ''
+  ogOnEmailVarChange()
+}
+
+const ogRemoveEmailImage = async (idx) => {
+  const url = og.emailImageUrls[idx]
+  og.emailImageUrls.splice(idx, 1)
+  // 若该图片已填入模板图片变量，一并清除
+  const varName = og.emailTemplateVars.find(v => og.emailTemplateData[v] === url)
+  if (varName) {
+    og.emailTemplateData[varName] = ''
+  }
+  if (emailContentEditableRef.value) {
+    emailContentEditableRef.value.querySelectorAll('img').forEach(img => {
+      if (img.getAttribute('src') === url) img.remove()
+    })
+  }
+  // 预览处于模板渲染态（未手动编辑）时，清除变量后重新渲染以恢复占位；否则按手动编辑处理
+  if (varName && !og.emailContentDirty) {
+    ogOnEmailVarChange()
+  } else {
+    ogOnEmailContentInput()
+  }
+  if (url) {
+    const res = await deleteFile(url)
+    if (!res || res.code !== 200) {
+      ElMessage.warning('服务器文件删除失败（请确认后端已更新删除接口），已仅从界面移除')
+    }
+  }
+}
+
+const ogRemoveEmailAtt = async (idx) => {
+  const att = og.emailAttachments[idx]
+  og.emailAttachments.splice(idx, 1)
+  if (att?.url) {
+    const res = await deleteFile(att.url)
+    if (!res || res.code !== 200) {
+      ElMessage.warning('服务器文件删除失败（请确认后端已更新删除接口）')
+    }
+  }
+}
 
 const ogGetImageName = (url) => {
   const m = (url || '').match(/[?&]name=([^&]+)/)
   return m ? decodeURIComponent(m[1]) : (url || '').split('/').pop() || 'image'
-}
-
-const ogCopyImageUrl = async (url) => {
-  try {
-    await navigator.clipboard.writeText(url)
-    ElMessage.success('URL 已复制到剪贴板')
-  } catch {
-    ElMessage.warning('复制失败，请手动选择 URL')
-  }
 }
 
 const ogSendEmail = async () => {
@@ -770,13 +961,8 @@ const ogSendEmail = async () => {
       ElMessage.warning('请选择邮件模板')
       return
     }
-    const ev = og.emailTemplateVars.find(
-      (v) => !og.emailTemplateData[v]?.trim()
-    )
-    if (ev) {
-      ElMessage.warning(`请填写模板变量：${ev}`)
-      return
-    }
+    const bodyHtml = ogEmailGetHtml()
+    if (!bodyHtml.trim()) { ElMessage.warning('邮件正文为空，请等待预览生成或编辑预览内容后再发送'); return }
   }
   og.emailSending = true
   try {
@@ -796,7 +982,8 @@ const ogSendEmail = async () => {
         disclosureId: og.form.id,
         to: og.emailForm.to.trim(),
         cc: og.emailForm.cc.trim() || undefined,
-        subject: ogRenderedSubject.value,
+        subject: og.emailPreviewSubject.trim() || undefined,
+        text: ogEmailGetHtml(),
         templateCode: og.emailForm.templateCode,
         templateData: { ...og.emailTemplateData },
         attachmentUrls
@@ -804,6 +991,8 @@ const ogSendEmail = async () => {
     }
     if (r.code === 200) {
       ElMessage.success('发送成功')
+      // 发送成功跳转回工作界面（关闭处理对话框）
+      og.dialog.visible = false
     }
   } finally {
     og.emailSending = false
@@ -906,14 +1095,21 @@ onMounted(() => {
   line-height: 1.8;
   border: 1px solid #e4e7ed;
 }
-.image-upload-area { display: flex; align-items: center; gap: 12px; }
+.editor-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 6px 8px; margin-bottom: 8px; border: 1px solid #e4e7ed; border-radius: 4px; background: #fafafa; }
+.editor-toolbar__spacer { flex: 1; }
+.editable-preview { background: #fff; border: 1px solid #dcdfe6; outline: none; cursor: text; transition: border-color .2s, box-shadow .2s; }
+.editable-preview:focus { border-color: #409eff; box-shadow: 0 0 0 2px rgba(64, 158, 255, .15); }
+.editable-preview:empty::before { content: '点击此处可直接编辑邮件正文…'; color: #c0c4cc; pointer-events: none; }
+.dirty-hint { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: #e6a23c; }
+.image-insert-hint { margin-top: 6px; font-size: 12px; color: #909399; }
+.editable-preview img:not([src]), .editable-preview img[src=""], .editable-preview img[src="#"] { min-width: 140px; min-height: 80px; border: 1px dashed #c0c4cc; background: #f7f8fa; }
+.var-image-filled { display: flex; align-items: center; gap: 10px; }
+.var-image-thumb { width: 60px; height: 60px; object-fit: cover; border: 1px solid #e4e7ed; border-radius: 4px; }
+.var-image-waiting { color: #909399; font-size: 13px; }
 .image-preview-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .image-preview-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 1px solid #e4e7ed; border-radius: 4px; background: #fafafa; }
 .image-thumb { width: 100px; height: 80px; object-fit: cover; border-radius: 2px; cursor: pointer; transition: opacity 0.2s; }
 .image-thumb:hover { opacity: 0.8; }
 .image-url-text { font-size: 12px; color: #606266; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .image-url-actions { display: flex; gap: 4px; }
-.var-image-filled { display: flex; align-items: center; gap: 10px; }
-.var-image-thumb { width: 60px; height: 60px; object-fit: cover; border: 1px solid #e4e7ed; border-radius: 4px; }
-.var-image-waiting { color: #909399; font-size: 13px; }
 </style>

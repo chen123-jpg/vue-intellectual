@@ -120,6 +120,18 @@
               <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #303133">邮件正文预览</h4>
               <div class="content-preview" v-html="sentDetail.content || sentDetail.body || sentDetail.text || '无'"></div>
             </div>
+            <div v-if="sentAttachments.length" style="margin-top: 16px">
+              <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #303133">附件（{{ sentAttachments.length }}）</h4>
+              <div class="attachment-list">
+                <div v-for="att in sentAttachments" :key="att.id" class="attachment-item">
+                  <img v-if="isImageFile(att.fileName)" :src="att.fileUrl" class="attachment-thumb" :title="att.fileName" @click="openFile(att.fileUrl)" />
+                  <el-icon v-else class="attachment-icon"><Document /></el-icon>
+                  <span class="attachment-name">{{ att.fileName }}</span>
+                  <span class="attachment-size">{{ formatSize(att.fileSize) }}</span>
+                  <el-button size="small" type="primary" link @click="downloadAttachment(att)">下载</el-button>
+                </div>
+              </div>
+            </div>
           </el-dialog>
         </el-tab-pane>
 
@@ -255,11 +267,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Message } from '@element-plus/icons-vue'
+import { Message, Document } from '@element-plus/icons-vue'
 import { getSendLogs, getSendLogById, removeSendLog, batchRemoveSendLog, resendMail } from '../../api/mailRecord'
 import { getList, getById, create, update, remove, batchRemove } from '../../api/mailTemplate'
 import { useUserStore } from '../../stores/user'
-import { formatDateTime } from '../../utils/format'
+import { formatDateTime, downloadFile } from '../../utils/format'
 import { renderTemplate } from '../../utils/templateHelper'
 
 const { state } = useUserStore()
@@ -282,6 +294,21 @@ const sentLoading = ref(false)
 
 const sentDetailVisible = ref(false)
 const sentDetail = ref(null)
+const sentAttachments = ref([])
+
+const isImageFile = (name) => /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(name || '')
+const formatSize = (bytes) => {
+  if (bytes == null) return ''
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / 1024 / 1024).toFixed(2) + ' MB'
+}
+const downloadAttachment = (att) => {
+  if (att?.fileUrl) downloadFile(att.fileUrl)
+}
+const openFile = (url) => {
+  if (url) window.open(url, '_blank')
+}
 
 const fetchSentLogs = async () => {
   sentLoading.value = true
@@ -318,6 +345,7 @@ const viewSentDetail = async (row) => {
     if (res.code === 200) {
       const data = res.data
       sentDetail.value = data.mailSendLog || data
+      sentAttachments.value = data.attachmentList || []
       sentDetailVisible.value = true
     }
   } catch { /* handled */ }
@@ -519,6 +547,15 @@ watch(activeTab, (tab) => {
   width: 100%;
   border: 1px solid #e4e7ed;
 }
+.content-preview img { max-width: 100%; }
+.content-preview :deep(table) { border-collapse: collapse; width: 100%; }
+.content-preview :deep(td), .content-preview :deep(th) { border: 1px solid #d4dde8; padding: 6px 10px; }
+.attachment-list { display: flex; flex-direction: column; gap: 8px; }
+.attachment-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid #e4e7ed; border-radius: 4px; background: #fafafa; }
+.attachment-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #e4e7ed; }
+.attachment-icon { font-size: 32px; color: #909399; }
+.attachment-name { flex: 1; font-size: 13px; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-size { font-size: 12px; color: #909399; white-space: nowrap; }
 .preview-content {
   min-height: 200px;
   max-height: 500px;

@@ -31,7 +31,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
-import { uploadFile } from '../api/mail'
+import { uploadFile, deleteFile } from '../api/mail'
 
 const props = defineProps({
   modelValue: {
@@ -105,7 +105,13 @@ const handleChange = () => {
   // el-upload manages file-list internally
 }
 
-const handleRemove = () => {
+const handleRemove = async (file) => {
+  if (file?.url) {
+    const res = await deleteFile(file.url)
+    if (!res || res.code !== 200) {
+      ElMessage.warning('服务器文件删除失败（请确认后端已更新删除接口）')
+    }
+  }
   syncModelValue()
 }
 

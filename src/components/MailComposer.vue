@@ -1,5 +1,6 @@
 <template>
   <div class="mail-composer">
+    <input ref="imageFileInputRef" type="file" accept="image/*" style="display:none" @change="onImageFileChosen" />
     <!-- ========== 弹窗模式 ========== -->
     <el-dialog
       v-if="mode === 'dialog'"
@@ -33,13 +34,13 @@
               <template v-if="templateData[v]">
                 <div class="var-image-filled">
                   <img :src="templateData[v]" class="var-image-thumb" />
-                  <el-button size="small" type="danger" text @click="templateData[v]=''">清除</el-button>
+                  <el-button size="small" type="danger" text @click="clearImageVar(v)">清除</el-button>
                 </div>
               </template>
-              <span v-else class="var-image-waiting">上传图片后自动填入</span>
+              <span v-else class="var-image-waiting">上传图片后自动填入模板对应位置</span>
             </el-form-item>
             <el-form-item v-else :label="templateVarLabel(v)" required>
-              <el-input v-model="templateData[v]" :placeholder="`输入${templateVarLabel(v)}`" />
+              <el-input v-model="templateData[v]" :placeholder="`输入${templateVarLabel(v)}`" @input="onVarChange" />
             </el-form-item>
           </template>
         </template>
@@ -48,10 +49,49 @@
         <template v-if="sendMode === 'template' && selectedTemplate">
           <el-divider content-position="left">邮件预览</el-divider>
           <el-form-item label="主题">
-            <el-input :model-value="renderedSubject" disabled />
+            <el-input v-model="previewSubject" @input="onSubjectInput" placeholder="邮件主题" />
           </el-form-item>
           <el-form-item label="正文">
-            <div class="content-preview" v-html="renderedContent"></div>
+            <div class="editor-toolbar" @mousedown.prevent>
+              <el-button-group>
+                <el-button size="small" text title="撤销" @click="execCmd('undo')"><el-icon><RefreshLeft /></el-icon></el-button>
+                <el-button size="small" text title="重做" @click="execCmd('redo')"><el-icon><RefreshRight /></el-icon></el-button>
+              </el-button-group>
+              <el-divider direction="vertical" />
+              <el-button-group>
+                <el-button size="small" text title="加粗" @click="execCmd('bold')"><b>B</b></el-button>
+                <el-button size="small" text title="斜体" @click="execCmd('italic')"><i>I</i></el-button>
+                <el-button size="small" text title="下划线" @click="execCmd('underline')"><u>U</u></el-button>
+                <el-button size="small" text title="删除线" @click="execCmd('strikeThrough')"><s>S</s></el-button>
+              </el-button-group>
+              <el-divider direction="vertical" />
+              <el-button-group>
+                <el-button size="small" text title="无序列表" @click="execCmd('insertUnorderedList')"><el-icon><List /></el-icon></el-button>
+                <el-button size="small" text title="有序列表" @click="execCmd('insertOrderedList')"><el-icon><Tickets /></el-icon></el-button>
+              </el-button-group>
+              <el-divider direction="vertical" />
+              <el-button-group>
+                <el-button size="small" text title="插入链接" @click="insertLink"><el-icon><Link /></el-icon></el-button>
+                <el-button size="small" text title="插入图片" :loading="insertingImage" @click="insertImage"><el-icon><Picture /></el-icon></el-button>
+                <el-button size="small" text title="清除格式" @click="execCmd('removeFormat')"><el-icon><Delete /></el-icon></el-button>
+              </el-button-group>
+              <div class="editor-toolbar__spacer"></div>
+              <el-button size="small" @click="regeneratePreview" title="根据模板变量重新生成预览">重新生成</el-button>
+            </div>
+            <div
+              ref="contentEditableRef"
+              class="content-preview editable-preview"
+              contenteditable="true"
+              v-loading="previewLoading"
+              @input="onContentInput"
+              @mouseup="captureEditorSelection"
+              @keyup="captureEditorSelection"
+              @focus="captureEditorSelection"
+            ></div>
+            <div v-if="contentDirty || subjectDirty" class="dirty-hint">
+              <el-icon><InfoFilled /></el-icon>
+              <span>已手动修改，修改模板变量不会自动刷新预览，点击『重新生成』恢复模板渲染。</span>
+            </div>
           </el-form-item>
         </template>
 
@@ -95,31 +135,20 @@
           </el-form-item>
         </template>
 
-        <!-- 模板模式：图片上传（仅模板含图片变量时显示） -->
-        <template v-if="sendMode === 'template' && templateVariables.some(v => isImageVar(v))">
-          <el-form-item label="插入图片">
-            <div class="image-upload-area">
-              <el-upload
-                :show-file-list="false"
-                :before-upload="beforeImageUpload"
-                :http-request="uploadImage"
-                accept="image/*"
-                action="#"
-              >
-                <el-button :loading="uploadingImage" size="small">选择图片</el-button>
-              </el-upload>
-              <span class="upload-tip">上传后在模板正文中以 cid 或 URL 引用</span>
-            </div>
-            <div v-if="imageUrls.length" class="image-preview-list">
+        <!-- 模板模式：已插入图片管理 -->
+        <template v-if="sendMode === 'template' && imageUrls.length">
+          <el-form-item label="已插入图片">
+            <div class="image-preview-list" @mousedown.prevent>
               <div v-for="(url, idx) in imageUrls" :key="idx" class="image-preview-item">
-                <img :src="url" class="image-thumb" @click="copyImageUrl(url)" title="点击复制 URL" />
+                <img :src="url" class="image-thumb" />
                 <span class="image-url-text">{{ getFileName(url) }}</span>
                 <div class="image-url-actions">
-                  <el-button size="small" text @click="copyImageUrl(url)">复制URL</el-button>
+                  <el-button size="small" type="primary" text @click="insertImageAtCaret(url)">插入</el-button>
                   <el-button size="small" type="danger" text @click="removeImage(idx)">删除</el-button>
                 </div>
               </div>
             </div>
+            <div class="image-insert-hint">先在预览正文中点击图片要插入的位置，再点『插入』。</div>
           </el-form-item>
         </template>
 
@@ -167,13 +196,13 @@
               <template v-if="templateData[v]">
                 <div class="var-image-filled">
                   <img :src="templateData[v]" class="var-image-thumb" />
-                  <el-button size="small" type="danger" text @click="templateData[v]=''">清除</el-button>
+                  <el-button size="small" type="danger" text @click="clearImageVar(v)">清除</el-button>
                 </div>
               </template>
-              <span v-else class="var-image-waiting">上传图片后自动填入</span>
+              <span v-else class="var-image-waiting">上传图片后自动填入模板对应位置</span>
             </el-form-item>
             <el-form-item v-else :label="templateVarLabel(v)" required>
-              <el-input v-model="templateData[v]" :placeholder="`输入${templateVarLabel(v)}`" />
+              <el-input v-model="templateData[v]" :placeholder="`输入${templateVarLabel(v)}`" @input="onVarChange" />
             </el-form-item>
           </template>
         </template>
@@ -182,10 +211,49 @@
         <template v-if="sendMode === 'template' && selectedTemplate">
           <el-divider content-position="left">邮件预览</el-divider>
           <el-form-item label="主题">
-            <el-input :model-value="renderedSubject" disabled />
+            <el-input v-model="previewSubject" @input="onSubjectInput" placeholder="邮件主题" />
           </el-form-item>
           <el-form-item label="正文">
-            <div class="content-preview" v-html="renderedContent"></div>
+            <div class="editor-toolbar" @mousedown.prevent>
+              <el-button-group>
+                <el-button size="small" text title="撤销" @click="execCmd('undo')"><el-icon><RefreshLeft /></el-icon></el-button>
+                <el-button size="small" text title="重做" @click="execCmd('redo')"><el-icon><RefreshRight /></el-icon></el-button>
+              </el-button-group>
+              <el-divider direction="vertical" />
+              <el-button-group>
+                <el-button size="small" text title="加粗" @click="execCmd('bold')"><b>B</b></el-button>
+                <el-button size="small" text title="斜体" @click="execCmd('italic')"><i>I</i></el-button>
+                <el-button size="small" text title="下划线" @click="execCmd('underline')"><u>U</u></el-button>
+                <el-button size="small" text title="删除线" @click="execCmd('strikeThrough')"><s>S</s></el-button>
+              </el-button-group>
+              <el-divider direction="vertical" />
+              <el-button-group>
+                <el-button size="small" text title="无序列表" @click="execCmd('insertUnorderedList')"><el-icon><List /></el-icon></el-button>
+                <el-button size="small" text title="有序列表" @click="execCmd('insertOrderedList')"><el-icon><Tickets /></el-icon></el-button>
+              </el-button-group>
+              <el-divider direction="vertical" />
+              <el-button-group>
+                <el-button size="small" text title="插入链接" @click="insertLink"><el-icon><Link /></el-icon></el-button>
+                <el-button size="small" text title="插入图片" :loading="insertingImage" @click="insertImage"><el-icon><Picture /></el-icon></el-button>
+                <el-button size="small" text title="清除格式" @click="execCmd('removeFormat')"><el-icon><Delete /></el-icon></el-button>
+              </el-button-group>
+              <div class="editor-toolbar__spacer"></div>
+              <el-button size="small" @click="regeneratePreview" title="根据模板变量重新生成预览">重新生成</el-button>
+            </div>
+            <div
+              ref="contentEditableRef"
+              class="content-preview editable-preview"
+              contenteditable="true"
+              v-loading="previewLoading"
+              @input="onContentInput"
+              @mouseup="captureEditorSelection"
+              @keyup="captureEditorSelection"
+              @focus="captureEditorSelection"
+            ></div>
+            <div v-if="contentDirty || subjectDirty" class="dirty-hint">
+              <el-icon><InfoFilled /></el-icon>
+              <span>已手动修改，修改模板变量不会自动刷新预览，点击『重新生成』恢复模板渲染。</span>
+            </div>
           </el-form-item>
         </template>
 
@@ -229,31 +297,20 @@
           </el-form-item>
         </template>
 
-        <!-- 模板模式：图片上传（仅模板含图片变量时显示） -->
-        <template v-if="sendMode === 'template' && templateVariables.some(v => isImageVar(v))">
-          <el-form-item label="插入图片">
-            <div class="image-upload-area">
-              <el-upload
-                :show-file-list="false"
-                :before-upload="beforeImageUpload"
-                :http-request="uploadImage"
-                accept="image/*"
-                action="#"
-              >
-                <el-button :loading="uploadingImage" size="small">选择图片</el-button>
-              </el-upload>
-              <span class="upload-tip">上传后在模板正文中以 cid 或 URL 引用</span>
-            </div>
-            <div v-if="imageUrls.length" class="image-preview-list">
+        <!-- 模板模式：已插入图片管理 -->
+        <template v-if="sendMode === 'template' && imageUrls.length">
+          <el-form-item label="已插入图片">
+            <div class="image-preview-list" @mousedown.prevent>
               <div v-for="(url, idx) in imageUrls" :key="idx" class="image-preview-item">
-                <img :src="url" class="image-thumb" @click="copyImageUrl(url)" title="点击复制 URL" />
+                <img :src="url" class="image-thumb" />
                 <span class="image-url-text">{{ getFileName(url) }}</span>
                 <div class="image-url-actions">
-                  <el-button size="small" text @click="copyImageUrl(url)">复制URL</el-button>
+                  <el-button size="small" type="primary" text @click="insertImageAtCaret(url)">插入</el-button>
                   <el-button size="small" type="danger" text @click="removeImage(idx)">删除</el-button>
                 </div>
               </div>
             </div>
+            <div class="image-insert-hint">先在预览正文中点击图片要插入的位置，再点『插入』。</div>
           </el-form-item>
         </template>
 
@@ -276,8 +333,8 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { sendMail, sendMailWithTemplate, getTemplateList, uploadFile } from '../api/mail'
-import { ArrowRight } from '@element-plus/icons-vue'
+import { sendMail, sendMailWithTemplate, renderMailPreview, getTemplateList, uploadFile, deleteFile } from '../api/mail'
+import { ArrowRight, RefreshLeft, RefreshRight, List, Tickets, Link, Picture, Delete, InfoFilled } from '@element-plus/icons-vue'
 import { autoFillTemplateVars, templateVarLabel, renderTemplate } from '../utils/templateHelper'
 import { useUserStore } from '../stores/user'
 import FileUpload from './FileUpload.vue'
@@ -313,13 +370,22 @@ const sendMode = ref('normal')
 const sending = ref(false)
 const attachmentUrls = ref([])
 const imageUrls = ref([])
-const uploadingImage = ref(false)
 const fileUploadRef = ref(null)
 const templateList = ref([])
 const templateLoading = ref(false)
 const selectedTemplate = ref(null)
 const templateVariables = ref([])
 const templateData = reactive({})
+
+const previewSubject = ref('')
+const previewContent = ref('')
+const contentDirty = ref(false)
+const subjectDirty = ref(false)
+const previewLoading = ref(false)
+const insertingImage = ref(false)
+const contentEditableRef = ref(null)
+const imageFileInputRef = ref(null)
+let renderTimer = null
 
 const showCcBcc = ref(false)
 
@@ -334,15 +400,142 @@ const sendForm = reactive({
 
 const enabledTemplates = computed(() => templateList.value.filter(t => t.enabled === 1))
 
-const renderedSubject = computed(() => {
-  if (!selectedTemplate.value) return ''
-  return renderTemplate(selectedTemplate.value.subject, templateData)
-})
+// ==================== 预览渲染 ====================
+const syncEditorDom = () => {
+  if (contentEditableRef.value) {
+    contentEditableRef.value.innerHTML = previewContent.value
+  }
+}
 
-const renderedContent = computed(() => {
-  if (!selectedTemplate.value) return ''
-  return renderTemplate(selectedTemplate.value.content, templateData)
-})
+/** 后端渲染失败时的前端兜底渲染（仅刷新未手动编辑的部分） */
+const renderLocalPreview = () => {
+  if (!selectedTemplate.value) return
+  if (!subjectDirty.value) previewSubject.value = renderTemplate(selectedTemplate.value.subject, templateData)
+  if (!contentDirty.value) {
+    previewContent.value = renderTemplate(selectedTemplate.value.content, templateData)
+    syncEditorDom()
+  }
+}
+
+const fetchPreview = async () => {
+  if (!selectedTemplate.value || !sendForm.templateCode) return
+  previewLoading.value = true
+  try {
+    const res = await renderMailPreview({
+      templateCode: sendForm.templateCode,
+      templateData: { ...templateData }
+    })
+    if (res.code === 200) {
+      if (!subjectDirty.value) previewSubject.value = res.data.subject || ''
+      if (!contentDirty.value) {
+        previewContent.value = res.data.content || ''
+        syncEditorDom()
+      }
+    } else {
+      renderLocalPreview()
+    }
+  } catch (e) {
+    renderLocalPreview()
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+const onVarChange = () => {
+  clearTimeout(renderTimer)
+  if (contentDirty.value && subjectDirty.value) return
+  renderTimer = setTimeout(fetchPreview, 400)
+}
+
+const onSubjectInput = () => { subjectDirty.value = true }
+
+const onContentInput = () => {
+  contentDirty.value = true
+  previewContent.value = contentEditableRef.value ? contentEditableRef.value.innerHTML : ''
+}
+
+const execCmd = (cmd, value = null) => {
+  if (!contentEditableRef.value) return
+  contentEditableRef.value.focus()
+  document.execCommand(cmd, false, value)
+  onContentInput()
+}
+
+const insertLink = () => {
+  const url = window.prompt('请输入链接地址（以 http:// 或 https:// 开头）')
+  if (!url) return
+  execCmd('createLink', url)
+}
+
+const insertImage = () => {
+  imageFileInputRef.value?.click()
+}
+
+const onImageFileChosen = async (e) => {
+  const file = e.target.files[0]
+  e.target.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) { ElMessage.warning('仅支持图片文件'); return }
+  if (file.size > 5 * 1024 * 1024) { ElMessage.warning('图片大小不能超过 5MB'); return }
+  insertingImage.value = true
+  try {
+    const res = await uploadFile(file)
+    if (res.code === 200) {
+      imageUrls.value.push(res.data)
+      // 自动填入模板中第一个空的图片变量（如 qrImageUrl），图片会出现在模板对应位置
+      const imageVar = templateVariables.value.find(v => isImageVar(v) && !templateData[v])
+      if (imageVar) {
+        templateData[imageVar] = res.data
+        onVarChange()
+        ElMessage.success('图片已上传并填入模板图片位置')
+      } else {
+        ElMessage.success('图片上传成功，请在预览中点击要插入的位置后点『插入』')
+      }
+    } else {
+      ElMessage.warning(res.message || '图片上传失败')
+    }
+  } catch (err) {
+    ElMessage.warning('图片上传失败')
+  } finally {
+    insertingImage.value = false
+  }
+}
+
+// 记录预览内最后一次光标位置，用于把图片插入到用户选择的位置
+let editorSelection = null
+const captureEditorSelection = () => {
+  const sel = window.getSelection()
+  if (sel && sel.rangeCount > 0 && contentEditableRef.value && contentEditableRef.value.contains(sel.anchorNode)) {
+    editorSelection = sel.getRangeAt(0).cloneRange()
+  }
+}
+
+const insertImageAtCaret = (url) => {
+  const el = contentEditableRef.value
+  if (!el) return
+  el.focus()
+  if (editorSelection && document.contains(editorSelection.startContainer)) {
+    const sel = window.getSelection()
+    if (sel) {
+      sel.removeAllRanges()
+      sel.addRange(editorSelection)
+    }
+  }
+  document.execCommand('insertHTML', false, `<img src="${url}" style="max-width:100%" />`)
+  onContentInput()
+}
+
+const regeneratePreview = () => {
+  contentDirty.value = false
+  subjectDirty.value = false
+  imageUrls.value = []
+  clearTimeout(renderTimer)
+  fetchPreview()
+}
+
+const getEditorHtml = () => {
+  return contentEditableRef.value ? contentEditableRef.value.innerHTML : previewContent.value
+}
 
 const buildDefaultCc = (extraCc) => {
   const userEmail = userState.userInfo?.email || userState.email || ''
@@ -379,6 +572,11 @@ const parseVariables = (text) => {
 
 const onTemplateSelect = (code) => {
   Object.keys(templateData).forEach(k => delete templateData[k])
+  clearTimeout(renderTimer)
+  previewSubject.value = ''
+  previewContent.value = ''
+  contentDirty.value = false
+  subjectDirty.value = false
   if (!code) {
     selectedTemplate.value = null
     templateVariables.value = []
@@ -395,6 +593,7 @@ const onTemplateSelect = (code) => {
       ...props.contextData,
       user: userState.userInfo || {}
     }))
+    fetchPreview()
   }
 }
 
@@ -403,6 +602,11 @@ const onSendModeChange = () => {
   Object.keys(templateData).forEach(k => delete templateData[k])
   selectedTemplate.value = null
   templateVariables.value = []
+  previewSubject.value = ''
+  previewContent.value = ''
+  contentDirty.value = false
+  subjectDirty.value = false
+  clearTimeout(renderTimer)
 }
 
 const handleSend = async () => {
@@ -412,8 +616,8 @@ const handleSend = async () => {
     if (!sendForm.text.trim()) { ElMessage.warning('正文不能为空'); return }
   } else {
     if (!sendForm.templateCode) { ElMessage.warning('请选择邮件模板'); return }
-    const emptyVar = templateVariables.value.find(v => !templateData[v]?.trim())
-    if (emptyVar) { ElMessage.warning(`请填写模板变量：${emptyVar}`); return }
+    const bodyHtml = getEditorHtml()
+    if (!bodyHtml.trim()) { ElMessage.warning('邮件正文为空，请等待预览生成或编辑预览内容后再发送'); return }
   }
 
   sending.value = true
@@ -436,7 +640,8 @@ const handleSend = async () => {
     } else {
       body.templateCode = sendForm.templateCode
       body.templateData = { ...templateData }
-      body.subject = renderedSubject.value
+      body.subject = previewSubject.value.trim() || undefined
+      body.text = getEditorHtml()
       res = await sendMailWithTemplate(body)
     }
 
@@ -445,8 +650,8 @@ const handleSend = async () => {
       emit('sent', {
         to: sendForm.to.trim(),
         cc: sendForm.cc.trim(),
-        subject: sendForm.subject.trim(),
-        text: sendForm.text.trim(),
+        subject: sendMode.value === 'template' ? previewSubject.value.trim() : sendForm.subject.trim(),
+        text: sendMode.value === 'template' ? getEditorHtml() : sendForm.text.trim(),
         templateCode: sendForm.templateCode
       })
       resetForm()
@@ -478,6 +683,11 @@ const resetForm = () => {
   Object.keys(templateData).forEach(k => delete templateData[k])
   selectedTemplate.value = null
   templateVariables.value = []
+  previewSubject.value = ''
+  previewContent.value = ''
+  contentDirty.value = false
+  subjectDirty.value = false
+  clearTimeout(renderTimer)
   if (fileUploadRef.value) fileUploadRef.value.clearFiles()
 }
 
@@ -489,47 +699,38 @@ const loadTemplates = async () => {
   } finally { templateLoading.value = false }
 }
 
-// ==================== 图片上传 ====================
-const beforeImageUpload = (file) => {
-  const isImage = file.type.startsWith('image/')
-  if (!isImage) { ElMessage.warning('仅支持图片文件'); return false }
-  const maxSize = 5 * 1024 * 1024
-  if (file.size > maxSize) { ElMessage.warning('图片大小不能超过 5MB'); return false }
-  return true
-}
-
-const uploadImage = async (option) => {
-  const { file, onSuccess, onError } = option
-  uploadingImage.value = true
-  try {
-    const res = await uploadFile(file)
-    if (res.code === 200) {
-      imageUrls.value.push(res.data)
-      ElMessage.success('图片上传成功')
-      // 自动填入匹配的模板变量（qrImageUrl/imageUrl/logo 等）并通知后端
-      const imageVar = templateVariables.value.find(v => isImageVar(v))
-      if (imageVar) {
-        templateData[imageVar] = res.data
-      }
-      onSuccess(res)
-    } else {
-      onError(new Error(res.message || '上传失败'))
-    }
-  } catch (e) {
-    onError(e)
-  } finally { uploadingImage.value = false }
-}
-
+// ==================== 已插入图片管理 ====================
 const isImageVar = (name) => /image|logo|pic|img|photo|banner|icon|avatar|qr/i.test(name)
 
-const removeImage = (idx) => { imageUrls.value.splice(idx, 1) }
+const clearImageVar = (v) => {
+  templateData[v] = ''
+  onVarChange()
+}
 
-const copyImageUrl = async (url) => {
-  try {
-    await navigator.clipboard.writeText(url)
-    ElMessage.success('URL 已复制到剪贴板')
-  } catch {
-    ElMessage.warning('复制失败，请手动选择 URL')
+const removeImage = async (idx) => {
+  const url = imageUrls.value[idx]
+  imageUrls.value.splice(idx, 1)
+  // 若该图片已填入模板图片变量，一并清除
+  const varName = templateVariables.value.find(v => templateData[v] === url)
+  if (varName) {
+    templateData[varName] = ''
+  }
+  if (contentEditableRef.value) {
+    contentEditableRef.value.querySelectorAll('img').forEach(img => {
+      if (img.getAttribute('src') === url) img.remove()
+    })
+  }
+  // 预览处于模板渲染态（未手动编辑）时，清除变量后重新渲染以恢复占位；否则按手动编辑处理
+  if (varName && !contentDirty.value) {
+    onVarChange()
+  } else {
+    onContentInput()
+  }
+  if (url) {
+    const res = await deleteFile(url)
+    if (!res || res.code !== 200) {
+      ElMessage.warning('服务器文件删除失败（请确认后端已更新删除接口），已仅从界面移除')
+    }
   }
 }
 
@@ -628,16 +829,7 @@ onMounted(() => {
   margin-left: 4px;
 }
 
-/* ========== 图片上传区域 ========== */
-.image-upload-area {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.upload-tip {
-  font-size: 12px;
-  color: #909399;
-}
+/* ========== 已插入图片列表 ========== */
 .image-preview-list {
   display: flex;
   flex-wrap: wrap;
@@ -680,21 +872,59 @@ onMounted(() => {
   gap: 4px;
 }
 
-/* ========== 模板变量图片预览 ========== */
-.var-image-filled {
+/* ========== 可编辑预览 ========== */
+.editor-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-.var-image-thumb {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
   border: 1px solid #e4e7ed;
   border-radius: 4px;
+  background: #fafafa;
 }
-.var-image-waiting {
+.editor-toolbar__spacer {
+  flex: 1;
+}
+.editable-preview {
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  outline: none;
+  cursor: text;
+  transition: border-color .2s, box-shadow .2s;
+}
+.editable-preview:focus {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, .15);
+}
+.editable-preview:empty::before {
+  content: '点击此处可直接编辑邮件正文…';
+  color: #c0c4cc;
+  pointer-events: none;
+}
+.dirty-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #e6a23c;
+}
+.image-insert-hint {
+  margin-top: 6px;
+  font-size: 12px;
   color: #909399;
-  font-size: 13px;
 }
+.editable-preview img:not([src]),
+.editable-preview img[src=""],
+.editable-preview img[src="#"] {
+  min-width: 140px;
+  min-height: 80px;
+  border: 1px dashed #c0c4cc;
+  background: #f7f8fa;
+}
+.var-image-filled { display: flex; align-items: center; gap: 10px; }
+.var-image-thumb { width: 60px; height: 60px; object-fit: cover; border: 1px solid #e4e7ed; border-radius: 4px; }
+.var-image-waiting { color: #909399; font-size: 13px; }
 </style>

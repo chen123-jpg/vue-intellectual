@@ -9,54 +9,58 @@
 export function autoFillTemplateVars(varNames, context = {}) {
   const { disclosure = {}, patent = {}, user = {} } = context || {}
 
-  // 变量名 → [来源对象, 字段key] 映射
+  // 变量名 → 候选来源列表（按顺序取第一个非空值）
   const mapping = {
     // === T表字段（交底数据）===
-    tempCaseNo:      [disclosure, 'internalNo'],
-    patentName:      [disclosure, 'disclosureName'],
-    patentType:      [disclosure, 'patentType'],
-    applicant:       [disclosure, 'applicant'],
-    inventorStr:     [disclosure, 'inventor'],
-    contactName:     [disclosure, 'contactPerson'],
+    tempCaseNo:      [[disclosure, 'internalNo'], [disclosure, 'tempNo']],
+    patentName:      [[disclosure, 'disclosureName']],
+    patentType:      [[disclosure, 'patentType']],
+    applicant:       [[disclosure, 'applicant']],
+    inventorStr:     [[disclosure, 'inventor']],
+    contactName:     [[disclosure, 'contactPerson']],
 
     // === 用户/代理人信息 ===
-    handlerName:     [user, 'realName'],
-    handlerPhone:    [user, 'phone'],
-    handlerEmail:    [user, 'email'],
-    handlerQq:       [user, 'qq'],
+    handlerName:     [[user, 'realName']],
+    handlerPhone:    [[user, 'phone']],
+    handlerEmail:    [[user, 'email']],
+    handlerQq:       [[user, 'qq']],
 
-    // === P表字段（专利申请数据）===
-    agentCaseNo:     [patent, 'agentCaseNo'],
-    applyNo:         [patent, 'applyNo'],
-    applyDate:       [patent, 'applyDate'],
-    draftNo:         [patent, 'draftNo'],
-    opinionTimes:    [patent, 'opinionTimes'],
-    feedbackDeadline:[patent, 'feedbackDeadline'],
-    pctDeadline:     [patent, 'pctDeadline'],
-    pctNo:           [patent, 'pctNo'],
-    priorityNo:      [patent, 'priorityNo'],
-    usApplyNo:       [patent, 'usApplyNo'],
-    usApplyDate:     [patent, 'usApplyDate'],
-    usCaseNo:        [patent, 'usCaseNo'],
-    refDocNum:       [patent, 'refDocNum'],
-    rejectAnalyzeDesc:    [patent, 'rejectAnalyzeDesc'],
-    rejectFeedbackDeadline:[patent, 'rejectFeedbackDeadline'],
-    reviewResult:    [patent, 'reviewResult'],
-    changeType:      [patent, 'changeType'],
-    abnormalReason:  [patent, 'abnormalReason'],
-    appealDeadline:  [patent, 'appealDeadline'],
+    // === P表字段（专利申请数据），优先取专利数据，缺失时回退到交底编号 ===
+    agentCaseNo:     [[patent, 'agentCaseNo'], [disclosure, 'internalNo'], [disclosure, 'tempNo']],
+    applyNo:         [[patent, 'applyNo']],
+    applyDate:       [[patent, 'applyDate']],
+    draftNo:         [[patent, 'draftNo']],
+    opinionTimes:    [[patent, 'opinionTimes']],
+    feedbackDeadline:[[patent, 'feedbackDeadline']],
+    pctDeadline:     [[patent, 'pctDeadline']],
+    pctNo:           [[patent, 'pctNo']],
+    priorityNo:      [[patent, 'priorityNo']],
+    usApplyNo:       [[patent, 'usApplyNo']],
+    usApplyDate:     [[patent, 'usApplyDate']],
+    usCaseNo:        [[patent, 'usCaseNo']],
+    refDocNum:       [[patent, 'refDocNum']],
+    rejectAnalyzeDesc:    [[patent, 'rejectAnalyzeDesc']],
+    rejectFeedbackDeadline:[[patent, 'rejectFeedbackDeadline']],
+    reviewResult:    [[patent, 'reviewResult']],
+    changeType:      [[patent, 'changeType']],
+    abnormalReason:  [[patent, 'abnormalReason']],
+    appealDeadline:  [[patent, 'appealDeadline']],
   }
 
   const result = {}
   for (const name of varNames) {
-    const entry = mapping[name]
-    if (entry) {
-      const [source, key] = entry
-      const val = source?.[key]
-      result[name] = val != null ? String(val) : ''
-    } else {
-      result[name] = ''
+    const candidates = mapping[name]
+    let val = ''
+    if (candidates) {
+      for (const [source, key] of candidates) {
+        const v = source?.[key]
+        if (v != null && String(v) !== '') {
+          val = String(v)
+          break
+        }
+      }
     }
+    result[name] = val
   }
   return result
 }
@@ -107,7 +111,7 @@ export function templateVarLabel(varName) {
   return VAR_LABELS[varName] || varName
 }
 
-/** 将模板字符串中的 ${varName} 替换为实际值，并处理 Thymeleaf th:text 用于前端预览 */
+/** 将模板字符串中的 ${varName} 替换为实际值，并处理 Thymeleaf 属性用于前端预览 */
 export function renderTemplate(template, data) {
   if (!template) return ''
   // Step 1: replace ${varName} with actual values
@@ -115,12 +119,16 @@ export function renderTemplate(template, data) {
     const val = data[name]
     return val != null ? String(val) : match
   })
-  // Step 2: convert th:text="VALUE" → replace element inner text with VALUE
+  // Step 2: convert th:text="VALUE" → element inner text = VALUE
   html = html.replace(
     /<(\w+)([^>]*?)\s+th:text="([^"]*)"([^>]*?)>([^<]*)<\/\1>/g,
     '<$1$2$4>$3</$1>'
   )
-  // Step 3: strip remaining th:* attributes for clean HTML preview
+  // Step 3: convert URL/内容类 th:* 属性为普通 HTML 属性（th:src / th:href / th:alt / th:title）
+  html = html.replace(/\s+th:(src|href|alt|title)="([^"]*)"/g, ' $1="$2"')
+  // Step 4: strip remaining th:* attributes（th:if / th:unless 等逻辑属性）
   html = html.replace(/\s*th:\w+(?:\s*=\s*"[^"]*")?\s*/g, ' ')
+  // Step 5: strip xmlns:th 命名空间
+  html = html.replace(/\s*xmlns:th="[^"]*"/g, ' ')
   return html
 }
