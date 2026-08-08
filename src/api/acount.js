@@ -17,12 +17,10 @@ export function getCheckCode(oldCheckCodeKey) {
   })
 }
 
-export function getSmsCode(mobile, checkCode, checkCodeKey) {
+export function getSmsCode(mobile) {
   return request.get('/api/acount/getSmsCode', {
     params: {
       mobile: mobile,
-      checkCode: checkCode,
-      checkCodeKey: checkCodeKey,
       t: Date.now()
     }
   })

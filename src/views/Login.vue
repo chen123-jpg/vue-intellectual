@@ -164,26 +164,7 @@ const sendSmsCode = async () => {
     ElMessage.warning("请输入手机号")
     return
   }
-
-  // 对于手机号登录，必须先填写人机验证码
-  let currentCheckCode = ''
-  let currentCheckCodeKey = ''
-  if (activeTab.value === 'login') {
-    currentCheckCode = phoneLoginForm.value.checkCode
-    currentCheckCodeKey = phoneLoginForm.value.checkCodeKey
-    if (!currentCheckCode) {
-      ElMessage.warning("请先输入图形验证码")
-      return
-    }
-  } else {
-    currentCheckCode = regForm.value.checkCode
-    currentCheckCodeKey = regForm.value.checkCodeKey
-    if (!currentCheckCode) {
-      ElMessage.warning("请先输入图形验证码")
-      return
-    }
-  }
-
+  
   try {
     const res = await getSmsCode(phone)
     isSending.value = true
@@ -204,11 +185,8 @@ const sendSmsCode = async () => {
     },1000)
   }catch (err){
     console.error("请求失败了:",err)
-    // 错误信息已经在 axios 拦截器中处理，如果是验证码错误，刷新一下图形验证码
-    refreshCaptcha()
     isSending.value = false
   }
-
 }
 
 const handleLogin = async () => {
