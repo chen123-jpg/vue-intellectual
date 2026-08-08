@@ -240,4 +240,13 @@ onMounted(() => { loadData() })
 .edit-basic-btn{margin-left:16px;font-weight:600}
 .locked-hint{display:flex;align-items:center;gap:10px;padding:32px 20px;color:#e65100;font-size:14px;font-weight:600}
 .process-card{margin-bottom:20px}
+.email-actions-bottom{display:flex;justify-content:flex-end;margin-top:8px}
+.preview-toggle-btn{border:2px dashed #bbdefb;color:#1e88e5;font-weight:600}
+.preview-toggle-btn:hover,.preview-toggle-btn.active{border-color:#1e88e5;background:#e8f0fe}
+.preview-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:24px}
+.preview-meta{display:flex;flex-direction:column;gap:10px}
+.preview-row{display:flex;gap:12px;font-size:14px}
+.preview-row strong{color:#37474f;white-space:nowrap;min-width:50px}
+.preview-row span{color:#5f6b7a;word-break:break-all}
+.preview-note{display:flex;align-items:center;gap:8px;padding:12px 16px;background:#f5f7fa;border-radius:6px;font-size:13px;color:#5f6b7a}
 </style>

@@ -10,7 +10,7 @@
       destroy-on-close
       @closed="onClosed"
     >
-      <el-form label-width="90px" class="composer-form">
+      <el-form label-width="110px" class="composer-form">
         <!-- 发送模式 -->
         <el-form-item label="发送模式">
           <el-radio-group v-model="sendMode" @change="onSendModeChange">
@@ -28,7 +28,7 @@
 
         <!-- 模板变量 -->
         <template v-if="sendMode === 'template' && templateVariables.length">
-          <el-divider content-position="left">模板变量</el-divider>
+          <el-divider />
           <template v-for="v in templateVariables" :key="v">
             <el-form-item v-if="isImageVar(v)" :label="templateVarLabel(v)">
               <template v-if="templateData[v]">
@@ -47,7 +47,7 @@
 
         <!-- 邮件预览 -->
         <template v-if="sendMode === 'template' && selectedTemplate">
-          <el-divider content-position="left">邮件预览</el-divider>
+          <el-divider />
           <el-form-item label="主题">
             <el-input v-model="previewSubject" @input="onSubjectInput" placeholder="邮件主题" />
           </el-form-item>
@@ -170,7 +170,7 @@
         <span class="card-title">{{ title || '发送邮件' }}</span>
       </template>
 
-      <el-form label-width="90px" class="composer-form">
+      <el-form label-width="110px" class="composer-form">
         <!-- 发送模式 -->
         <el-form-item label="发送模式">
           <el-radio-group v-model="sendMode" @change="onSendModeChange">
@@ -188,7 +188,7 @@
 
         <!-- 模板变量 -->
         <template v-if="sendMode === 'template' && templateVariables.length">
-          <el-divider content-position="left">模板变量</el-divider>
+          <el-divider />
           <template v-for="v in templateVariables" :key="v">
             <el-form-item v-if="isImageVar(v)" :label="templateVarLabel(v)">
               <template v-if="templateData[v]">
@@ -207,7 +207,7 @@
 
         <!-- 邮件预览 -->
         <template v-if="sendMode === 'template' && selectedTemplate">
-          <el-divider content-position="left">邮件预览</el-divider>
+          <el-divider />
           <el-form-item label="主题">
             <el-input v-model="previewSubject" @input="onSubjectInput" placeholder="邮件主题" />
           </el-form-item>
@@ -761,6 +761,8 @@ onMounted(() => {
 <style scoped>
 .mail-composer { width: 100%; }
 .composer-form .el-form-item { margin-bottom: 18px; }
+.composer-form :deep(.el-form-item__label) { white-space: nowrap; }
+.composer-form :deep(.el-radio-button.is-active .el-radio-button__inner) { background:#1e88e5!important;border-color:#1e88e5!important;box-shadow:-1px 0 0 0 #1e88e5!important; }
 .content-preview {
   background: #f5f7fa;
   padding: 16px;
@@ -788,7 +790,7 @@ onMounted(() => {
   margin-bottom: 18px;
 }
 .cc-bcc-label {
-  width: 90px;
+  width: 110px;
   text-align: right;
   padding-right: 12px;
   flex-shrink: 0;
