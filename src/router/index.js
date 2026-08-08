@@ -45,6 +45,11 @@ const routes = [
         meta: { permission: ['patent:disclosure:add', 'patent:disclosure:copy'] }
       },
       {
+        path: 'patent/disclosure/process/:id',
+        name: 'ProcessDisclosure',
+        component: () => import('../views/patent/disclosure/ProcessDisclosure.vue')
+      },
+      {
         path: 'patent/new-application',
         name: 'NewApplication',
         component: () => import('../views/patent/NewApplication.vue'),

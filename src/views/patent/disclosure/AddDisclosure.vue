@@ -477,7 +477,7 @@ const loadEditData = async (id) => {
     }
   } catch {
     ElMessage.error('加载交底数据失败')
-    router.push('/patent/disclosure')
+    router.push(route.query.returnTo || '/patent/disclosure')
   }
 }
 
@@ -516,7 +516,7 @@ const handleSave = async () => {
       if (res.code === 200) {
         allowRouteLeave = true
         ElMessage.success('修改成功')
-        router.push('/patent/disclosure')
+        router.push(route.query.returnTo || '/patent/disclosure')
       }
     } else {
       const res = await createWithAttachments(submitData, pendingDocument.value, pendingOthers.value, null)
@@ -550,7 +550,7 @@ const goNext = () => {
 const goBack = () => {
   addDraft.cancel(() => {
     allowRouteLeave = true
-    router.push('/patent/disclosure')
+    router.push(route.query.returnTo || '/patent/disclosure')
   })
 }
 

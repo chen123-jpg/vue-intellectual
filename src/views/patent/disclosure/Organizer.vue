@@ -23,8 +23,18 @@
           <el-button size="small" @click="ogFetchData" :icon="Refresh">刷新</el-button>
         </div>
 
+        <div v-if="unsentCount > 0" class="email-warn-bar">
+          <span class="email-warn-dot"></span>
+          <strong>{{ unsentCount }}</strong> 条交底尚未发送邮件，请尽快处理
+        </div>
+
         <!-- Table -->
         <el-table :data="og.tableData" v-loading="og.loading" border stripe>
+        <el-table-column width="36" align="center">
+          <template #default="{ row }">
+            <span v-if="!row.emailSent" class="row-dot" title="尚未发送邮件"></span>
+          </template>
+        </el-table-column>
         <el-table-column prop="tempNo" label="临时编号" width="120" />
         <el-table-column prop="internalNo" label="内部编号" width="120" />
         <el-table-column prop="disclosureName" label="交底名称" min-width="180" show-overflow-tooltip />
@@ -50,9 +60,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="ogOpenProcess(row)">处理</el-button>
+            <div class="action-cell">
+              <el-button size="small" type="primary" link @click="$router.push(`/patent/disclosure/process/${row.id}`)">处理</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -523,6 +535,8 @@ const og = reactive({
   templateList: [],
   enabledTemplates: computed(() => og.templateList.filter((t) => t.enabled === 1))
 })
+
+const unsentCount = computed(() => og.tableData.filter(r => !r.emailSent).length)
 
 const emailContentEditableRef = ref(null)
 const emailImageFileInputRef = ref(null)
@@ -1020,6 +1034,10 @@ onMounted(() => {
 .table-section__bar { display:flex;align-items:center;gap:8px; padding:10px 16px; background:#fafbfc; border-bottom:1px solid #e8ecf1; }
 .table-section__count { flex:1;font-size:13px;color:#5f6b7a; }
 .table-section__count strong { color:#1e88e5;font-weight:700; }
+.email-warn-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#fff3e0;border-bottom:1px solid #ffe0b2;font-size:13px;color:#e65100}
+.email-warn-dot{width:10px;height:10px;border-radius:50%;background:#e53935;flex-shrink:0;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.row-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#e53935;animation:pulse 2s infinite}
 
 .pagination {
   margin-top: 16px;
@@ -1112,4 +1130,5 @@ onMounted(() => {
 .image-thumb:hover { opacity: 0.8; }
 .image-url-text { font-size: 12px; color: #606266; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .image-url-actions { display: flex; gap: 4px; }
+.action-cell { display: flex; justify-content: center; gap: 4px; }
 </style>

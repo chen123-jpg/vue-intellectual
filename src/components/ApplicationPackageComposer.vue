@@ -37,62 +37,41 @@
         class="block-gap"
       />
 
-      <div class="slot-grid">
-        <el-card v-for="slot in documentSlots" :key="slot.code" shadow="never" class="file-slot">
-          <template #header>
-            <div class="slot-header">
-              <span>{{ slot.label }}</span>
-              <el-tag size="small" :type="currentFile(slot.code) ? 'success' : 'danger'">
-                {{ currentFile(slot.code) ? '已上传' : '缺失' }}
-              </el-tag>
-            </div>
-          </template>
-
-          <div v-if="currentFile(slot.code)" class="current-file">
-            <span class="file-name" :title="currentFile(slot.code).fileName">
-              {{ currentFile(slot.code).fileName }}
-            </span>
-            <span class="file-meta">v{{ currentFile(slot.code).versionNo }} · {{ fmtSize(currentFile(slot.code).fileSize) }}</span>
-          </div>
+      <!-- XML 申请文件 -->
+      <h4 class="section-title">XML 申请文件</h4>
+      <div class="slot-grid" style="grid-template-columns:1fr">
+        <el-card v-for="slot in xmlSlots" :key="slot.code" shadow="never" class="file-slot">
+          <template #header><div class="slot-header"><span>{{ slot.label }}</span></div></template>
+          <div v-if="currentFile(slot.code)" class="current-file"><span class="file-name" :title="currentFile(slot.code).fileName">{{ currentFile(slot.code).fileName }}</span><span class="file-meta">v{{ currentFile(slot.code).versionNo }} · {{ fmtSize(currentFile(slot.code).fileSize) }}</span></div>
           <div v-else class="empty-file">等待上传</div>
-
           <div class="slot-actions">
-            <el-upload
-              v-if="canEdit"
-              action="#"
-              :show-file-list="false"
-              :accept="slot.accept"
-              :before-upload="(file) => beforeUpload(file, slot)"
-              :http-request="(options) => uploadSlot(options, slot)"
-              :disabled="uploadingCode === slot.code"
-            >
-              <el-button size="small" type="primary" :loading="uploadingCode === slot.code">
-                {{ currentFile(slot.code) ? '替换文件' : '上传文件' }}
-              </el-button>
-            </el-upload>
-            <el-button
-              v-if="canEdit && currentFile(slot.code)"
-              size="small"
-              type="danger"
-              plain
-              :loading="removingCode === slot.code"
-              @click="removeSlot(slot)"
-            >移除</el-button>
-            <el-button
-              v-if="currentFile(slot.code)"
-              size="small"
-              @click="preview(currentFile(slot.code))"
-            >
-              预览
-            </el-button>
-            <el-button
-              v-if="currentFile(slot.code)"
-              size="small"
-              @click="download(currentFile(slot.code))"
-            >下载</el-button>
+            <el-upload v-if="canEdit" action="#" :show-file-list="false" :accept="slot.accept" :before-upload="(file)=>beforeUpload(file,slot)" :http-request="(opts)=>uploadSlot(opts,slot)" :disabled="uploadingCode===slot.code"><el-button size="small" type="primary" :loading="uploadingCode===slot.code">{{ currentFile(slot.code)?'替换文件':'上传文件' }}</el-button></el-upload>
+            <el-button v-if="canEdit&&currentFile(slot.code)" size="small" type="danger" plain :loading="removingCode===slot.code" @click="removeSlot(slot)">移除</el-button>
+            <el-button v-if="currentFile(slot.code)" size="small" @click="preview(currentFile(slot.code))">预览</el-button>
+            <el-button v-if="currentFile(slot.code)" size="small" @click="download(currentFile(slot.code))">下载</el-button>
           </div>
         </el-card>
       </div>
+
+      <!-- 五书申请文件 -->
+      <h4 class="section-title">五书申请文件</h4>
+      <el-card shadow="never" class="five-docs-card">
+        <div v-for="slot in fiveDocsSlots" :key="slot.code" class="five-docs-row">
+          <span class="five-docs-row__label">{{ slot.label }}</span>
+          <template v-if="currentFile(slot.code)">
+            <span class="file-name-inline" :title="currentFile(slot.code).fileName">{{ currentFile(slot.code).fileName }}</span>
+            <span class="file-meta">v{{ currentFile(slot.code).versionNo }} · {{ fmtSize(currentFile(slot.code).fileSize) }}</span>
+            <el-upload v-if="canEdit" action="#" :show-file-list="false" :accept="slot.accept" :before-upload="(file)=>beforeUpload(file,slot)" :http-request="(opts)=>uploadSlot(opts,slot)" :disabled="uploadingCode===slot.code"><el-button size="small" type="primary" text :loading="uploadingCode===slot.code">替换</el-button></el-upload>
+            <el-button v-if="canEdit" size="small" type="danger" text :loading="removingCode===slot.code" @click="removeSlot(slot)">移除</el-button>
+            <el-button size="small" text @click="preview(currentFile(slot.code))">预览</el-button>
+            <el-button size="small" text @click="download(currentFile(slot.code))">下载</el-button>
+          </template>
+          <template v-else>
+            <span class="file-meta">等待上传</span>
+            <el-upload v-if="canEdit" action="#" :show-file-list="false" :accept="slot.accept" :before-upload="(file)=>beforeUpload(file,slot)" :http-request="(opts)=>uploadSlot(opts,slot)" :disabled="uploadingCode===slot.code"><el-button size="small" type="primary" :loading="uploadingCode===slot.code">上传</el-button></el-upload>
+          </template>
+        </div>
+      </el-card>
 
       <div v-if="canSend" class="send-panel">
         <el-select
@@ -193,6 +172,8 @@ const documentSlots = [
   { code: 'ABSTRACT', label: '摘要', accept: '.doc,.docx' },
   { code: 'ABSTRACT_DRAWING', label: '摘要附图', accept: '.doc,.docx' }
 ]
+const xmlSlots = computed(() => documentSlots.filter(s => s.code === 'XML'))
+const fiveDocsSlots = computed(() => documentSlots.filter(s => s.code !== 'XML'))
 const statusMap = {
   DRAFT: { label: '待组包', type: 'info' },
   PENDING_RECEIVE: { label: '待接收', type: 'warning' },
@@ -365,6 +346,11 @@ onMounted(load)
 
 <style scoped>
 .summary { margin-bottom: 14px; }
+.section-title { margin: 16px 0 10px; padding-left: 10px; font-size: 14px; font-weight: 700; color: #37474f; border-left: 3px solid #1e88e5; line-height: 1.2; }
+.five-docs-row { display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;gap:10px }
+.five-docs-row:last-child { border-bottom:none }
+.five-docs-row__label { font-weight:600;font-size:13px;white-space:nowrap;width:90px;flex-shrink:0 }
+.file-name-inline { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#5f6b7a;max-width:200px;flex:1 }
 .block-gap { margin-bottom: 14px; }
 .slot-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .file-slot :deep(.el-card__header) { padding: 10px 14px; }
