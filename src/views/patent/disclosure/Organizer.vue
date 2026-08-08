@@ -264,7 +264,10 @@
                   <span v-else class="var-image-waiting">上传图片后自动填入模板对应位置</span>
                 </el-form-item>
                 <el-form-item v-else :label="templateVarLabel(v)" required>
-                  <el-input v-model="og.emailTemplateData[v]" :placeholder="`输入${templateVarLabel(v)}`" @input="ogOnEmailVarChange" />
+                  <div class="var-input-wrap">
+                    <el-input v-model="og.emailTemplateData[v]" :placeholder="`请输入${templateVarLabel(v)}`" @input="ogOnEmailVarChange" />
+                    <span v-if="!og.emailTemplateData[v]" class="var-manual-hint">无自动数据，需手动填写</span>
+                  </div>
                 </el-form-item>
               </template>
             </template>
@@ -471,6 +474,7 @@ import {
   uploadFile,
   deleteFile
 } from '../../../api/disclosureWorkflow'
+import ptable from '../../../api/ptable'
 import ApplicantAgentSelect from '../../../components/ApplicantAgentSelect.vue'
 import ApplicationPackageComposer from '../../../components/ApplicationPackageComposer.vue'
 import { downloadFile, formatDate, formatDateTime } from '../../../utils/format'
@@ -532,6 +536,7 @@ const og = reactive({
   emailContentDirty: false,
   emailSubjectDirty: false,
   emailPreviewLoading: false,
+  emailPatentData: null,
   templateList: [],
   enabledTemplates: computed(() => og.templateList.filter((t) => t.enabled === 1))
 })
@@ -830,7 +835,10 @@ const ogOnTabChange = (tab) => {
   if (tab === 'status') ogFetchStatusLogs()
   else if (tab === 'fees') ogFetchFees()
   else if (tab === 'invoices') ogFetchInvoices()
-  else if (tab === 'email' && !og.templateList.length) ogLoadTemplates()
+  else if (tab === 'email') {
+    if (!og.templateList.length) ogLoadTemplates()
+    ogLoadEmailPatent()
+  }
 }
 
 // ========================== Email ==========================
@@ -840,6 +848,31 @@ const ogLoadTemplates = async () => {
     if (r.code === 200) og.templateList = r.data || []
   } catch {
     og.templateList = []
+  }
+}
+
+// 加载交底关联的专利申请（patent_new_application），用于模板变量自动填充
+const ogLoadEmailPatent = async () => {
+  const patentId = og.form?.patentApplicationId
+  if (!patentId) {
+    og.emailPatentData = null
+    return
+  }
+  try {
+    const r = await ptable['new-application'].getById(patentId)
+    og.emailPatentData = (r && r.code === 200) ? (r.data || {}) : null
+  } catch {
+    og.emailPatentData = null
+  }
+  // 若已选模板，用最新数据重新自动填充并刷新预览
+  if (og.emailSelectedTemplate && og.emailForm.templateCode) {
+    Object.keys(og.emailTemplateData).forEach((k) => delete og.emailTemplateData[k])
+    Object.assign(og.emailTemplateData, autoFillTemplateVars(og.emailTemplateVars, {
+      disclosure: og.form,
+      patent: og.emailPatentData || {},
+      user: userState.userInfo || {}
+    }))
+    ogFetchEmailPreview()
   }
 }
 
@@ -871,6 +904,7 @@ const ogOnEmailTemplateSelect = (code) => {
     og.emailTemplateVars = vars
     Object.assign(og.emailTemplateData, autoFillTemplateVars(vars, {
       disclosure: og.form,
+      patent: og.emailPatentData || {},
       user: userState.userInfo || {}
     }))
     ogFetchEmailPreview()
@@ -984,7 +1018,7 @@ const ogSendEmail = async () => {
     let r
     if (og.emailMode === 'normal') {
       r = await sendMail({
-        disclosureId: og.form.id,
+        referenceId: og.form.internalNo || String(og.form.id),
         to: og.emailForm.to.trim(),
         subject: og.emailForm.subject.trim(),
         text: og.emailForm.text.trim(),
@@ -993,7 +1027,7 @@ const ogSendEmail = async () => {
       })
     } else {
       r = await sendMailWithTemplate({
-        disclosureId: og.form.id,
+        referenceId: og.form.internalNo || String(og.form.id),
         to: og.emailForm.to.trim(),
         cc: og.emailForm.cc.trim() || undefined,
         subject: og.emailPreviewSubject.trim() || undefined,
@@ -1124,6 +1158,8 @@ onMounted(() => {
 .var-image-filled { display: flex; align-items: center; gap: 10px; }
 .var-image-thumb { width: 60px; height: 60px; object-fit: cover; border: 1px solid #e4e7ed; border-radius: 4px; }
 .var-image-waiting { color: #909399; font-size: 13px; }
+.var-input-wrap { width: 100%; }
+.var-manual-hint { margin-top: 4px; font-size: 12px; color: #e6a23c; }
 .image-preview-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .image-preview-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 1px solid #e4e7ed; border-radius: 4px; background: #fafafa; }
 .image-thumb { width: 100px; height: 80px; object-fit: cover; border-radius: 2px; cursor: pointer; transition: opacity 0.2s; }

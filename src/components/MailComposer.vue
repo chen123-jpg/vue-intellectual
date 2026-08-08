@@ -93,6 +93,21 @@
               <span>已手动修改，修改模板变量不会自动刷新预览，点击『重新生成』恢复模板渲染。</span>
             </div>
           </el-form-item>
+
+          <!-- 已插入图片管理：显示在邮件预览下方 -->
+          <el-form-item v-if="imageUrls.length" label="已插入图片">
+            <div class="image-preview-list" @mousedown.prevent>
+              <div v-for="(url, idx) in imageUrls" :key="idx" class="image-preview-item">
+                <img :src="url" class="image-thumb" />
+                <span class="image-url-text">{{ getFileName(url) }}</span>
+                <div class="image-url-actions">
+                  <el-button size="small" type="primary" text @click="insertImageAtCaret(url)">插入</el-button>
+                  <el-button size="small" type="danger" text @click="removeImage(idx)">删除</el-button>
+                </div>
+              </div>
+            </div>
+            <div class="image-insert-hint">先在预览正文中点击图片要插入的位置，再点『插入』。</div>
+          </el-form-item>
         </template>
 
         <el-divider />
@@ -132,23 +147,6 @@
           </el-form-item>
           <el-form-item label="正文" required>
             <el-input v-model="sendForm.text" type="textarea" :rows="6" placeholder="邮件正文，支持 HTML" />
-          </el-form-item>
-        </template>
-
-        <!-- 模板模式：已插入图片管理 -->
-        <template v-if="sendMode === 'template' && imageUrls.length">
-          <el-form-item label="已插入图片">
-            <div class="image-preview-list" @mousedown.prevent>
-              <div v-for="(url, idx) in imageUrls" :key="idx" class="image-preview-item">
-                <img :src="url" class="image-thumb" />
-                <span class="image-url-text">{{ getFileName(url) }}</span>
-                <div class="image-url-actions">
-                  <el-button size="small" type="primary" text @click="insertImageAtCaret(url)">插入</el-button>
-                  <el-button size="small" type="danger" text @click="removeImage(idx)">删除</el-button>
-                </div>
-              </div>
-            </div>
-            <div class="image-insert-hint">先在预览正文中点击图片要插入的位置，再点『插入』。</div>
           </el-form-item>
         </template>
 
@@ -255,6 +253,21 @@
               <span>已手动修改，修改模板变量不会自动刷新预览，点击『重新生成』恢复模板渲染。</span>
             </div>
           </el-form-item>
+
+          <!-- 已插入图片管理：显示在邮件预览下方 -->
+          <el-form-item v-if="imageUrls.length" label="已插入图片">
+            <div class="image-preview-list" @mousedown.prevent>
+              <div v-for="(url, idx) in imageUrls" :key="idx" class="image-preview-item">
+                <img :src="url" class="image-thumb" />
+                <span class="image-url-text">{{ getFileName(url) }}</span>
+                <div class="image-url-actions">
+                  <el-button size="small" type="primary" text @click="insertImageAtCaret(url)">插入</el-button>
+                  <el-button size="small" type="danger" text @click="removeImage(idx)">删除</el-button>
+                </div>
+              </div>
+            </div>
+            <div class="image-insert-hint">先在预览正文中点击图片要插入的位置，再点『插入』。</div>
+          </el-form-item>
         </template>
 
         <el-divider />
@@ -297,23 +310,6 @@
           </el-form-item>
         </template>
 
-        <!-- 模板模式：已插入图片管理 -->
-        <template v-if="sendMode === 'template' && imageUrls.length">
-          <el-form-item label="已插入图片">
-            <div class="image-preview-list" @mousedown.prevent>
-              <div v-for="(url, idx) in imageUrls" :key="idx" class="image-preview-item">
-                <img :src="url" class="image-thumb" />
-                <span class="image-url-text">{{ getFileName(url) }}</span>
-                <div class="image-url-actions">
-                  <el-button size="small" type="primary" text @click="insertImageAtCaret(url)">插入</el-button>
-                  <el-button size="small" type="danger" text @click="removeImage(idx)">删除</el-button>
-                </div>
-              </div>
-            </div>
-            <div class="image-insert-hint">先在预览正文中点击图片要插入的位置，再点『插入』。</div>
-          </el-form-item>
-        </template>
-
         <!-- 附件 -->
         <el-form-item label="附件">
           <FileUpload ref="fileUploadRef" v-model="attachmentUrls" tip="支持上传多个文件" />
@@ -352,6 +348,7 @@ const props = defineProps({
   defaultSubject: { type: String, default: '' },
   defaultText: { type: String, default: '' },
   disclosureId: { type: Number, default: null },
+  referenceId: { type: String, default: '' },
   disclosureAttachmentIds: { type: Array, default: () => [] },
   modelValue: { type: Boolean, default: false },
   contextData: { type: Object, default: () => ({}) }
@@ -629,7 +626,8 @@ const handleSend = async () => {
       bcc: sendForm.bcc.trim() || undefined,
       attachmentUrls: allAttachmentUrls
     }
-    if (props.disclosureId) body.disclosureId = props.disclosureId
+    if (props.referenceId) body.referenceId = props.referenceId
+    else if (props.disclosureId) body.disclosureId = props.disclosureId
     if (props.disclosureAttachmentIds.length) body.disclosureAttachmentIds = props.disclosureAttachmentIds
 
     let res

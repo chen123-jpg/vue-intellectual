@@ -7,6 +7,11 @@ export function getSendLogs(params) {
   return request.get(`${BASE}/list`, { params })
 }
 
+// 按关联ID（交底ID或内部编号）查询发送记录
+export function getSendLogsByReference(referenceId) {
+  return request.get(BASE, { params: { referenceId } })
+}
+
 // 查询发送记录详情
 export function getSendLogById(id) {
   return request.get(`${BASE}/${id}`)

@@ -27,8 +27,8 @@ export function autoFillTemplateVars(varNames, context = {}) {
 
     // === P表字段（专利申请数据），优先取专利数据，缺失时回退到交底编号 ===
     agentCaseNo:     [[patent, 'agentCaseNo'], [disclosure, 'internalNo'], [disclosure, 'tempNo']],
-    applyNo:         [[patent, 'applyNo']],
-    applyDate:       [[patent, 'applyDate']],
+    applyNo:         [[patent, 'applyNo'], [patent, 'applicationNo']],
+    applyDate:       [[patent, 'applyDate'], [patent, 'applicationDate']],
     draftNo:         [[patent, 'draftNo']],
     opinionTimes:    [[patent, 'opinionTimes']],
     feedbackDeadline:[[patent, 'feedbackDeadline']],
