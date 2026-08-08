@@ -771,6 +771,10 @@ onMounted(() => {
   font-size: 14px;
   line-height: 1.8;
   border: 1px solid #e4e7ed;
+  /* 作为 el-form-item__content(flex-wrap) 的项，占满整行 */
+  flex-grow: 1;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .card-title { font-size: 15px; font-weight: 600; }
 
@@ -876,11 +880,21 @@ onMounted(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+  /* 强制占满整行：el-form-item__content 是 flex-wrap 布局，
+     若不占满整行，模板较小时工具栏会被挤到预览左边 */
+  width: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
   padding: 6px 8px;
   margin-bottom: 8px;
   border: 1px solid #e4e7ed;
   border-radius: 4px;
   background: #fafafa;
+  /* 滚动页面/弹窗时工具栏始终吸附在预览上方 */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 .editor-toolbar__spacer {
   flex: 1;
