@@ -37,15 +37,15 @@
         class="block-gap"
       />
 
-      <!-- XML 申请文件 -->
-      <h4 class="section-title">XML 申请文件</h4>
+      <!-- XML 压缩包 -->
+      <h4 class="section-title">XML 压缩包</h4>
       <div class="slot-grid" style="grid-template-columns:1fr">
         <el-card v-for="slot in xmlSlots" :key="slot.code" shadow="never" class="file-slot">
           <template #header><div class="slot-header"><span>{{ slot.label }}</span></div></template>
           <div v-if="currentFile(slot.code)" class="current-file"><span class="file-name" :title="currentFile(slot.code).fileName">{{ currentFile(slot.code).fileName }}</span><span class="file-meta">v{{ currentFile(slot.code).versionNo }} · {{ fmtSize(currentFile(slot.code).fileSize) }}</span></div>
           <div v-else class="empty-file">等待上传</div>
           <div class="slot-actions">
-            <el-upload v-if="canEdit" action="#" :show-file-list="false" :accept="slot.accept" :before-upload="(file)=>beforeUpload(file,slot)" :http-request="(opts)=>uploadSlot(opts,slot)" :disabled="uploadingCode===slot.code"><el-button size="small" type="primary" :loading="uploadingCode===slot.code">{{ currentFile(slot.code)?'替换文件':'上传文件' }}</el-button></el-upload>
+            <el-upload v-if="canEdit" action="#" :show-file-list="false" :accept="slot.accept" :before-upload="(file)=>beforeUpload(file,slot)" :http-request="(opts)=>uploadSlot(opts,slot)" :disabled="uploadingCode===slot.code"><el-button size="small" type="primary" :loading="uploadingCode===slot.code">{{ currentFile(slot.code)?'替换压缩包':'上传压缩包' }}</el-button></el-upload>
             <el-button v-if="canEdit&&currentFile(slot.code)" size="small" type="danger" plain :loading="removingCode===slot.code" @click="removeSlot(slot)">移除</el-button>
             <el-button v-if="currentFile(slot.code)" size="small" @click="preview(currentFile(slot.code))">预览</el-button>
             <el-button v-if="currentFile(slot.code)" size="small" @click="download(currentFile(slot.code))">下载</el-button>
@@ -68,7 +68,7 @@
           </template>
           <template v-else>
             <span class="file-meta">等待上传</span>
-            <el-upload v-if="canEdit" action="#" :show-file-list="false" :accept="slot.accept" :before-upload="(file)=>beforeUpload(file,slot)" :http-request="(opts)=>uploadSlot(opts,slot)" :disabled="uploadingCode===slot.code"><el-button size="small" type="primary" :loading="uploadingCode===slot.code">上传</el-button></el-upload>
+            <el-upload v-if="canEdit" action="#" :show-file-list="false" :accept="slot.accept" :before-upload="(file)=>beforeUpload(file,slot)" :http-request="(opts)=>uploadSlot(opts,slot)" :disabled="uploadingCode===slot.code"><el-button size="small" type="primary" :loading="uploadingCode===slot.code">上传原文件</el-button></el-upload>
           </template>
         </div>
       </el-card>
@@ -165,7 +165,7 @@ const { state } = useUserStore()
 const hasPerm = (permission) => state.permissions.includes(permission)
 
 const documentSlots = [
-  { code: 'XML', label: 'XML 申请文件', accept: '.xml' },
+  { code: 'XML', label: 'XML 压缩包', accept: '.zip,.rar,.7z,.tar,.gz' },
   { code: 'REQUEST', label: '请求书', accept: '.doc,.docx' },
   { code: 'DESCRIPTION', label: '说明书', accept: '.doc,.docx' },
   { code: 'CLAIMS', label: '权利要求书', accept: '.doc,.docx' },
@@ -242,7 +242,7 @@ const initialize = async () => {
 
 const beforeUpload = (file, slot) => {
   const ext = String(file.name || '').split('.').pop().toLowerCase()
-  const allowed = slot.code === 'XML' ? ['xml'] : ['doc', 'docx']
+  const allowed = slot.code === 'XML' ? ['zip', 'rar', '7z', 'tar', 'gz'] : ['doc', 'docx']
   if (!allowed.includes(ext)) {
     ElMessage.warning(`${slot.label}文件格式不正确`)
     return false
