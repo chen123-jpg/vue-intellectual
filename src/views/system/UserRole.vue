@@ -70,7 +70,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="角色" required>
-          <el-select v-model="form.roleId" placeholder="请选择角色" filterable style="width:100%">
+          <el-select v-model="form.roleIds" placeholder="请选择角色（可多选）" filterable multiple style="width:100%">
             <el-option v-for="r in roleOptions" :key="r.roleId" :label="r.roleName" :value="r.roleId" />
           </el-select>
         </el-form-item>
@@ -105,7 +105,7 @@ const roleOptions = ref([])
 const query = reactive({ userId: '', roleId: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const dialog = reactive({ visible: false, isEdit: false })
-const emptyForm = () => ({ userId: null, roleId: null })
+const emptyForm = () => ({ userId: null, roleIds: [] })
 const form = reactive(emptyForm())
 const editOriginRoleId = ref(null)
 const addDraft = useDialogAddDraft('system-user-role-add', {
@@ -169,25 +169,29 @@ const openAdd = () => {
 
 const openEdit = (row) => {
   form.userId = row.userId
-  form.roleId = row.roleId
+  form.roleIds = [row.roleId]
   editOriginRoleId.value = row.roleId
   dialog.isEdit = true
   dialog.visible = true
 }
 
 const handleSave = async () => {
+  if (!form.roleIds || !form.roleIds.length) {
+    ElMessage.warning('请选择至少一个角色')
+    return
+  }
   saving.value = true
   try {
     if (dialog.isEdit) {
       await remove(editOriginRoleId.value)
     }
-    const res = await create({ userId: form.userId, roleId: form.roleId })
-    if (res.code === 200) {
-      if (!dialog.isEdit) addDraft.clear()
-      ElMessage.success(dialog.isEdit ? '编辑成功' : '新增成功')
-      dialog.visible = false
-      fetchData()
+    for (const roleId of form.roleIds) {
+      await create({ userId: form.userId, roleId })
     }
+    if (!dialog.isEdit) addDraft.clear()
+    ElMessage.success(dialog.isEdit ? '编辑成功' : '新增成功')
+    dialog.visible = false
+    fetchData()
   } finally { saving.value = false }
 }
 

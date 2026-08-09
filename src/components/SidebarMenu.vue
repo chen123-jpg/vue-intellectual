@@ -48,7 +48,7 @@
           ]"
           @click="handleL2Click(l2)"
         >
-          <span class="l2-item__dot"></span>
+          <component :is="l2.icon" class="l2-item__icon" />
           <span class="l2-item__label">{{ l2.label }}</span>
           <span v-if="hasChildren(l2)" class="l2-item__arrow">
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
@@ -68,7 +68,7 @@
             :class="['l3-item', { 'l3-item--active': isL3Active(l3) }]"
             @click="handleL3Click(l3)"
           >
-            <span class="l3-item__dot"></span>
+            <component :is="l3.icon" class="l3-item__icon" />
             <span class="l3-item__label">{{ l3.label }}</span>
           </div>
         </div>
@@ -103,7 +103,7 @@ const expandedL2Ids = ref(new Set())
 const sidebarRef = ref(null)
 
 // ========== 面板宽度计算 ==========
-const PANEL_WIDTH = 120
+const PANEL_WIDTH = 140
 const PANEL_COLLAPSED = 56
 
 const sidebarWidth = computed(() => {
@@ -161,14 +161,13 @@ const syncActiveState = () => {
   if (!props.activePath || !props.menus.length) return
 
   for (const l2 of props.menus) {
-    if (l2.path === props.activePath) {
-      expandedL2Ids.value = new Set()
-      return
-    }
     if (l2.children) {
       for (const l3 of l2.children) {
         if (l3.path === props.activePath) {
-          expandedL2Ids.value = new Set([l2.id])
+          // 追加展开，不影响其他已展开的二级菜单
+          const newSet = new Set(expandedL2Ids.value)
+          newSet.add(l2.id)
+          expandedL2Ids.value = newSet
           return
         }
       }
@@ -177,7 +176,37 @@ const syncActiveState = () => {
 }
 
 watch(() => props.activePath, syncActiveState, { immediate: true })
-watch(() => props.menus, syncActiveState)
+watch(() => props.menus, (newMenus) => {
+  syncActiveState()
+  // 切换一级菜单时，自动展开二级（总条目少时展开，多时不展开）
+  autoExpand(newMenus)
+})
+
+// ========== 自动展开逻辑 ==========
+const MAX_AUTO_EXPAND = 18 // 二三级总条目数阈值，超过则不自动展开
+
+const autoExpand = (menus) => {
+  if (!menus || !menus.length) {
+    expandedL2Ids.value = new Set()
+    return
+  }
+  // 统计二三级总条目数
+  let total = 0
+  const expandIds = []
+  for (const l2 of menus) {
+    total++ // 二级本身
+    if (l2.children && l2.children.length) {
+      total += l2.children.length
+      expandIds.push(l2.id)
+    }
+  }
+  // 总条目少时才自动展开所有二级
+  if (total <= MAX_AUTO_EXPAND) {
+    expandedL2Ids.value = new Set(expandIds)
+  } else {
+    expandedL2Ids.value = new Set()
+  }
+}
 
 // ========== 通知父级宽度变化 ==========
 watch(sidebarWidth, (w) => {
@@ -342,8 +371,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   min-height: 36px;
-  margin: 2px 4px;
-  padding: 6px 12px 6px 10px;
+  margin: 2px 4px 2px 0;
+  padding: 6px 12px 6px 4px;
   cursor: pointer;
   user-select: none;
   color: #455a64;
@@ -367,25 +396,30 @@ onUnmounted(() => {
   box-shadow: inset 0 0 0 1px rgba(21, 101, 192, 0.12);
 }
 
-.l2-item--active .l2-item__dot {
-  background: #1e88e5;
-  box-shadow: 0 0 6px rgba(30, 136, 229, 0.4);
-  width: 6px;
-  height: 6px;
+.l2-item--active .l2-item__icon {
+  color: #0d47a1;
+  background: #90caf9;
 }
 
-.l2-item__dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #b0bec5;
+.l2-item__icon {
+  width: 15px;
+  height: 15px;
+  font-size: 15px;
+  color: #1565c0;
   flex-shrink: 0;
   transition: all 0.22s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #bbdefb;
+  border-radius: 5px;
+  padding: 5px;
+  box-sizing: content-box;
 }
 
 .l2-item__label {
   flex: 1;
-  word-break: break-all;
+  word-break: keep-all;
   line-height: 1.3;
   font-size: 13px;
 }
@@ -414,11 +448,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   min-height: 32px;
-  margin: 1px 4px 1px 8px;
-  padding: 4px 12px 4px 20px;
+  margin: 1px 4px 1px 2px;
+  padding: 4px 12px 4px 6px;
   cursor: pointer;
   user-select: none;
-  color: #607d8b;
+  color: #3e4d56;
   font-size: 12px;
   font-weight: 500;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -427,26 +461,9 @@ onUnmounted(() => {
   border-radius: 6px;
 }
 
-.l3-item::before {
-  content: '';
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #cfd8dc;
-  transition: all 0.2s ease;
-}
-
 .l3-item:hover {
   background: #eef2f7;
   color: #37474f;
-}
-
-.l3-item:hover::before {
-  background: #90a4ae;
 }
 
 .l3-item--active {
@@ -455,20 +472,30 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.l3-item--active::before {
-  background: #1e88e5;
-  box-shadow: 0 0 4px rgba(30, 136, 229, 0.4);
-  width: 6px;
-  height: 6px;
+.l3-item--active .l3-item__icon {
+  color: #1565c0;
+  background: #bbdefb;
 }
 
-.l3-item__dot {
-  display: none;
+.l3-item__icon {
+  width: 13px;
+  height: 13px;
+  font-size: 13px;
+  color: #42a5f5;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e3f2fd;
+  border-radius: 4px;
+  padding: 3px;
+  box-sizing: content-box;
 }
 
 .l3-item__label {
   flex: 1;
-  word-break: break-all;
+  word-break: keep-all;
   line-height: 1.3;
   font-size: 12px;
 }

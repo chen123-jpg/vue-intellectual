@@ -113,7 +113,7 @@ const { state, logout, fetchUserInfo } = useUserStore()
 const isCollapse = ref(false)
 const isMobile = ref(false)
 const fullMenus = ref([])
-const sidebarWidth = ref(120)
+const sidebarWidth = ref(140)
 const brandWidth = computed(() => sidebarWidth.value + 'px')
 
 // ========== 用户信息 ==========
@@ -346,7 +346,7 @@ watch(() => state.menuVersion, () => {
   justify-content: space-between;
   height: 64px;
   padding: 0 16px 0 0;
-  background: linear-gradient(135deg, #0a1628 0%, #132036 40%, #1a2f4a 100%);
+  background: linear-gradient(135deg, #0d47a1 0%, #1565c0 40%, #1e88e5 100%);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   border-radius: 0 0 8px 8px;
   flex-shrink: 0;
@@ -417,7 +417,7 @@ watch(() => state.menuVersion, () => {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.8);
+  color: #fff;
   background: transparent;
   font-size: 15px;
   font-weight: 700;
@@ -440,7 +440,7 @@ watch(() => state.menuVersion, () => {
 
 
 .top-l1-btn--active {
-  color: #0a1628;
+  color: #0d47a1;
   background: #fff;
   border-radius: 20px;
   position: relative;
@@ -463,7 +463,7 @@ watch(() => state.menuVersion, () => {
 
 .top-l1-btn--active .l1-btn-icon {
   opacity: 1;
-  color: #0a1628;
+  color: #0d47a1;
 }
 
 .l1-btn-label {
